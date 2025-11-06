@@ -19,6 +19,13 @@ namespace fi {
 		constexpr std::size_t OFFSET_STRINGS{ 0x34310 };
 		constexpr std::size_t SIZE_STRINGS{ 0x30ba };
 
+		constexpr char SECTION_DEFINES[]{ "[defines]" };
+		constexpr char SECTION_STRINGS[]{ "[strings]" };
+		constexpr char SECTION_SHOPS[]{ "[shops]" };
+		constexpr char SECTION_ISCRIPT[]{ "[iscript]" };
+		constexpr char DIRECTIVE_ENTRYPOINT[]{ ".entrypoint" };
+		constexpr char PSEUDO_OPCODE_TEXTBOX[]{ ".textbox" };
+
 		inline const std::map<byte, std::string> DEFINES_ITEMS{
 			{0x00, "WEAPON_HAND_DAGGER"},
 			{0x01, "WEAPON_LONG_SWORD"},

@@ -24,3 +24,8 @@ std::vector<byte> fi::Shop::to_bytes(void) const {
 
 	return result;
 }
+
+std::size_t fi::Shop::byte_size(void) const {
+	// 3 bytes per entry and a final delimiter
+	return 3 * m_entries.size() + 1;
+}

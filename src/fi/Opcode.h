@@ -2,7 +2,9 @@
 #define FI_OPCODE_H
 
 #include <map>
+#include <optional>
 #include <string>
+#include <vector>
 
 using byte = unsigned char;
 
@@ -46,6 +48,18 @@ namespace fi {
 	};
 
 	extern const std::map<byte, fi::Opcode> opcodes;
+
+	enum Instruction_type { OpCode, Directive };
+
+	struct Instruction {
+		Instruction_type type;
+		byte opcode_byte;
+		std::size_t size;
+		std::optional<uint16_t> operand;
+		std::optional<std::size_t> jump_target;
+
+		std::vector<byte> get_bytes(void) const;
+	};
 
 }
 

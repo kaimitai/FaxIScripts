@@ -51,6 +51,12 @@
     <ClCompile Include="src\fi\Shop.cpp">
       <Filter>Source Files\common\fi</Filter>
     </ClCompile>
+    <ClCompile Include="src\fi\FaxString.cpp">
+      <Filter>Source Files\common\fi</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fi\AsmReader.cpp">
+      <Filter>Source Files\common\fi</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\fi\Opcode.h">
@@ -69,6 +75,12 @@
       <Filter>Header Files\fi</Filter>
     </ClInclude>
     <ClInclude Include="src\fi\Shop.h">
+      <Filter>Header Files\fi</Filter>
+    </ClInclude>
+    <ClInclude Include="src\fi\FaxString.h">
+      <Filter>Header Files\fi</Filter>
+    </ClInclude>
+    <ClInclude Include="src\fi\AsmReader.h">
       <Filter>Header Files\fi</Filter>
     </ClInclude>
   </ItemGroup>

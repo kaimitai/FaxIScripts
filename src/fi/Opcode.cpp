@@ -25,3 +25,27 @@ const std::map<byte, fi::Opcode> fi::opcodes{
 	{0x15, fi::Opcode("EndGame", fi::ArgType::None, fi::Flow::Continue, fi::ArgDomain::None)},
 	{0x17, fi::Opcode("Jump", fi::ArgType::None, fi::Flow::Jump)}
 };
+
+std::vector<byte> fi::Instruction::get_bytes(void) const {
+	std::vector<byte> result{ opcode_byte };
+	if (type == Instruction_type::Directive)
+		return result;
+
+	const auto& op{ fi::opcodes.at(opcode_byte) };
+
+	if (op.arg_type == fi::ArgType::Byte)
+		result.push_back(static_cast<byte>(operand.value()));
+	else if (op.arg_type == fi::ArgType::Short) {
+		uint16_t opval{ operand.value() };
+		result.push_back(static_cast<byte>(opval % 256));
+		result.push_back(static_cast<byte>(opval / 256));
+	}
+
+	if (op.flow == fi::Flow::Jump || op.flow == fi::Flow::Read) {
+		uint16_t opval{ static_cast<uint16_t>(jump_target.value()) };
+		result.push_back(static_cast<byte>(opval % 256));
+		result.push_back(static_cast<byte>(opval / 256));
+	}
+
+	return result;
+}

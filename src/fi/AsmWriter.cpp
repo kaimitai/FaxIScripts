@@ -10,7 +10,7 @@ void fi::AsmWriter::generate_asm_file(const std::string& p_filename,
 	const std::map<std::size_t, fi::Instruction>& p_instructions,
 	const std::vector<std::size_t>& p_entrypoints,
 	const std::set<std::size_t>& p_jump_targets,
-	const std::vector<std::string>& p_strings,
+	const std::vector<fi::FaxString>& p_strings,
 	const std::vector<fi::Shop>& p_shops) const {
 
 	bool inline_strings{ true };
@@ -96,7 +96,7 @@ void fi::AsmWriter::generate_asm_file(const std::string& p_filename,
 			}
 
 			if (op.domain == fi::ArgDomain::TextString)
-				af += std::format(" ; \"{}\"", p_strings.at(static_cast<std::size_t>(instr.operand.value() - 1)));
+				af += std::format(" ; \"{}\"", p_strings.at(static_cast<std::size_t>(instr.operand.value() - 1)).get_string());
 
 			af += "\n";
 		}
@@ -151,11 +151,11 @@ std::string fi::AsmWriter::get_define(const std::map<byte, std::string>& p_map, 
 }
 
 void fi::AsmWriter::append_strings_section(std::string& p_asm,
-	const std::vector<std::string>& p_strings) const {
+	const std::vector<fi::FaxString>& p_strings) const {
 	p_asm += "\n[strings]\n";
 
 	for (std::size_t i{ 0 }; i < p_strings.size(); ++i)
-		p_asm += std::format("${:02x}: \"{}\"\n", i + 1, p_strings[i]);
+		p_asm += std::format("${:02x}: \"{}\"\n", i + 1, p_strings[i].get_string());
 }
 
 void fi::AsmWriter::append_shops_section(std::string& p_asm,

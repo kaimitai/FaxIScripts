@@ -7,21 +7,12 @@
 #include <optional>
 #include <set>
 #include "Opcode.h"
+#include "FaxString.h"
 #include "Shop.h"
 
 using byte = unsigned char;
 
 namespace fi {
-
-	enum Instruction_type { OpCode, Directive };
-
-	struct Instruction {
-		Instruction_type type;
-		byte opcode_byte;
-		std::size_t size;
-		std::optional<uint16_t> operand;
-		std::optional<std::size_t> jump_target;
-	};
 
 	class IScriptLoader {
 	public:
@@ -32,8 +23,8 @@ namespace fi {
 		const std::vector<byte> rom;
 		std::vector<std::size_t> ptr_table;
 		std::map<std::size_t, fi::Instruction> m_instructions;
-		std::vector<std::string> m_strings;
 		std::vector<fi::Shop> m_shops;
+		std::vector<fi::FaxString> m_strings;
 
 		std::set<std::size_t> m_jump_targets;
 		// map from ROM address -> shop index

@@ -27,32 +27,11 @@ void fi::IScriptLoader::parse_rom(void) {
 void fi::IScriptLoader::parse_strings(void) {
 	m_strings.clear();
 
-	std::string l_tmp_string;
 	for (std::size_t i{ c::OFFSET_STRINGS }; i < c::OFFSET_STRINGS + c::SIZE_STRINGS; ++i) {
-		if (rom.at(i) == 0xff) {
-			if (l_tmp_string.empty())
-				break;
-			else {
-				m_strings.push_back(l_tmp_string);
-				l_tmp_string.clear();
-			}
-		}
-		else {
-			unsigned char b{ rom.at(i) };
-			if (b == 0xfc)
-				l_tmp_string += "{p}";
-			else if (b == 0xfd)
-				l_tmp_string.push_back(' ');
-			else if (b == 0xfe)
-				l_tmp_string += "{n}";
-			else if (b == 0xfb)
-				l_tmp_string += "{title}";
-			else if (b == '\"')
-				l_tmp_string += "{q}";
-			else
-				l_tmp_string.push_back(b);
-		}
-
+		if (rom.at(i) == 0xff)
+			break;
+		else
+			m_strings.push_back(fi::FaxString(rom, i));
 	}
 }
 

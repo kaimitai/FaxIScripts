@@ -20,6 +20,7 @@ namespace fi {
 		void add_entry(byte p_item, byte p_lo, byte p_hi);
 
 		std::vector<byte> to_bytes(void) const;
+		std::size_t byte_size(void) const;
 	};
 
 }
