@@ -1,0 +1,75 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Header Files\common">
+      <UniqueIdentifier>{d8cad458-2621-49f8-a6cc-bc73d269b386}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\common\klib">
+      <UniqueIdentifier>{315efd54-d075-409a-9482-6ad959af124e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\common">
+      <UniqueIdentifier>{74872cdd-6ace-40d2-bcf0-101f2b8d4f59}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\common\klib">
+      <UniqueIdentifier>{99d45ec8-4c4c-4865-8bdc-3a9224023cb4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\fi">
+      <UniqueIdentifier>{c6938dd1-296d-46c7-8ced-9e0737cc34d1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\common\fi">
+      <UniqueIdentifier>{36866142-5c11-4ba2-a943-2ee904981369}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fi\Opcode.cpp">
+      <Filter>Source Files\common\fi</Filter>
+    </ClCompile>
+    <ClCompile Include="src\common\klib\Kfile.cpp">
+      <Filter>Source Files\common\klib</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fi\IScriptLoader.cpp">
+      <Filter>Source Files\common\fi</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fi\AsmWriter.cpp">
+      <Filter>Source Files\common\fi</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fi\Shop.cpp">
+      <Filter>Source Files\common\fi</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\fi\Opcode.h">
+      <Filter>Header Files\fi</Filter>
+    </ClInclude>
+    <ClInclude Include="src\common\klib\Kfile.h">
+      <Filter>Header Files\common\klib</Filter>
+    </ClInclude>
+    <ClInclude Include="src\fi\IScriptLoader.h">
+      <Filter>Header Files\fi</Filter>
+    </ClInclude>
+    <ClInclude Include="src\fi\fi_constants.h">
+      <Filter>Header Files\fi</Filter>
+    </ClInclude>
+    <ClInclude Include="src\fi\AsmWriter.h">
+      <Filter>Header Files\fi</Filter>
+    </ClInclude>
+    <ClInclude Include="src\fi\Shop.h">
+      <Filter>Header Files\fi</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>

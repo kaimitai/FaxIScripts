@@ -1,0 +1,108 @@
+#ifndef FI_CONSTANTS_H
+#define FI_CONSTANTS_H
+
+#include <cstddef>
+#include <map>
+#include <string>
+
+using byte = unsigned char;
+
+namespace fi {
+
+	namespace c {
+
+		constexpr std::size_t ISCRIPT_ADDR_LO{ 0x31f7b };
+		constexpr std::size_t ISCRIPT_ADDR_HI{ 0x32013 };
+		constexpr std::size_t ISCRIPT_COUNT{ 152 };
+		constexpr std::size_t ISCRIPT_PTR_ZERO_ADDR{ 0x28010 };
+
+		constexpr std::size_t OFFSET_STRINGS{ 0x34310 };
+		constexpr std::size_t SIZE_STRINGS{ 0x30ba };
+
+		inline const std::map<byte, std::string> DEFINES_ITEMS{
+			{0x00, "WEAPON_HAND_DAGGER"},
+			{0x01, "WEAPON_LONG_SWORD"},
+			{0x02, "WEAPON_GIANT_BLADE"},
+			{0x03, "WEAPON_DRAGON_SLAYER"},
+			{0x20, "ARMOR_LEATHER"},
+			{0x21, "ARMOR_STUDDED_MAIL"},
+			{0x22, "ARMOR_FULL_PLATE"},
+			{0x23, "ARMOR_BATTLE_SUIT"},
+			{0x40, "SHIELD_SMALL"},
+			{0x41, "SHIELD_LARGE"},
+			{0x42, "SHIELD_MAGIC"},
+			{0x43, "SHIELD_BATTLE_HELMET"},
+			{0x60, "MAGIC_DELUGE"},
+			{0x61, "MAGIC_THUNDER"},
+			{0x62, "MAGIC_FIRE"},
+			{0x63, "MAGIC_DEATH"},
+			{0x64, "MAGIC_TILTE"},
+			{0x80, "SPECIAL_RING_OF_ELF"},
+			{0x81, "SPECIAL_RING_OF_RUBY"},
+			{0x82, "SPECIAL_RING_OF_DWORF"},
+			{0x83, "SPECIAL_DEMONS_RING"},
+			{0x84, "KEY_A"},
+			{0x85, "KEY_K"},
+			{0x86, "KEY_Q"},
+			{0x87, "KEY_J"},
+			{0x88, "KEY_JO"},
+			{0x89, "MATTOCK"},
+			{0x8A, "SPECIAL_MAGICAL_ROD"},
+			{0x8B, "UNUSED_CRYSTAL"},
+			{0x8C, "UNUSED_LAMP"},
+			{0x8D, "ITEM_HOUR_GLASS"},
+			{0x8E, "UNUSED_BOOK"},
+			{0x8F, "ITEM_WING_BOOTS"},
+			{0x90, "ITEM_RED_POTION"},
+			{0x91, "ITEM_POISON"},
+			{0x92, "SPECIAL_ELIXIR"},
+			{0x93, "SPECIAL_PENDANT"},
+			{0x94, "SPECIAL_BLACK_ONYX"},
+			{0x95, "SPECIAL_FIRE_CRYSTAL"}
+		};
+
+		inline const std::map<byte, std::string> DEFINES_TEXTBOX{
+			{0x00, "GENERIC"},
+			{0x80, "KING"},
+			{0x81, "GURU"},
+			{0x82, "MARTIAL_ARTIST"},
+			{0x83, "MAGICIAN"},
+			{0x84, "DOCTOR"},
+			{0x85, "NURSE"},
+			{0x86, "PINK_SHIRT"},
+			{0x87, "SMOKER"},
+			{0x88, "MEAT_SALESMAN"},
+			{0x89, "TOOLS_SALESMAN"},
+			{0x8A, "KEY_SALESMAN"}
+		};
+
+		inline const std::map<byte, std::string> DEFINES_RANKS{
+			{0x00, "RANK_NOVICE"},
+			{0x01, "RANK_ASPIRANT"},
+			{0x02, "RANK_BATTLER"},
+			{0x03, "RANK_FIGHTER"},
+			{0x04, "RANK_ADEPT"},
+			{0x05, "RANK_CHEVALIER"},
+			{0x06, "RANK_VETERAN"},
+			{0x07, "RANK_WARRIOR"},
+			{0x08, "RANK_SWORDMAN"},
+			{0x09, "RANK_HERO"},
+			{0x0A, "RANK_SOLDIER"},
+			{0x0B, "RANK_MYRMIDON"},
+			{0x0C, "RANK_CHAMPION"},
+			{0x0D, "RANK_SUPERHERO"},
+			{0x0E, "RANK_PALADIN"},
+			{0x0F, "RANK_LORD"}
+		};
+
+		inline const std::map<byte, std::string> DEFINES_QUESTS{
+			{0x01, "QUEST_TOWER_SPRING"},
+			{0x02, "QUEST_SKY_SPRING"},
+			{0x03, "QUEST_DUNGEON_SPRING"}
+		};
+
+	}
+
+}
+
+#endif
