@@ -17,8 +17,9 @@ namespace fi {
 		std::vector<fi::FaxString> m_strings;
 		std::map<std::string, std::size_t> m_defines;
 		std::map<std::size_t, fi::Shop> m_shops;
-		std::vector<std::size_t> m_ptr_table;
 		std::vector<fi::Instruction> m_instructions;
+		// map from entrypoint no to offset
+		std::map<std::size_t, std::size_t> m_ptr_table;
 
 		std::map<SectionType, std::vector<std::string>> m_sections;
 

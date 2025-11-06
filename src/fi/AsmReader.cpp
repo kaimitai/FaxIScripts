@@ -248,11 +248,11 @@ void fi::AsmReader::parse_section_iscript(void) {
 
 	std::map<std::string, std::size_t> label_offsets;
 	std::map<std::string, std::set<std::size_t>> jump_labels;
-	std::map<std::size_t, std::size_t> ep_offsets;
 	// TODO: could keep offset inside the instr-struct. consider
 	std::map<std::size_t, std::size_t> offset_to_instruction;
 
 	m_instructions.clear();
+	m_ptr_table.clear();
 
 	// and so it begins...
 	for (std::string line : m_sections.at(fi::SectionType::IScript)) {
@@ -269,8 +269,8 @@ void fi::AsmReader::parse_section_iscript(void) {
 		// if entrypoint - extract entrypoint no and update ptr table map
 		else if (contains_entrypoint(line)) {
 			auto entry_no{ extract_entrypoint(line) };
-			if (ep_offsets.find(entry_no) == end(ep_offsets))
-				ep_offsets[entry_no] = offset;
+			if (m_ptr_table.find(entry_no) == end(m_ptr_table))
+				m_ptr_table[entry_no] = offset;
 			else
 				throw std::runtime_error(std::format("Multiple definitions for entrypoint {}", entry_no));
 		}
@@ -336,7 +336,7 @@ void fi::AsmReader::parse_section_iscript(void) {
 
 			// finally emit the instruction
 			offset_to_instruction[offset] = m_instructions.size();
-			offset += op.size();
+			offset += op.size() + 1; // TODO: Make explicit
 			m_instructions.push_back(fi::Instruction(
 				fi::Instruction_type::OpCode,
 				opcode_byte,
@@ -346,6 +346,11 @@ void fi::AsmReader::parse_section_iscript(void) {
 			));
 		}
 	}
+
+	// verify that we can populate each ptr table entry when we need to
+	for (std::size_t i{ 0 }; i < c::ISCRIPT_COUNT; ++i)
+		if (m_ptr_table.find(i) == end(m_ptr_table))
+			throw std::runtime_error(std::format("Entrypoint {} not defined. ", i));
 
 	// intermediate pass - patch all previously unresolved labels
 	for (const auto& kv : jump_labels) {
@@ -358,6 +363,19 @@ void fi::AsmReader::parse_section_iscript(void) {
 		}
 	}
 
+	// our offsets are all relative to the start of the script data immediately
+	// following the ptr table; make all our ptrs bank relative
+	const uint16_t PTR_DELTA{ static_cast<uint16_t>(c::ISCRIPT_ADDR_LO + 2 * c::ISCRIPT_COUNT
+	- c::ISCRIPT_PTR_ZERO_ADDR) };
+	for (auto& ins : m_instructions) {
+		if (ins.jump_target.has_value()) {
+			ins.jump_target = ins.jump_target.value() + PTR_DELTA;
+		}
+	}
+
+	for (auto& ptr : m_ptr_table) {
+		ptr.second += PTR_DELTA;
+	}
 }
 
 bool fi::AsmReader::contains_label(const std::string& p_line) const {
@@ -441,6 +459,13 @@ std::vector<std::string> fi::AsmReader::split_whitespace(const std::string& line
 std::vector<byte> fi::AsmReader::get_bytes(void) const {
 	std::vector<byte> result;
 
+	// lo bytes
+	for (std::size_t i{ 0 }; i < c::ISCRIPT_COUNT; ++i)
+		result.push_back(static_cast<byte>(m_ptr_table.at(i) % 256));
+	// hi bytes
+	for (std::size_t i{ 0 }; i < c::ISCRIPT_COUNT; ++i)
+		result.push_back(static_cast<byte>(m_ptr_table.at(i) / 256));
+
 	for (const auto& kv : m_shops) {
 		auto shopbytes{ kv.second.to_bytes() };
 		result.insert(end(result), begin(shopbytes), end(shopbytes));
@@ -451,7 +476,12 @@ std::vector<byte> fi::AsmReader::get_bytes(void) const {
 		result.insert(end(result), begin(instrbytes), end(instrbytes));
 	}
 
-	klib::file::write_bytes_to_file(result, "c:/temp/iscript.bin");
+	auto rom{ klib::file::read_file_as_bytes("c:/temp/faxanadu (u).nes") };
+
+	for (std::size_t i{ 0 }; i < result.size(); ++i)
+		rom.at(i + c::ISCRIPT_ADDR_LO) = result[i];
+
+	klib::file::write_bytes_to_file(rom, "c:/temp/faxscripts.nes");
 
 	return result;
 }
