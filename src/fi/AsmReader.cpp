@@ -8,8 +8,9 @@
 #include <stdexcept>
 #include <set>
 #include <string>
+#include <utility>
 
-void fi::AsmReader::read_asm_file(const std::string& p_filename) {
+void fi::AsmReader::read_asm_file(const std::string& p_filename, bool p_use_region_2) {
 	auto l_lines{ klib::file::read_file_as_strings(p_filename) };
 	fi::SectionType currentSection{ fi::SectionType::Defines };
 
@@ -35,7 +36,7 @@ void fi::AsmReader::read_asm_file(const std::string& p_filename) {
 	parse_section_strings();
 	parse_section_defines();
 	parse_section_shops();
-	parse_section_iscript();
+	parse_section_iscript(p_use_region_2);
 }
 
 void fi::AsmReader::parse_section_strings(void) {
@@ -224,7 +225,7 @@ std::size_t fi::AsmReader::resolve_token(const std::string& token) const {
 
 // the fun part, where we parse the asm instructions and calculate all offsets
 // before we convert to bytes in the final pass and take home the w
-void fi::AsmReader::parse_section_iscript(void) {
+void fi::AsmReader::parse_section_iscript(bool p_use_region_2) {
 	// start by calculating the shop offsets and code offset
 	// we are not emitting any bytes in the first pass
 	// we will do this with 0-relative offsets in the first pass
@@ -245,6 +246,9 @@ void fi::AsmReader::parse_section_iscript(void) {
 		l_shop_ptrs.insert(std::make_pair(kv.first, offset));
 		offset += kv.second.byte_size();
 	}
+
+	if (p_use_region_2)
+		offset = c::ISCRIPT_DATA_OFFSET_REGION_2;
 
 	std::map<std::string, std::size_t> label_offsets;
 	std::map<std::string, std::set<std::size_t>> jump_labels;
@@ -456,32 +460,25 @@ std::vector<std::string> fi::AsmReader::split_whitespace(const std::string& line
 	return tokens;
 }
 
-std::vector<byte> fi::AsmReader::get_bytes(void) const {
-	std::vector<byte> result;
+std::pair<std::vector<byte>, std::vector<byte>> fi::AsmReader::get_bytes(void) const {
+	std::vector<byte> ptr_table_and_shops, script_data;
 
 	// lo bytes
 	for (std::size_t i{ 0 }; i < c::ISCRIPT_COUNT; ++i)
-		result.push_back(static_cast<byte>(m_ptr_table.at(i) % 256));
+		ptr_table_and_shops.push_back(static_cast<byte>(m_ptr_table.at(i) % 256));
 	// hi bytes
 	for (std::size_t i{ 0 }; i < c::ISCRIPT_COUNT; ++i)
-		result.push_back(static_cast<byte>(m_ptr_table.at(i) / 256));
+		ptr_table_and_shops.push_back(static_cast<byte>(m_ptr_table.at(i) / 256));
 
 	for (const auto& kv : m_shops) {
 		auto shopbytes{ kv.second.to_bytes() };
-		result.insert(end(result), begin(shopbytes), end(shopbytes));
+		ptr_table_and_shops.insert(end(ptr_table_and_shops), begin(shopbytes), end(shopbytes));
 	}
 
 	for (const auto& instr : m_instructions) {
 		auto instrbytes{ instr.get_bytes() };
-		result.insert(end(result), begin(instrbytes), end(instrbytes));
+		script_data.insert(end(script_data), begin(instrbytes), end(instrbytes));
 	}
 
-	auto rom{ klib::file::read_file_as_bytes("c:/temp/faxanadu (u).nes") };
-
-	for (std::size_t i{ 0 }; i < result.size(); ++i)
-		rom.at(i + c::ISCRIPT_ADDR_LO) = result[i];
-
-	klib::file::write_bytes_to_file(rom, "c:/temp/faxscripts.nes");
-
-	return result;
+	return std::make_pair(ptr_table_and_shops, script_data);
 }

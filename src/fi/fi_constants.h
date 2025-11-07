@@ -14,7 +14,17 @@ namespace fi {
 		constexpr std::size_t ISCRIPT_ADDR_LO{ 0x31f7b };
 		constexpr std::size_t ISCRIPT_ADDR_HI{ 0x32013 };
 		constexpr std::size_t ISCRIPT_COUNT{ 152 };
+		constexpr std::size_t ISCRIPT_DATA_START{ ISCRIPT_ADDR_LO + 2 * ISCRIPT_COUNT };
 		constexpr std::size_t ISCRIPT_PTR_ZERO_ADDR{ 0x28010 };
+		// known constant: if the script data size becomes bigger than this
+		// we spill into unrelated data
+		// these offsets are relative to the data. after script entrypoiny
+		// ptr table the first address is 0
+		constexpr std::size_t ISCRIPT_DATA_SIZE_REGION_1{ 0x62d };
+		// 0x32d9b is a ROM offset at the end of the bank with free space
+		constexpr std::size_t ISCRIP_DATA_ROM_OFFSET_REGION_2{ 0x32d9b };
+		constexpr std::size_t ISCRIPT_DATA_OFFSET_REGION_2{
+			ISCRIP_DATA_ROM_OFFSET_REGION_2 - ISCRIPT_DATA_START };
 
 		constexpr std::size_t OFFSET_STRINGS{ 0x34310 };
 		constexpr std::size_t SIZE_STRINGS{ 0x30ba };
@@ -25,6 +35,11 @@ namespace fi {
 		constexpr char SECTION_ISCRIPT[]{ "[iscript]" };
 		constexpr char DIRECTIVE_ENTRYPOINT[]{ ".entrypoint" };
 		constexpr char PSEUDO_OPCODE_TEXTBOX[]{ ".textbox" };
+
+		// TODO: Get rid of this constant somehow?
+		// Used when inserting a jump into free region if our
+		// emitted bytes spill into other data
+		constexpr byte OPCODE_UNCONDITIONAL_JUMP{ 0x17 };
 
 		inline const std::map<byte, std::string> DEFINES_ITEMS{
 			{0x00, "WEAPON_HAND_DAGGER"},

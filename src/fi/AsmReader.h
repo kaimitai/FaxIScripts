@@ -31,7 +31,7 @@ namespace fi {
 		void parse_section_strings(void);
 		void parse_section_defines(void);
 		void parse_section_shops(void);
-		void parse_section_iscript(void);
+		void parse_section_iscript(bool p_use_region_2);
 
 		std::size_t resolve_token(const std::string& token) const;
 		
@@ -48,9 +48,9 @@ namespace fi {
 
 	public:
 		AsmReader(void) = default;
-		void read_asm_file(const std::string& p_filename);
+		void read_asm_file(const std::string& p_filename, bool p_use_region_2);
 
-		std::vector<byte> get_bytes(void) const;
+		std::pair<std::vector<byte>, std::vector<byte>> get_bytes(void) const;
 	};
 
 }
