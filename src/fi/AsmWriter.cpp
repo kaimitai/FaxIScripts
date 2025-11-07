@@ -89,14 +89,24 @@ void fi::AsmWriter::generate_asm_file(const std::string& p_filename,
 						lastentry, lastlabel, l_labels)
 				);
 			else if (op.flow == fi::Flow::Read) {
-				// we have a shop, add it to comments
-				af += std::format(" ${:02x} ; {}", instr.operand.value(),
-					serialize_shop_as_string(p_shops.at(instr.operand.value()))
-				);
+				if (instr.operand.value() >= p_shops.size()) {
+					af += std::format(" ${:02x} ; ERROR: Invalid shop index", instr.operand.value());
+				}
+				else {
+					// we have a shop, add it to comments
+					af += std::format(" ${:02x} ; {}", instr.operand.value(),
+						serialize_shop_as_string(p_shops.at(instr.operand.value()))
+					);
+				}
 			}
 
-			if (op.domain == fi::ArgDomain::TextString)
-				af += std::format(" ; \"{}\"", p_strings.at(static_cast<std::size_t>(instr.operand.value() - 1)).get_string());
+			if (op.domain == fi::ArgDomain::TextString) {
+				if (instr.operand.value() == 0 ||
+					static_cast<std::size_t>(instr.operand.value()) - 1 >= p_strings.size())
+					af += " ; ERROR: Invalid string index";
+				else
+					af += std::format(" ; \"{}\"", p_strings.at(static_cast<std::size_t>(instr.operand.value() - 1)).get_string());
+			}
 
 			af += "\n";
 		}

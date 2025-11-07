@@ -235,7 +235,7 @@ void fi::AsmReader::parse_section_iscript(bool p_use_region_2) {
 	std::map<std::string, byte> mnemonics;
 	for (const auto& opc : fi::opcodes) {
 		mnemonics.insert(std::make_pair(
-			opc.second.name, opc.first
+			to_lower(opc.second.name), opc.first
 		));
 	}
 
@@ -294,7 +294,7 @@ void fi::AsmReader::parse_section_iscript(bool p_use_region_2) {
 			// can't be empty as long as we did our pre-processing correctly
 			auto tokens{ split_whitespace(line) };
 
-			const std::string& mnemo{ tokens[0] };
+			const std::string& mnemo{ to_lower(tokens[0]) };
 			if (!mnemonics.contains(mnemo)) {
 				throw std::runtime_error("Unknown opcode: " + mnemo);
 			}
@@ -460,6 +460,15 @@ std::vector<std::string> fi::AsmReader::split_whitespace(const std::string& line
 	return tokens;
 }
 
+std::string fi::AsmReader::to_lower(const std::string& str) {
+	std::string result;
+
+	for (char c : str)
+		result.push_back(std::tolower(c));
+
+	return result;
+}
+
 std::pair<std::vector<byte>, std::vector<byte>> fi::AsmReader::get_bytes(void) const {
 	std::vector<byte> ptr_table_and_shops, script_data;
 
@@ -481,4 +490,15 @@ std::pair<std::vector<byte>, std::vector<byte>> fi::AsmReader::get_bytes(void) c
 	}
 
 	return std::make_pair(ptr_table_and_shops, script_data);
+}
+
+std::vector<byte> fi::AsmReader::get_string_bytes(void) const {
+	std::vector<byte> result;
+
+	for (const auto& fs : m_strings) {
+		const auto& fsbytes{ fs.to_bytes() };
+		result.insert(end(result), begin(fsbytes), end(fsbytes));
+	}
+
+	return result;
 }

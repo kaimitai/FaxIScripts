@@ -26,12 +26,23 @@ void fi::IScriptLoader::parse_rom(void) {
 
 void fi::IScriptLoader::parse_strings(void) {
 	m_strings.clear();
+	std::string encodedstring;
 
 	for (std::size_t i{ c::OFFSET_STRINGS }; i < c::OFFSET_STRINGS + c::SIZE_STRINGS; ++i) {
-		if (rom.at(i) == 0xff)
-			break;
-		else
-			m_strings.push_back(fi::FaxString(rom, i));
+			
+		if (rom.at(i) == 0xff) {
+			m_strings.push_back(encodedstring);
+			encodedstring.clear();
+		}
+		else {
+			byte b{ rom.at(i) };
+			auto iter{ c::FAXSTRING_CHARS.find(b) };
+			if (iter == end(c::FAXSTRING_CHARS))
+				encodedstring += std::format("<${:02x}>", b);
+			else
+				encodedstring += iter->second;
+		}
+
 	}
 }
 

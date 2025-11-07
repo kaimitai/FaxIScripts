@@ -46,11 +46,14 @@ namespace fi {
 		bool str_begins_with(const std::string& p_line, const std::string& p_start) const;
 		std::vector<std::string> split_whitespace(const std::string& p_line) const;
 
+		std::string to_lower(const std::string& str);
+
 	public:
 		AsmReader(void) = default;
 		void read_asm_file(const std::string& p_filename, bool p_use_region_2);
 
 		std::pair<std::vector<byte>, std::vector<byte>> get_bytes(void) const;
+		std::vector<byte> get_string_bytes(void) const;
 	};
 
 }
