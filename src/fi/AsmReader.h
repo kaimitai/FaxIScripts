@@ -35,7 +35,7 @@ namespace fi {
 		void parse_section_iscript(void);
 
 		std::size_t resolve_token(const std::string& token) const;
-		
+
 		bool contains_label(const std::string& p_line) const;
 		std::string extract_label(const std::string& p_line) const;
 
@@ -51,10 +51,15 @@ namespace fi {
 
 	public:
 		AsmReader(void) = default;
-		void read_asm_file(const std::string& p_filename, bool p_use_region_2);
+		void read_asm_file(const std::string& p_filename,
+			bool p_use_region_2, bool p_use_smart_linker);
 
+		// get bytes from here when using smart linker
 		std::pair<std::vector<byte>, std::vector<byte>> get_script_bytes(void) const;
-		std::pair<std::vector<byte>, std::vector<byte>> get_bytes(void) const;
+		// get bytes from here when not using the smart linker
+		// ensure you call it with the same "use region 2"-param
+		// you used when parsing the asm file
+		std::pair<std::vector<byte>, std::vector<byte>> get_bytes(bool p_use_region_2) const;
 		std::vector<byte> get_string_bytes(void) const;
 	};
 

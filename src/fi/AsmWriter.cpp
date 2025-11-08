@@ -11,7 +11,8 @@ void fi::AsmWriter::generate_asm_file(const std::string& p_filename,
 	const std::vector<std::size_t>& p_entrypoints,
 	const std::set<std::size_t>& p_jump_targets,
 	const std::vector<fi::FaxString>& p_strings,
-	const std::vector<fi::Shop>& p_shops) const {
+	const std::vector<fi::Shop>& p_shops,
+	bool p_string_comments, bool p_shop_comments) const {
 
 	bool inline_strings{ true };
 
@@ -93,10 +94,15 @@ void fi::AsmWriter::generate_asm_file(const std::string& p_filename,
 					af += std::format(" ${:02x} ; ERROR: Invalid shop index", instr.operand.value());
 				}
 				else {
-					// we have a shop, add it to comments
-					af += std::format(" ${:02x} ; {}", instr.operand.value(),
-						serialize_shop_as_string(p_shops.at(instr.operand.value()))
-					);
+					if (p_shop_comments) {
+						// we have a shop, add it to comments
+						af += std::format(" {} ; {}", instr.operand.value(),
+							serialize_shop_as_string(p_shops.at(instr.operand.value()))
+						);
+					}
+					else {
+						af += std::format(" {}", instr.operand.value());
+					}
 				}
 			}
 
@@ -104,7 +110,7 @@ void fi::AsmWriter::generate_asm_file(const std::string& p_filename,
 				if (instr.operand.value() == 0 ||
 					static_cast<std::size_t>(instr.operand.value()) - 1 >= p_strings.size())
 					af += " ; ERROR: Invalid string index";
-				else
+				else if (p_string_comments)
 					af += std::format(" ; \"{}\"", p_strings.at(static_cast<std::size_t>(instr.operand.value() - 1)).get_string());
 			}
 
@@ -165,7 +171,7 @@ void fi::AsmWriter::append_strings_section(std::string& p_asm,
 	p_asm += "\n[strings]\n";
 
 	for (std::size_t i{ 0 }; i < p_strings.size(); ++i)
-		p_asm += std::format("${:02x}: \"{}\"\n", i + 1, p_strings[i].get_string());
+		p_asm += std::format("{}: \"{}\"\n", i + 1, p_strings[i].get_string());
 }
 
 void fi::AsmWriter::append_shops_section(std::string& p_asm,
@@ -173,7 +179,7 @@ void fi::AsmWriter::append_shops_section(std::string& p_asm,
 	p_asm += "\n[shops]\n";
 
 	for (std::size_t i{ 0 }; i < p_shops.size(); ++i) {
-		std::string l_shop_string{ std::format("${:02x}: {}", i,
+		std::string l_shop_string{ std::format("{}: {}", i,
 			serialize_shop_as_string(p_shops[i])) };
 
 		p_asm += l_shop_string + "\n";

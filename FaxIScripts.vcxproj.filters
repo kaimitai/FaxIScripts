@@ -28,8 +28,14 @@
     <Filter Include="Header Files\fi">
       <UniqueIdentifier>{c6938dd1-296d-46c7-8ced-9e0737cc34d1}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\common\fi">
+    <Filter Include="Source Files\fi">
       <UniqueIdentifier>{36866142-5c11-4ba2-a943-2ee904981369}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\fi\cli">
+      <UniqueIdentifier>{c76e7660-70af-4894-b786-9b6f5c2ae154}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\fi\cli">
+      <UniqueIdentifier>{b7730ac0-a805-4356-ad99-2195e2b494d6}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -37,28 +43,31 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\fi\Opcode.cpp">
-      <Filter>Source Files\common\fi</Filter>
+      <Filter>Source Files\fi</Filter>
     </ClCompile>
     <ClCompile Include="src\common\klib\Kfile.cpp">
       <Filter>Source Files\common\klib</Filter>
     </ClCompile>
     <ClCompile Include="src\fi\IScriptLoader.cpp">
-      <Filter>Source Files\common\fi</Filter>
+      <Filter>Source Files\fi</Filter>
     </ClCompile>
     <ClCompile Include="src\fi\AsmWriter.cpp">
-      <Filter>Source Files\common\fi</Filter>
+      <Filter>Source Files\fi</Filter>
     </ClCompile>
     <ClCompile Include="src\fi\Shop.cpp">
-      <Filter>Source Files\common\fi</Filter>
+      <Filter>Source Files\fi</Filter>
     </ClCompile>
     <ClCompile Include="src\fi\FaxString.cpp">
-      <Filter>Source Files\common\fi</Filter>
+      <Filter>Source Files\fi</Filter>
     </ClCompile>
     <ClCompile Include="src\fi\AsmReader.cpp">
-      <Filter>Source Files\common\fi</Filter>
+      <Filter>Source Files\fi</Filter>
     </ClCompile>
     <ClCompile Include="src\fi\AsmReaderStaticLinker.cpp">
-      <Filter>Source Files\common\fi</Filter>
+      <Filter>Source Files\fi</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fi\cli\Cli.cpp">
+      <Filter>Source Files\fi\cli</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -85,6 +94,12 @@
     </ClInclude>
     <ClInclude Include="src\fi\AsmReader.h">
       <Filter>Header Files\fi</Filter>
+    </ClInclude>
+    <ClInclude Include="src\fi\cli\Cli.h">
+      <Filter>Header Files\fi\cli</Filter>
+    </ClInclude>
+    <ClInclude Include="src\fi\cli\application_constants.h">
+      <Filter>Header Files\fi\cli</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

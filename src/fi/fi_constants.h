@@ -22,9 +22,12 @@ namespace fi {
 		// ptr table the first address is 0
 		constexpr std::size_t ISCRIPT_DATA_SIZE_REGION_1{ 0x62d };
 		// 0x32d9b is a ROM offset at the end of the bank with free space
-		constexpr std::size_t ISCRIP_DATA_ROM_OFFSET_REGION_2{ 0x32d9b };
+		constexpr std::size_t ISCRIPT_DATA_ROM_OFFSET_REGION_2{ 0x32d9b };
 		constexpr std::size_t ISCRIPT_DATA_OFFSET_REGION_2{
-			ISCRIP_DATA_ROM_OFFSET_REGION_2 - ISCRIPT_DATA_START };
+			ISCRIPT_DATA_ROM_OFFSET_REGION_2 - ISCRIPT_DATA_START };
+		// we use extra space until th end of bank
+		constexpr std::size_t ISCRIPT_DATA_SIZE_REGION_2{
+			0x34010 - ISCRIPT_DATA_ROM_OFFSET_REGION_2 };
 
 		constexpr std::size_t OFFSET_STRINGS{ 0x34310 };
 		constexpr std::size_t SIZE_STRINGS{ 0x30ba };

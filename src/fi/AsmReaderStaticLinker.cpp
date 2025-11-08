@@ -19,7 +19,6 @@ Here is the general linking strategy we will employ:
 
 Data we need:
   A vector to hold our instructions
-  A map from byte offset to instruction index
   A map from entrypoint (ptr table index) to instruction index
   A map from label to instruction index
   A map from label to set of instruction indexes jumping to that label
@@ -36,9 +35,10 @@ Data we need:
 	 - make instruction
 	   - if jump instruction: store its index in the label -> instrs map
 	   - if shop: lay down the read address already as it is known before we start
+	   - tentatively store the current byte offset directly in the instruction
 
 5) Once we have the tentative offsets for all instructions, check if we overflow
-   If we do, find the first End- or Unconditional Jump-instruction within
+   If we do, find the first End- or Unconditional Jump-instruction fully within
    safe region 1. Take the first instruction after that one and calculate
    the byte length from its offset to start of safe region 2.
    Add this delta to the offsets for all instructions from this one onward.
@@ -46,9 +46,9 @@ Data we need:
    and ptr table entries, and assign them the byte address of the instruction
    which indexes they already point to
 7) Once we know all label byte locations, do another pass over all instructions
-   And patch their jump target based on the final offset of the label they jump to
+   and patch their jump target based on the final offset of the label they jump to
 8) Very final pass over all instructions and pointer table entries: Add the delta
-   between our local offset and bank offset
+   between our local data-relative zero addr offset and bank zero addr offset
 
  */
 void fi::AsmReader::parse_section_iscript(void) {
@@ -270,7 +270,7 @@ std::pair<std::vector<byte>, std::vector<byte>>
 fi::AsmReader::get_script_bytes(void) const {
 	std::vector<byte> region_1, region_2;
 
-	const uint16_t PTR_DELTA{ static_cast<uint16_t>(c::ISCRIPT_ADDR_LO + 2 * c::ISCRIPT_COUNT
+	const uint16_t BANK_ZERO_ADDR{ static_cast<uint16_t>(c::ISCRIPT_ADDR_LO + 2 * c::ISCRIPT_COUNT
 - c::ISCRIPT_PTR_ZERO_ADDR) };
 
 	// lo bytes
@@ -288,7 +288,7 @@ fi::AsmReader::get_script_bytes(void) const {
 	for (const auto& instr : m_instructions) {
 		auto instrbytes{ instr.get_bytes() };
 
-		if (instr.byte_offset < PTR_DELTA + c::ISCRIPT_DATA_SIZE_REGION_1)
+		if (instr.byte_offset < BANK_ZERO_ADDR + c::ISCRIPT_DATA_SIZE_REGION_1)
 			region_1.insert(end(region_1), begin(instrbytes), end(instrbytes));
 		else
 			region_2.insert(end(region_2), begin(instrbytes), end(instrbytes));

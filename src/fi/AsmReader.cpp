@@ -10,7 +10,8 @@
 #include <string>
 #include <utility>
 
-void fi::AsmReader::read_asm_file(const std::string& p_filename, bool p_use_region_2) {
+void fi::AsmReader::read_asm_file(const std::string& p_filename,
+	bool p_use_region_2, bool p_use_smart_linker) {
 	auto l_lines{ klib::file::read_file_as_strings(p_filename) };
 	fi::SectionType currentSection{ fi::SectionType::Defines };
 
@@ -36,8 +37,11 @@ void fi::AsmReader::read_asm_file(const std::string& p_filename, bool p_use_regi
 	parse_section_strings();
 	parse_section_defines();
 	parse_section_shops();
-	//parse_section_iscript(p_use_region_2);
-	parse_section_iscript();
+
+	if (p_use_smart_linker)
+		parse_section_iscript();
+	else
+		parse_section_iscript(p_use_region_2);
 }
 
 void fi::AsmReader::parse_section_strings(void) {
@@ -48,7 +52,7 @@ void fi::AsmReader::parse_section_strings(void) {
 	for (const auto& line : lines) {
 
 		size_t colon_pos = line.find(':');
-		if (colon_pos == std::string::npos || colon_pos < 2 || line[0] != '$') {
+		if (colon_pos == std::string::npos) {
 			throw std::runtime_error("Malformed string line: " + line);
 		}
 
@@ -118,7 +122,7 @@ void fi::AsmReader::parse_section_shops() {
 
 	for (const auto& line : lines) {
 		size_t colon_pos = line.find(':');
-		if (colon_pos == std::string::npos || colon_pos < 2) {
+		if (colon_pos == std::string::npos) {
 			throw std::runtime_error("Malformed shop line: " + line);
 		}
 
@@ -470,7 +474,7 @@ std::string fi::AsmReader::to_lower(const std::string& str) {
 	return result;
 }
 
-std::pair<std::vector<byte>, std::vector<byte>> fi::AsmReader::get_bytes(void) const {
+std::pair<std::vector<byte>, std::vector<byte>> fi::AsmReader::get_bytes(bool p_use_region_2) const {
 	std::vector<byte> ptr_table_and_shops, script_data;
 
 	// lo bytes
@@ -487,7 +491,10 @@ std::pair<std::vector<byte>, std::vector<byte>> fi::AsmReader::get_bytes(void) c
 
 	for (const auto& instr : m_instructions) {
 		auto instrbytes{ instr.get_bytes() };
-		script_data.insert(end(script_data), begin(instrbytes), end(instrbytes));
+		if (p_use_region_2)
+			script_data.insert(end(script_data), begin(instrbytes), end(instrbytes));
+		else
+			ptr_table_and_shops.insert(end(ptr_table_and_shops), begin(instrbytes), end(instrbytes));
 	}
 
 	return std::make_pair(ptr_table_and_shops, script_data);

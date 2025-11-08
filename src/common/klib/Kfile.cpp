@@ -37,6 +37,11 @@ std::vector<std::string> klib::file::read_file_as_strings(const std::string& p_f
 	return result;
 }
 
+bool klib::file::file_exists(const std::string& p_filename) {
+	std::ifstream file(p_filename);
+	return file.good();
+}
+
 void klib::file::write_bytes_to_file(const std::vector<byte>& p_data, const std::string& p_filename) {
 	std::ofstream file(p_filename, std::ios::binary);
 	if (!file) {
