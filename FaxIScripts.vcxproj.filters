@@ -57,6 +57,9 @@
     <ClCompile Include="src\fi\AsmReader.cpp">
       <Filter>Source Files\common\fi</Filter>
     </ClCompile>
+    <ClCompile Include="src\fi\AsmReaderStaticLinker.cpp">
+      <Filter>Source Files\common\fi</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\fi\Opcode.h">

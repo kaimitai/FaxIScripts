@@ -34,9 +34,10 @@ namespace fi {
 		fi::ArgType arg_type;
 		fi::Flow flow;
 		fi::ArgDomain domain;
+		bool ends_stream;
 
 		std::size_t size(void) const {
-			std::size_t result{ 0 };
+			std::size_t result{ 1 }; // the opcode itself
 			if (flow == fi::Flow::Jump || flow == fi::Flow::Read)
 				result += 2;
 			if (arg_type == fi::ArgType::Short)
@@ -57,6 +58,7 @@ namespace fi {
 		std::size_t size;
 		std::optional<uint16_t> operand;
 		std::optional<std::size_t> jump_target;
+		std::optional<std::size_t> byte_offset;
 
 		std::vector<byte> get_bytes(void) const;
 	};

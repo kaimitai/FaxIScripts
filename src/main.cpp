@@ -20,7 +20,7 @@ static void asm_to_nes(const std::string& p_asm_filename,
 	const std::string& p_nes_filename, bool p_use_region_2) {
 	fi::AsmReader reader;
 	reader.read_asm_file(p_asm_filename, p_use_region_2);
-	auto bytes{ reader.get_bytes() };
+	auto bytes{ reader.get_script_bytes() };
 	auto strbytes{ reader.get_string_bytes() };
 
 	try_patch_msg("strings", strbytes.size(), fi::c::SIZE_STRINGS);
@@ -63,9 +63,9 @@ static void nes_to_asm(const std::string& p_nes_filename,
 
 int main(int argc, char** argv) try {
 	// nes_to_asm("c:/temp/faxanadu (u).nes", "c:/temp/out.asm");
-	asm_to_nes("c:/temp/out.asm", "c:/temp/faxscripts.nes", true);
-	// nes_to_asm("c:/temp/faxscripts.nes", "c:/temp/out2.asm");
-	//asm_to_nes("c:/temp/out2.asm", "c:/temp/faxscripts2.nes", true);
+	asm_to_nes("c:/temp/out2.asm", "c:/temp/faxscripts.nes", true);
+	nes_to_asm("c:/temp/faxscripts.nes", "c:/temp/out.asm");
+	//asm_to_nes("c:/temp/out.asm", "c:/temp/faxscripts2.nes", true);
 }
 catch (const std::runtime_error& ex) {
 	std::cerr << "Runtime error: " << ex.what() << "\n";

@@ -36,7 +36,8 @@ void fi::AsmReader::read_asm_file(const std::string& p_filename, bool p_use_regi
 	parse_section_strings();
 	parse_section_defines();
 	parse_section_shops();
-	parse_section_iscript(p_use_region_2);
+	//parse_section_iscript(p_use_region_2);
+	parse_section_iscript();
 }
 
 void fi::AsmReader::parse_section_strings(void) {
@@ -340,11 +341,11 @@ void fi::AsmReader::parse_section_iscript(bool p_use_region_2) {
 
 			// finally emit the instruction
 			offset_to_instruction[offset] = m_instructions.size();
-			offset += op.size() + 1; // TODO: Make explicit
+			offset += op.size();
 			m_instructions.push_back(fi::Instruction(
 				fi::Instruction_type::OpCode,
 				opcode_byte,
-				op.size() + 1, // TODO: Make explicit
+				op.size(),
 				arg,
 				target_address
 			));
