@@ -17,7 +17,7 @@ void fi::Cli::print_header(void) const {
 
 void fi::Cli::print_help(void) const {
 	std::cout << "Usage:\n";
-	std::cout << "  faxiscripts <build|extract> <input file> <output file> [options]\n\n";
+	std::cout << "  faxiscripts <[b]uild|e[x]tract> <input file> <output file> [options]\n\n";
 
 	std::cout << "Options:\n";
 	std::cout << "  -c, --no-string-comments     Disable string comment extraction (enabled by default)\n";
@@ -25,7 +25,7 @@ void fi::Cli::print_help(void) const {
 	std::cout << "  -o, --original-size          Only patch original ROM location (disabled by default)\n";
 	std::cout << "  -n, --no-smart-linker        Disable smart linker optimization (enabled by default)\n";
 	std::cout << "  -f, --force                  Force assembly-file overwrite when extracting (disabled by default)\n";
-	std::cout << "  -s, --source-rom             The ROM file to be used as a source when assembling (by default the input file is the source)\n\n";
+	std::cout << "  -s, --source-rom             The ROM file to be used as a source when assembling (by default the output file itself)\n\n";
 }
 
 fi::Cli::Cli(int argc, char** argv) :
@@ -38,8 +38,10 @@ fi::Cli::Cli(int argc, char** argv) :
 {
 	print_header();
 
-	if (argc < 4)
+	if (argc < 4) {
 		print_help();
+		return;
+	}
 	else {
 		set_mode(argv[1]);
 		m_in_file = argv[2];
