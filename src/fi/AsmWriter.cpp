@@ -155,7 +155,7 @@ std::string fi::AsmWriter::get_define(fi::ArgDomain domain, byte arg) const {
 	else if (domain == fi::ArgDomain::TextBox)
 		return get_define(c::DEFINES_TEXTBOX, arg);
 	else
-		return std::format("${:02x}", arg);
+		return std::format("{}", arg);
 }
 
 std::string fi::AsmWriter::get_define(const std::map<byte, std::string>& p_map, byte arg) const {

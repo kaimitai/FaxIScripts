@@ -15,43 +15,47 @@ Make sure to read the [documentation](./docs/doc.md) for a detailed overview of 
 ## Assembler Capabilities
 The assembler is currently only compatible with the US version of Faxanadu. It has the following features:
 
-* Byte-fidelity will be retained when extracting and patching strings
+* Byte-fidelity with respect to size and content will be retained when extracting and patching content; for both strings and script code
 * When extracting an asm-file from ROM, the constant defines will be populated automatically and used in the code
 * Extracted asm-files can show shop contents and string values in comments wherever they are used as operands
 * Strict-mode; where we don't patch a ROM if we spend more bytes than the original ROM did, tightly packed in one section
 * Extended ROM-mode; where we put the shop data in one section and the script code in the other free section
-* Smart static linker mode; The shop data and code stream starts within the first safe region, but during assembly the static linker redirects code to the second region while patching all required labels, jumps, pointer table entries and instruction offsets. This is done without inserting a synthetic jump-node, to ensure the asm-code will not be changed.
+* Smart static linker mode; The shop data and code stream starts within the first safe region, and if we overflow the static linker redirects code to the second region while patching all required labels, jumps, pointer table entries and instruction offsets. This is done without inserting a synthetic jump-node.
 
 <hr>
 
 ## How it works
 
-The application can disassemble - that is extract the scripting layer data in one assembly-file - from a Faxanadu NES rom. This file can then be modified by the user via our internal assembly language.
+The application can disassemble - that is extract - the scripting layer data in one assembly-file - from a Faxanadu NES rom. This file can then be modified by the user via our internal assembly language.
 
 A command-line instruction will extract and disassemble the scripting layer data from ROM.
-The command `faxiscripts x "Faxanadu (U).nes" faxanadu.asm` will extract this data from file "Faxanadu (U).nes" and write it to file faxanadu.asm.
+
+The command `faxiscripts extract "Faxanadu (U).nes" faxanadu.asm` will extract this data from file "Faxanadu (U).nes" and write it to file faxanadu.asm.
 
 Another instruction will pack your data and assemble your code, and patch it back to ROM.
-The command `faxiscripts b faxanadu.asm "Faxanadu (U).nes"` will patch "Faxanadu (U).nes" with the code from faxanadu.asm as long as the code was valid.
+
+The command `faxiscripts build faxanadu.asm "Faxanadu (U).nes"` will patch "Faxanadu (U).nes" with the code from faxanadu.asm as long as the code was valid.
 
 The asm-files may look a little daunting at first, but I am sure it will be very manageable for most people who have an interest in editing IScripts. The documentation is detailed and contains concrete examples you can follow.
 
-There is little static code analysis available for the time being, but before actually patching the ROM we ensure the code is good by trying to traverse all code paths from all entry points to verify that the code the game will read can actually be parsed.
+There is little static code analysis available for the time being, but before actually patching the ROM we ensure the code is good by trying to traverse all code paths from all entry points to verify that the code the game can potentially use can actually be parsed.
 
 <hr>
 
 ### Roadmap
 
-This assembler was built over the course of a few nights, and hasn't been thoroughly tested yet, so there could be bugs. We prioritize fixing those. Apart from that I am not currently planning to change anything, apart from deprecating extended ROM-mode once I am confident my smart static linking procedure is correct.
+This assembler was built over the course of a few nights, and hasn't been thoroughly tested yet, so there could be bugs. We prioritize fixing those.
 
-* We will consider allowing users to inline actual strings and shops as operands in commands. It is not technically difficult to allow it, but it poses a risk of data duplication - so we opted not to allow it in this release.
+* Incorporate the application with [Echoes of Eolis](https://github.com/kaimitai/faxedit/) in some fashion. This is my graphical data editor for Faxanadu, and currently shows hard coded labels for the scripts - labels that describe the scripts as they were used in the original game. I would like to dynamically parse scripts there and show descriptive labels or tooltips for scripts that have been edited.
+* We will consider allowing users to inline actual strings and shops as operands in commands. It would improve editability but there are concerns regarding data duplication that need to be considered first. In addition, there are hard coded string index references embedded in the game code, which we need to identify and handle specially.
 * We might do more static analysis to help users identify problems in their code
+* I would like to add an option to sort the instruction stream by entry point (pointer table index) to the extent that it is possible. This takes some care to get right in the general case. 
 
 <hr>
 
 ### Version History
 
-* 2025-11-xx: version 0.1
+* 2025-11-09: version 0.1
   * Initial release
 
 <hr>
@@ -60,4 +64,4 @@ This assembler was built over the course of a few nights, and hasn't been thorou
 
 Special thanks to the following contributors and fellow digital archaeologists:
 
-[ChipX86/Christian Hammond](http://chipx86.com/) - For entirely mapping out the IScript language in his [Faxanadu disassembly](https://chipx86.com/faxanadu/) - and for coining the term IScript (Interaction Script) itself. This project would not have existed without it.
+[ChipX86/Christian Hammond](http://chipx86.com/) - For entirely mapping out the IScript language in his [Faxanadu disassembly](https://chipx86.com/faxanadu/) - and for coining the term IScript (Interaction Script) itself. This project would not have existed without his resources.

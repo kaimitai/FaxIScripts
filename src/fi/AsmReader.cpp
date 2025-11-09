@@ -68,17 +68,21 @@ void fi::AsmReader::parse_section_strings(void) {
 		}
 
 		std::string value = line.substr(quote_start + 1, quote_end - quote_start - 1);
-		if (value.empty()) {
-			throw std::runtime_error(std::format("Error: string index ${:02x} is empty. All strings must contain data.", index));
-		}
 
-		temp[index] = value;
+		if (temp.find(index) != end(temp))
+			throw std::runtime_error(std::format("Multiple definitions for string with index {}", index));
+
+		if (index == 0)
+			throw std::runtime_error("Invalid string index 0. Strings start from index 1.");
+		else
+			temp[index] = value;
+
 		max_index = std::max(max_index, index);
 	}
 
 	for (std::size_t i{ 1 }; i <= max_index; ++i) {
 		if (!temp.contains(i)) {
-			throw std::runtime_error(std::format("Missing string index ${:02x}. All strings must be present and non-empty.", i));
+			throw std::runtime_error(std::format("Missing string index {}. All strings must be present.", i));
 		}
 		m_strings.push_back(temp[i]);
 	}
@@ -159,10 +163,10 @@ void fi::AsmReader::parse_section_shops() {
 		}
 
 		if (shop.m_entries.empty()) {
-			throw std::runtime_error(std::format("Shop ${:02x} has no items.", index));
+			throw std::runtime_error(std::format("Shop {} has no items.", index));
 		}
 		if (result.contains(index)) {
-			throw std::runtime_error(std::format("Duplicate shop index ${:02x}.", index));
+			throw std::runtime_error(std::format("Duplicate shop index {}.", index));
 		}
 
 		result[index] = std::move(shop);
@@ -503,9 +507,15 @@ std::pair<std::vector<byte>, std::vector<byte>> fi::AsmReader::get_bytes(bool p_
 std::vector<byte> fi::AsmReader::get_string_bytes(void) const {
 	std::vector<byte> result;
 
-	for (const auto& fs : m_strings) {
-		const auto& fsbytes{ fs.to_bytes() };
-		result.insert(end(result), begin(fsbytes), end(fsbytes));
+	for (std::size_t i{ 0 }; i < m_strings.size(); ++i) {
+		try {
+			const auto& fsbytes{ m_strings[i].to_bytes() };
+			result.insert(end(result), begin(fsbytes), end(fsbytes));
+		}
+		catch (const std::runtime_error& ex) {
+			throw std::runtime_error(std::format("Could not generate bytes for string with index {}: {}",
+				i + 1, ex.what()));
+		}
 	}
 
 	return result;

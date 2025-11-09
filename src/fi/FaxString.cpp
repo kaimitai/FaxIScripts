@@ -74,7 +74,7 @@ std::vector<byte> fi::FaxString::to_bytes(void) const {
 			std::string ch(1, m_string[pos]);
 			auto iter = reverse_map.find(ch);
 			if (iter == reverse_map.end())
-				throw std::runtime_error("Unknown character: " + ch);
+				throw std::runtime_error(std::format("Unknown character: '{}'", ch));
 			result.push_back(iter->second);
 			pos++;
 		}

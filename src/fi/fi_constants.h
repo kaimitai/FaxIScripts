@@ -39,11 +39,6 @@ namespace fi {
 		constexpr char DIRECTIVE_ENTRYPOINT[]{ ".entrypoint" };
 		constexpr char PSEUDO_OPCODE_TEXTBOX[]{ ".textbox" };
 
-		// TODO: Get rid of this constant somehow?
-		// Used when inserting a jump into free region if our
-		// emitted bytes spill into other data
-		constexpr byte OPCODE_UNCONDITIONAL_JUMP{ 0x17 };
-
 		inline const std::map<byte, std::string> DEFINES_ITEMS{
 			{0x00, "WEAPON_HAND_DAGGER"},
 			{0x01, "WEAPON_LONG_SWORD"},
@@ -121,9 +116,16 @@ namespace fi {
 		};
 
 		inline const std::map<byte, std::string> DEFINES_QUESTS{
-			{0x01, "QUEST_TOWER_SPRING"},
-			{0x02, "QUEST_SKY_SPRING"},
-			{0x03, "QUEST_DUNGEON_SPRING"}
+			{0x01, "QUEST_TOWER_SPRING"}, // 0000 0001
+			{0x02, "QUEST_SKY_SPRING"},   // 0000 0010
+			{0x03, "QUEST_DUNGEON_SPRING"}, // 0000 0100
+			// clean exploit of game code - these values when used
+			// as byte-indexes in the quest flag table land on exact powers of two
+			{0x4f, "QUEST_WYVERN_MATTOCK"}, // 0001 0000
+			{0x04, "QUEST_PATH_TO_MASCON"}, // 0010 0000
+			// compound "quests" using the remaining bits
+			// won't overlap with any clean power of 2
+			{0x24, "QUEST_EXTRA"},  // 0100 1000
 		};
 
 		// we're being very explicit - we're keeping bit equivalence on read and write

@@ -115,6 +115,10 @@ void fi::Cli::asm_to_nes(const std::string& p_asm_filename,
 
 	for (std::size_t i{ 0 }; i < strbytes.size(); ++i)
 		rom.at(i + fi::c::OFFSET_STRINGS) = strbytes[i];
+	// make the rest of the string section unparseable so we don't
+	// accidentally import any garbage strings from the file we emit
+	for (std::size_t i{ strbytes.size() }; i < fi::c::SIZE_STRINGS; ++i)
+		rom.at(i + fi::c::OFFSET_STRINGS) = 0x00;
 
 	std::cout << "Verifying generated ROM contents\n";
 	try {
