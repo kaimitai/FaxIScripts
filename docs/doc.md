@@ -372,6 +372,7 @@ Check:
 * 152 distinct entrypoints numbered 0-151
 * Each entrypoint is followed by a .textbox before any opcode
 * Code execution terminates in all branches it could possibly take, and it never hits another .textbox
+* All your code can actually be reached from an entrypoint. Unreachable code can not survive a round trip from asm to ROM and back to asm - the parser only looks for code the game could potentially reach.
 
 
 ### A highly technical note on Quests

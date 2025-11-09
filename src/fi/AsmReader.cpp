@@ -217,7 +217,19 @@ int fi::AsmReader::parse_numeric(const std::string& token) const {
 	}
 
 	size_t pos;
-	int value = std::stoi(digits, &pos, base);
+
+	int value{ 0 };
+
+	try {
+		value = std::stoi(digits, &pos, base);
+	}
+	catch (const std::invalid_argument&) {
+		throw std::runtime_error("Invalid numeric token: '" + token + "' - not a valid number or define.");
+	}
+	catch (const std::out_of_range&) {
+		throw std::runtime_error("Numeric token out of range: '" + token + "'");
+	}
+
 	if (pos != digits.size()) {
 		throw std::runtime_error("Invalid numeric token: " + token);
 	}
