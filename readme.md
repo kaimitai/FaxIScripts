@@ -2,7 +2,7 @@
 
 Welcome to the FaxIScripts code repository and release page. The code is standard C++20, and the project files were created using Microsoft Visual Studio Community 2022. You can compile the application from source, or get the latest precompiled Windows x64 build under the [repository releases](https://github.com/kaimitai/FaxIScripts/releases/).
 
-IScripts are scripts used inside the Faxanadu (NES) game engine, and is surprisingly expressive for its time. The aim of this assembler is to extract IScript code to a human-readable format reminiscent of assembly code. We aim to stay at the highest possible layer of abstraction without losing any extracted information.
+IScripts are scripts used inside the Faxanadu (NES) game engine, and is surprisingly expressive. The aim of this assembler is to extract IScript code to a human-readable format reminiscent of assembly code. We aim to stay at the highest possible layer of abstraction without losing any extracted information.
 
 The scripting layer contains strings, shop data and actual code. The strings are stored in a separate section, but the shop data and code live together in one combined section. The shop data gets moved to its own section in our assembly files, and any opcode referencing a shop uses its index - which is only resolved to an actual address during linking. This provides a zero-cost abstraction - no extra bytes, no layout penalties.
 

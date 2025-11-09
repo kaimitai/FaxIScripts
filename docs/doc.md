@@ -10,7 +10,7 @@ If you want to edit the scripts used within Faxanadu, you will have to do some l
 
 The scripting layer of Faxanadu consists of text-strings, shop data and code. The shop data and code live together in one section, whereas the strings live in a different section.
 
-A sprite in Faxanadu, that is - an NPC or an item - can call script code. For certain events, like pickup up items and dying, the index of the script it triggers is hard coded in the game's logic. For NPCs the sprite data defines which script will be called when you interact with it.
+A sprite in Faxanadu - an NPC or an item - can call script code. For certain events, like pickup up items and dying, the index of the script it triggers is hard coded in the game's logic. For NPCs the sprite data defines which script will be called when you interact with it.
 
 The script code is one contiguos blob of data, and just before the script data begins there is a so called pointer table - with 152 entries - which tells the game where in the script code the entrypoint for the scripts are.
 
@@ -75,7 +75,7 @@ To build a file we go in the opposite direction, and assemble. To build a file f
 
 ## Assembly file contents
 
-The generated assmebly files produce four sections. Defines, strings, shops and iscript - which is the actual code.
+The generated assembly files produce four sections. Defines, strings, shops and iscript - which is the actual code.
 
 ### [defines]
 
@@ -355,7 +355,7 @@ Then assemble your file back to ROM and confirm that you get the expected result
 
 Use a text editor with support for assembly markup. I personally use [Notepad++](https://notepad-plus-plus.org/) which is open source and the default asm-markup helps. Maybe we can make a custom markup-format for IScripts too?
 
-Notepad++ supports autocomplete which is helpful to, so you can get your defines easily too without going back to look them up.
+Notepad++ supports autocomplete which is helpful too, so you can get your defines easily without going back to look them up.
 
 Use comments and descriptive labels when coding to remember what you were working on when you come back to your code.
 
@@ -386,7 +386,7 @@ You can extend this exploitation of going out of the original bounds of the look
 
 ### Behind the scenes
 
-I started work on this assembler a few days after releasing Echoes of Eolis. The format is entirely mapped out in  The application code and binaries can be found on its [Chipx86's disassembly](https://chipx86.com/faxanadu/) so we could parse the data almost immediately.
+I started work on this assembler a few days after releasing Echoes of Eolis. The format is entirely mapped out in [Chipx86's Faxanadu disassembly](https://chipx86.com/faxanadu/) so we could parse the data almost immediately.
 
 The problem I wrestled with was how to structure my data, and how to present it for editing. I had three requirements I wanted to fulfill:
 
@@ -396,19 +396,19 @@ The problem I wrestled with was how to structure my data, and how to present it 
 
 It turns out it is almost impossible to fulfill all three. I suppose it can technically be done, but it would require us to identify all shared code and insert unconditional jumps wherever it could save us bytes - in other words code tail deduplication. When there is no limit to how the code can jump and loop, we decided to go forego modularization, and decided to just present the code as it is in the ROM - as assembly code.
 
-We moved the shop data and treat it separately, as that is an abstraction we can get for free.
+We move the shop data and treat it separately, as that is an abstraction we can get for free.
 
 The other problem I had to tackle was overflowing into an unsafe ROM region. The script code in the original game is completely packed between the pointer table and unrelated data, so we had to make use of free space near the end of the ROM bank if people want to add code without at the same time removing any.
 
 In an intermediary stage we decided to let the shop data live in original safe region 1, and let the script code start in the safe region 2. This was not incredibly hard to implement since our instruction stream became contiguous, but we did waste bytes because we left a lot of unused data in safe region 1.
 
-For that reason we decided to let the code stream start in region 1 and be redirected to region 2 if it overflow. This is what I call smart static linking.
+For that reason we decided to let the code stream start in region 1 and be redirected to region 2 if it overflowed. This is what I refer to as smart static linking.
 
 What it does, is as follows:
 
 * If we overflow, find the last instruction that is completely contained in region 1
 * Go backward, starting from this instruction, until a stream-ending opcode is found (End or Jump)
-* Change the instruction byte offsets for all instructions after this End or Jump
+* Change the instruction byte offsets for all instructions after this End or Jump, by adding the necessary delta that makes the first relocated instruction start in region 2.
 * Go back and patch all pointer table entries, jump targets and so on which reference relocated instructions.
 
 This was not trivial to get right before I made the decision to link pointer table entries and labels to instruction indexes while parsing, rather than to byte offsets directly. After the relocation - and only after all instruction byte offsets have been completely resolved - we go back and assign byte offsets to pointers and references by querying the offset of the instruction it points to.
