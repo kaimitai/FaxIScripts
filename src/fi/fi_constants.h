@@ -3,6 +3,7 @@
 
 #include <cstddef>
 #include <map>
+#include <set>
 #include <string>
 
 using byte = unsigned char;
@@ -33,7 +34,7 @@ namespace fi {
 		constexpr std::size_t SIZE_STRINGS{ 0x30ba };
 
 		constexpr char SECTION_DEFINES[]{ "[defines]" };
-		constexpr char SECTION_STRINGS[]{ "[strings]" };
+		constexpr char SECTION_STRINGS[]{ "[reserved_strings]" };
 		constexpr char SECTION_SHOPS[]{ "[shops]" };
 		constexpr char SECTION_ISCRIPT[]{ "[iscript]" };
 		constexpr char DIRECTIVE_ENTRYPOINT[]{ ".entrypoint" };
@@ -141,6 +142,17 @@ namespace fi {
 			{0xfb, "<title>"}, { 0xfc, "<p>" }, {0xfd, " "}, {0xfe, "<n>"},
 			// escape char
 			{'\"', "<q>"}
+		};
+
+		// string indexes which are used directly by the script engine
+		// these strings should not be relocated by the assembler
+		inline const std::set<int> RESERVED_STRING_IDX{
+			3,  // This is not enough Golds.
+			6,  // You can't carry any more.
+			16, // Come here to buy. Come here to sell.
+			18, // You have nothing to buy.
+			19, // Which one would like to sell?
+			20  // What would you like?
 		};
 
 	}

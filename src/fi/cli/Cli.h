@@ -11,9 +11,7 @@ namespace fi {
 		bool m_build_mode;
 
 		std::string m_in_file, m_out_file, m_source_rom;
-		bool m_bridge, m_strict,
-			m_str_comments, m_shop_comments,
-			m_overwrite;
+		bool m_strict, m_shop_comments, m_overwrite;
 
 		void set_mode(const std::string& p_mode);
 		void toggle_flag(std::size_t p_flag_idx);
@@ -26,9 +24,9 @@ namespace fi {
 		void asm_to_nes(const std::string& p_asm_filename,
 			const std::string& p_nes_filename,
 			const std::string& p_source_rom_filename, 
-			bool p_strict, bool p_smart_link);
+			bool p_strict);
 		void nes_to_asm(const std::string& p_nes_filename,
-			const std::string& p_asm_filename, bool p_str_comments,
+			const std::string& p_asm_filename,
 			bool p_shop_comments, bool p_overwrite);
 
 	public:

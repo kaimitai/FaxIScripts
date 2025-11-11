@@ -10,8 +10,7 @@
 #include <string>
 #include <utility>
 
-void fi::AsmReader::read_asm_file(const std::string& p_filename,
-	bool p_use_region_2, bool p_use_smart_linker) {
+void fi::AsmReader::read_asm_file(const std::string& p_filename) {
 	auto l_lines{ klib::file::read_file_as_strings(p_filename) };
 	fi::SectionType currentSection{ fi::SectionType::Defines };
 
@@ -37,17 +36,14 @@ void fi::AsmReader::read_asm_file(const std::string& p_filename,
 	parse_section_strings();
 	parse_section_defines();
 	parse_section_shops();
+	parse_section_iscript();
 
-	if (p_use_smart_linker)
-		parse_section_iscript();
-	else
-		parse_section_iscript(p_use_region_2);
 }
 
 void fi::AsmReader::parse_section_strings(void) {
 	const auto& lines = m_sections.at(SectionType::Strings);
-	std::map<std::size_t, std::string> temp;
-	std::size_t max_index{ 0 };
+	std::map<int, std::string> temp;
+	int max_index{ 0 };
 
 	for (const auto& line : lines) {
 
@@ -56,8 +52,8 @@ void fi::AsmReader::parse_section_strings(void) {
 			throw std::runtime_error("Malformed string line: " + line);
 		}
 
-		std::size_t index{
-			static_cast<std::size_t>(parse_numeric(line.substr(0, colon_pos)))
+		int index{
+			parse_numeric(line.substr(0, colon_pos))
 		};
 
 		size_t quote_start = line.find('"', colon_pos);
@@ -80,12 +76,8 @@ void fi::AsmReader::parse_section_strings(void) {
 		max_index = std::max(max_index, index);
 	}
 
-	for (std::size_t i{ 1 }; i <= max_index; ++i) {
-		if (!temp.contains(i)) {
-			throw std::runtime_error(std::format("Missing string index {}. All strings must be present.", i));
-		}
-		m_strings.push_back(temp[i]);
-	}
+	for (const auto& kv : temp)
+		m_strings[kv.first] = fi::FaxString(kv.second);
 }
 
 void fi::AsmReader::parse_section_defines() {
@@ -244,171 +236,19 @@ std::size_t fi::AsmReader::resolve_token(const std::string& token) const {
 	return static_cast<std::size_t>(parse_numeric(token));
 }
 
-// the fun part, where we parse the asm instructions and calculate all offsets
-// before we convert to bytes in the final pass and take home the w
-void fi::AsmReader::parse_section_iscript(bool p_use_region_2) {
-	// start by calculating the shop offsets and code offset
-	// we are not emitting any bytes in the first pass
-	// we will do this with 0-relative offsets in the first pass
-	// and recalculate later
-
-	// make an opcode mnemonic reverse lookup
-	std::map<std::string, byte> mnemonics;
-	for (const auto& opc : fi::opcodes) {
-		mnemonics.insert(std::make_pair(
-			to_lower(opc.second.name), opc.first
-		));
-	}
-
-	std::map<std::size_t, std::size_t> l_shop_ptrs;
-
-	std::size_t offset{ 0 };
-	for (const auto& kv : m_shops) {
-		l_shop_ptrs.insert(std::make_pair(kv.first, offset));
-		offset += kv.second.byte_size();
-	}
-
-	if (p_use_region_2)
-		offset = c::ISCRIPT_DATA_OFFSET_REGION_2;
-
-	std::map<std::string, std::size_t> label_offsets;
-	std::map<std::string, std::set<std::size_t>> jump_labels;
-	// TODO: could keep offset inside the instr-struct. consider
-	std::map<std::size_t, std::size_t> offset_to_instruction;
-
-	m_instructions.clear();
-	m_ptr_table.clear();
-
-	// and so it begins...
-	for (std::string line : m_sections.at(fi::SectionType::IScript)) {
-
-		// if label - extract and store
-		if (contains_label(line)) {
-			std::string label{ extract_label(line) };
-			auto iter = label_offsets.find(label);
-			if (iter == end(label_offsets))
-				label_offsets.insert(std::make_pair(label, offset));
-			else
-				throw std::runtime_error("Multiple definitions for " + label);
-		}
-		// if entrypoint - extract entrypoint no and update ptr table map
-		else if (contains_entrypoint(line)) {
-			auto entry_no{ extract_entrypoint(line) };
-			if (m_ptr_table.find(entry_no) == end(m_ptr_table))
-				m_ptr_table[entry_no] = offset;
-			else
-				throw std::runtime_error(std::format("Multiple definitions for entrypoint {}", entry_no));
-		}
-		// if textbox - grab the byte, make a pseudo-instruction and advance
-		else if (contains_textbox(line)) {
-			byte textbox_no{ extract_textbox(line) };
-
-			offset_to_instruction[offset++] = m_instructions.size();
-			m_instructions.push_back(fi::Instruction(
-				fi::Instruction_type::Directive,
-				textbox_no,
-				1
-			));
-		}
-		// else it must be an opcode
-		else {
-			// can't be empty as long as we did our pre-processing correctly
-			auto tokens{ split_whitespace(line) };
-
-			const std::string& mnemo{ to_lower(tokens[0]) };
-			if (!mnemonics.contains(mnemo)) {
-				throw std::runtime_error("Unknown opcode: " + mnemo);
-			}
-
-			byte opcode_byte = mnemonics[mnemo];
-			std::optional<uint16_t> arg;
-			std::optional<uint16_t> target_address;
-
-			const fi::Opcode& op = fi::opcodes.at(opcode_byte);
-
-			// let's validate the params first
-			std::size_t expected_token_count{ 1 }; // the opcode itself
-			if (op.arg_type != fi::ArgType::None)
-				expected_token_count += 1;
-			if (op.flow == fi::Flow::Jump ||
-				op.flow == fi::Flow::Read)
-				expected_token_count += 1;
-
-			if (expected_token_count != tokens.size())
-				throw std::runtime_error(
-					std::format("Opcode '{}' expects {} arguments, got {} (@line: \"{}\")",
-						mnemo, expected_token_count - 1, tokens.size() - 1, line)
-				);
-
-			// based on the template we calculate everything
-			// and generate the instruction. we already know shop
-			// offsets but not necessarily labels
-			std::size_t current_token{ 1 };
-
-			if (op.arg_type != fi::ArgType::None)
-				arg = static_cast<uint16_t>(resolve_token(tokens.at(current_token++)));
-
-			if (op.flow == fi::Flow::Read)
-				target_address = static_cast<uint16_t>(
-					l_shop_ptrs.at(resolve_token(tokens.at(current_token++)))
-					);
-			else if (op.flow == fi::Flow::Jump) {
-				// labels! may or may not be known at this time
-				// might as well defer everything to the second pass
-				auto label{ tokens.at(current_token++) };
-				jump_labels[label].insert(m_instructions.size());
-			}
-
-			// finally emit the instruction
-			offset_to_instruction[offset] = m_instructions.size();
-			offset += op.size();
-			m_instructions.push_back(fi::Instruction(
-				fi::Instruction_type::OpCode,
-				opcode_byte,
-				op.size(),
-				arg,
-				target_address
-			));
-		}
-	}
-
-	// verify that we can populate each ptr table entry when we need to
-	for (std::size_t i{ 0 }; i < c::ISCRIPT_COUNT; ++i)
-		if (m_ptr_table.find(i) == end(m_ptr_table))
-			throw std::runtime_error(std::format("Entrypoint {} not defined. ", i));
-
-	// intermediate pass - patch all previously unresolved labels
-	for (const auto& kv : jump_labels) {
-		auto iter{ label_offsets.find(kv.first) };
-		if (iter == end(label_offsets))
-			throw std::runtime_error("Unresolved label: " + kv.first);
-		else {
-			for (std::size_t instr_no : kv.second)
-				m_instructions[instr_no].jump_target = iter->second;
-		}
-	}
-
-	// our offsets are all relative to the start of the script data immediately
-	// following the ptr table; make all our ptrs bank relative
-	const uint16_t PTR_DELTA{ static_cast<uint16_t>(c::ISCRIPT_ADDR_LO + 2 * c::ISCRIPT_COUNT
-	- c::ISCRIPT_PTR_ZERO_ADDR) };
-	for (auto& ins : m_instructions) {
-		if (ins.jump_target.has_value()) {
-			ins.jump_target = ins.jump_target.value() + PTR_DELTA;
-		}
-	}
-
-	for (auto& ptr : m_ptr_table) {
-		ptr.second += PTR_DELTA;
-	}
-}
-
 bool fi::AsmReader::contains_label(const std::string& p_line) const {
 	std::size_t colonPos = p_line.find(':');
 	if (colonPos == std::string::npos) return false;
 
 	std::string label = p_line.substr(0, colonPos);
 	return !label.empty() && label.find(' ') == std::string::npos;
+}
+
+bool fi::AsmReader::is_string_token(const std::string& p_token) const {
+	return
+		p_token.size() >= 2 &&
+		p_token.front() == '"' &&
+		p_token.back() == '"';
 }
 
 std::string fi::AsmReader::extract_label(const std::string& p_line) const {
@@ -462,19 +302,29 @@ std::vector<std::string> fi::AsmReader::split_whitespace(const std::string& line
 	std::vector<std::string> tokens;
 	std::size_t i = 0;
 	while (i < line.size()) {
-		// Skip leading whitespace
+		// Skip leading whitespace, there really shouldn't be any
 		while (i < line.size() && std::isspace(static_cast<unsigned char>(line[i]))) {
 			++i;
 		}
 
-		// Find start of token
-		std::size_t start = i;
-		while (i < line.size() && !std::isspace(static_cast<unsigned char>(line[i]))) {
-			++i;
-		}
+		if (i >= line.size()) break;
 
-		// Add token if found
-		if (start < i) {
+		// Handle quoted string
+		if (line[i] == '"') {
+			std::size_t start = i;
+			++i;
+			while (i < line.size() && line[i] != '"') {
+				++i;
+			}
+			if (i < line.size()) ++i; // include closing quote
+			tokens.emplace_back(line.substr(start, i - start));
+		}
+		else {
+			// Handle regular token
+			std::size_t start = i;
+			while (i < line.size() && !std::isspace(static_cast<unsigned char>(line[i]))) {
+				++i;
+			}
 			tokens.emplace_back(line.substr(start, i - start));
 		}
 	}
@@ -490,45 +340,74 @@ std::string fi::AsmReader::to_lower(const std::string& str) {
 	return result;
 }
 
-std::pair<std::vector<byte>, std::vector<byte>> fi::AsmReader::get_bytes(bool p_use_region_2) const {
-	std::vector<byte> ptr_table_and_shops, script_data;
-
-	// lo bytes
-	for (std::size_t i{ 0 }; i < c::ISCRIPT_COUNT; ++i)
-		ptr_table_and_shops.push_back(static_cast<byte>(m_ptr_table.at(i) % 256));
-	// hi bytes
-	for (std::size_t i{ 0 }; i < c::ISCRIPT_COUNT; ++i)
-		ptr_table_and_shops.push_back(static_cast<byte>(m_ptr_table.at(i) / 256));
-
-	for (const auto& kv : m_shops) {
-		auto shopbytes{ kv.second.to_bytes() };
-		ptr_table_and_shops.insert(end(ptr_table_and_shops), begin(shopbytes), end(shopbytes));
-	}
-
-	for (const auto& instr : m_instructions) {
-		auto instrbytes{ instr.get_bytes() };
-		if (p_use_region_2)
-			script_data.insert(end(script_data), begin(instrbytes), end(instrbytes));
-		else
-			ptr_table_and_shops.insert(end(ptr_table_and_shops), begin(instrbytes), end(instrbytes));
-	}
-
-	return std::make_pair(ptr_table_and_shops, script_data);
-}
-
 std::vector<byte> fi::AsmReader::get_string_bytes(void) const {
 	std::vector<byte> result;
 
-	for (std::size_t i{ 0 }; i < m_strings.size(); ++i) {
+	for (const auto& kv : m_strings) {
 		try {
-			const auto& fsbytes{ m_strings[i].to_bytes() };
+			const auto& fsbytes{ kv.second.to_bytes() };
 			result.insert(end(result), begin(fsbytes), end(fsbytes));
 		}
 		catch (const std::runtime_error& ex) {
 			throw std::runtime_error(std::format("Could not generate bytes for string with index {}: {}",
-				i + 1, ex.what()));
+				kv.first, ex.what()));
 		}
 	}
+
+	return result;
+}
+
+std::size_t fi::AsmReader::get_string_count(void) const {
+	return m_strings.size();
+}
+
+std::map<std::string, int> fi::AsmReader::relocate_strings(
+	const std::set<std::string>& p_strings) {
+	std::map<int, std::string> new_string_table;
+	std::map<std::string, int> result;
+
+	int index{ 1 };
+	for (const auto& kv : m_strings)
+		new_string_table[kv.first] = kv.second.get_string();
+
+	for (const auto& str : p_strings) {
+		// Skip if string already exists (reserved or previously inserted)
+		auto it = std::find_if(new_string_table.begin(), new_string_table.end(),
+			[&str](const auto& kv) { return kv.second == str; });
+
+		if (it != new_string_table.end())
+			continue; // already present, skip
+
+		// Find next available index
+		while (new_string_table.find(index) != new_string_table.end())
+			++index;
+
+		new_string_table[index] = str;
+	}
+
+	// edge-case; highest reserved string index higher than any user idx
+	int highest_reserved_idx{
+		m_strings.empty() ? 0 : m_strings.rbegin()->first
+	};
+	// should rarely happen, but we insert empty strings in this case
+	for (int i{ 1 }; i <= highest_reserved_idx; ++i)
+		if (new_string_table.find(i) == end(new_string_table))
+			new_string_table[i] = std::string();
+
+	// turn it into fax-strings
+	// also reverse the map we will return
+	std::map<int, fi::FaxString> l_strs;
+	for (const auto& kv : new_string_table) {
+		l_strs.insert(std::make_pair(kv.first, kv.second));
+		result.insert(std::make_pair(kv.second, kv.first));
+	}
+	m_strings = l_strs;
+
+	if (m_strings.size() >= 255)
+		throw std::runtime_error(
+			std::format("Only 254 unique strings can be used, but actual count is {}",
+				m_strings.size())
+		);
 
 	return result;
 }

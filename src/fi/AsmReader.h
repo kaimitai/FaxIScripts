@@ -2,6 +2,7 @@
 #define FI_ASM_READER_H
 
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 #include "FaxString.h"
@@ -14,7 +15,9 @@ namespace fi {
 
 	class AsmReader {
 
-		std::vector<fi::FaxString> m_strings;
+		// set of reserved string indexes first,
+		// then becomes full set of strings during parsing
+		std::map<int, fi::FaxString> m_strings;
 		std::map<std::string, std::size_t> m_defines;
 		std::map<std::size_t, fi::Shop> m_shops;
 		std::vector<fi::Instruction> m_instructions;
@@ -31,11 +34,13 @@ namespace fi {
 		void parse_section_strings(void);
 		void parse_section_defines(void);
 		void parse_section_shops(void);
-		void parse_section_iscript(bool p_use_region_2);
 		void parse_section_iscript(void);
+
+		std::map<std::string, int> relocate_strings(const std::set<std::string>& p_strings);
 
 		std::size_t resolve_token(const std::string& token) const;
 
+		bool is_string_token(const std::string& p_token) const;
 		bool contains_label(const std::string& p_line) const;
 		std::string extract_label(const std::string& p_line) const;
 
@@ -51,16 +56,12 @@ namespace fi {
 
 	public:
 		AsmReader(void) = default;
-		void read_asm_file(const std::string& p_filename,
-			bool p_use_region_2, bool p_use_smart_linker);
+		void read_asm_file(const std::string& p_filename);
 
-		// get bytes from here when using smart linker
+		// get ROM bytes
 		std::pair<std::vector<byte>, std::vector<byte>> get_script_bytes(void) const;
-		// get bytes from here when not using the smart linker
-		// ensure you call it with the same "use region 2"-param
-		// you used when parsing the asm file
-		std::pair<std::vector<byte>, std::vector<byte>> get_bytes(bool p_use_region_2) const;
 		std::vector<byte> get_string_bytes(void) const;
+		std::size_t get_string_count(void) const;
 	};
 
 }

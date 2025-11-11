@@ -20,20 +20,16 @@ void fi::Cli::print_help(void) const {
 	std::cout << "  faxiscripts <[b]uild|e[x]tract> <input file> <output file> [options]\n\n";
 
 	std::cout << "Options:\n";
-	std::cout << "  -c, --no-string-comments     Disable string comment extraction (enabled by default)\n";
 	std::cout << "  -p, --no-shop-comments       Disable shop comment extraction (enabled by default)\n";
 	std::cout << "  -o, --original-size          Only patch original ROM location (disabled by default)\n";
-	std::cout << "  -n, --no-smart-linker        Disable smart linker optimization (enabled by default)\n";
 	std::cout << "  -f, --force                  Force assembly-file overwrite when extracting (disabled by default)\n";
 	std::cout << "  -s, --source-rom             The ROM file to be used as a source when assembling (by default the output file itself)\n\n";
 }
 
 fi::Cli::Cli(int argc, char** argv) :
 	m_build_mode{ false },
-	m_bridge{ true },
 	m_strict{ false },
 	m_shop_comments{ true },
-	m_str_comments{ true },
 	m_overwrite{ false }
 {
 	print_header();
@@ -53,10 +49,10 @@ fi::Cli::Cli(int argc, char** argv) :
 	if (m_build_mode) {
 		asm_to_nes(m_in_file, m_out_file,
 			m_source_rom.empty() ? m_out_file : m_source_rom,
-			m_strict, m_bridge);
+			m_strict);
 	}
 	else
-		nes_to_asm(m_in_file, m_out_file, m_str_comments, m_shop_comments, m_overwrite);
+		nes_to_asm(m_in_file, m_out_file, m_shop_comments, m_overwrite);
 }
 
 static void try_patch_msg(const std::string& p_data_type,
@@ -72,25 +68,25 @@ static void try_patch_msg(const std::string& p_data_type,
 void fi::Cli::asm_to_nes(const std::string& p_asm_filename,
 	const std::string& p_out_filename,
 	const std::string& p_source_rom_filename,
-	bool p_strict, bool p_smart_link) {
+	bool p_strict) {
 
 	if (p_strict)
 		std::cout << "Using strict mode - Only original ROM data region will be used\n";
-	if (p_smart_link)
-		std::cout << "Using smart linker strategy to optimize for size\n";
 
 	fi::AsmReader reader;
 
 	std::cout << "Attempting to parse assembly file " << p_asm_filename << "\n";
-	reader.read_asm_file(p_asm_filename, !p_strict, p_smart_link);
+	reader.read_asm_file(p_asm_filename);
 
 	std::cout << "Attempting to read ROM contents from " << p_source_rom_filename << "\n";
 	auto rom{ klib::file::read_file_as_bytes(p_source_rom_filename) };
 
 	// we use different methods to get the ROM bytes if the smart linker is used
-	auto bytes{ p_smart_link ?
-		reader.get_script_bytes() : reader.get_bytes(!p_strict) };
+	auto bytes{ reader.get_script_bytes() };
 	auto strbytes{ reader.get_string_bytes() };
+
+	std::cout << std::format("Using {} unique strings out of a maximum of 254\n",
+		reader.get_string_count());
 
 	try_patch_msg("strings", strbytes.size(), fi::c::SIZE_STRINGS);
 	try_patch_msg("script data (region 1)",
@@ -135,12 +131,9 @@ void fi::Cli::asm_to_nes(const std::string& p_asm_filename,
 }
 
 void fi::Cli::nes_to_asm(const std::string& p_nes_filename,
-	const std::string& p_asm_filename, bool p_str_comments,
-	bool p_shop_comments, bool p_overwrite) {
+	const std::string& p_asm_filename, bool p_shop_comments, bool p_overwrite) {
 
 	// show params
-	if (p_str_comments)
-		std::cout << "Will show string data as comments where they are referenced\n";
 	if (p_shop_comments)
 		std::cout << "Will show shop data as comments where they are referenced\n";
 	if (p_overwrite)
@@ -161,7 +154,7 @@ void fi::Cli::nes_to_asm(const std::string& p_nes_filename,
 	std::cout << "Generating output file " << p_asm_filename << "\n";
 	asmw.generate_asm_file(p_asm_filename,
 		loader.m_instructions, loader.ptr_table, loader.m_jump_targets,
-		loader.m_strings, loader.m_shops, p_str_comments, p_shop_comments);
+		loader.m_strings, loader.m_shops, m_shop_comments);
 
 	std::cout << "Extraction complete!\n";
 }
@@ -203,13 +196,9 @@ void fi::Cli::set_flag(const std::string& p_flag) {
 
 void fi::Cli::toggle_flag(std::size_t p_flag_idx) {
 	if (p_flag_idx == 0)
-		m_str_comments = !m_str_comments;
-	else if (p_flag_idx == 1)
 		m_shop_comments = !m_shop_comments;
-	else if (p_flag_idx == 2)
+	else if (p_flag_idx == 1)
 		m_strict = !m_strict;
-	else if (p_flag_idx == 3)
-		m_bridge = !m_bridge;
-	else if (p_flag_idx == 4)
+	else if (p_flag_idx == 2)
 		m_overwrite = !m_overwrite;
 }

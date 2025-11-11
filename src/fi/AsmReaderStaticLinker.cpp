@@ -11,7 +11,7 @@ using byte = unsigned char;
  this is where we statically link all jump targets and ptr table refs
  we also bridge the gap between two safe regions if we overflow
 
-There terms need to be clearly separate:
+These terms need to be clearly separate:
 Offset = Actual byte address locations
 Instruction index = The instruction number a label or ptr references
 
@@ -89,6 +89,13 @@ void fi::AsmReader::parse_section_iscript(void) {
 	// map of instruction byte offset to its index
 	// std::map<std::size_t, std::size_t> byte_offset_to_instruction_idx;
 
+	// keep a set of unique strings used for inlining
+	// se we can rebuild the master string table later
+	// and weed out unused strings while handling reserved strings
+	std::set<std::string> unique_strings;
+	// keep track of all instructions using certain strings directly or indirectly
+	std::map<std::string, std::set<std::size_t>> string_to_instr_idx;
+
 	// and so it begins...
 	for (std::string line : m_sections.at(fi::SectionType::IScript)) {
 
@@ -159,9 +166,44 @@ void fi::AsmReader::parse_section_iscript(void) {
 			// offsets but not necessarily labels
 			std::size_t current_token{ 1 };
 
-			if (op.arg_type != fi::ArgType::None)
-				arg = static_cast<uint16_t>(resolve_token(tokens.at(current_token++)));
+			// start by checking if we have inlined strings
+			if (op.domain == fi::ArgDomain::TextString) {
 
+				std::string operand_str;
+				bool push_str{ true };
+				if (is_string_token(tokens.at(current_token))) {
+					operand_str = tokens.at(current_token);
+					operand_str = operand_str.substr(1, operand_str.size() - 2);
+				}
+				else {
+					// if numeric, push the string the index points to
+					int str_idx{
+					static_cast<int>(resolve_token(tokens.at(current_token)))
+					};
+
+					if (m_strings.find(str_idx) != end(m_strings))
+						operand_str = m_strings.at(str_idx).get_string();
+					else {
+						// fall back to 0
+						// not a valid string index but the game allows it
+						// so we have to allow it too
+						arg = 0;
+						push_str = false;
+					}
+
+				}
+
+				if (push_str) {
+					unique_strings.insert(operand_str);
+					string_to_instr_idx[operand_str].insert(m_instructions.size());
+				}
+				++current_token; // skip straight to label if any
+			}
+
+			// has arg and is not string
+			if (op.domain != fi::ArgDomain::TextString &&
+				op.arg_type != fi::ArgType::None)
+				arg = static_cast<uint16_t>(resolve_token(tokens.at(current_token++)));
 			// lay down the shop byte offset immediately
 			if (op.flow == fi::Flow::Read)
 				target_address = static_cast<uint16_t>(
@@ -194,6 +236,15 @@ void fi::AsmReader::parse_section_iscript(void) {
 	for (std::size_t i{ 0 }; i < c::ISCRIPT_COUNT; ++i)
 		if (ptr_to_instr_index.find(i) == end(ptr_to_instr_index))
 			throw std::runtime_error(std::format("Entrypoint {} not defined. ", i));
+
+	// intermediate processing step where we update all string references
+	// regen string table and deduplicate
+	auto str_remap{ relocate_strings(unique_strings) };
+
+	// update all string references for opcodes which used them
+	for (const auto& kv : str_remap)
+		for (auto instr_no : string_to_instr_idx[kv.first])
+			m_instructions[instr_no].operand = static_cast<uint16_t>(kv.second);
 
 	// we don't know if our instruction byte offsets are correct yet, if we
 	// overflow we need to split, so let us check

@@ -26,7 +26,7 @@ namespace fi {
 			const std::set<std::size_t>& p_jump_targets,
 			const std::vector<fi::FaxString>& p_strings,
 			const std::vector<fi::Shop>& p_shops,
-			bool p_string_comments, bool p_shop_comments) const;
+			bool p_shop_comments) const;
 
 		std::string get_define(const std::map<byte, std::string>& p_map, byte arg) const;
 		std::string get_define(fi::ArgDomain domain, byte arg) const;

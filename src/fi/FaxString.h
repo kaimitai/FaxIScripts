@@ -13,6 +13,7 @@ namespace fi {
 		std::string m_string;
 
 	public:
+		FaxString(void) = default;
 		FaxString(const std::string& p_string);
 		const std::string& get_string(void) const;
 		std::vector<byte> to_bytes(void) const;

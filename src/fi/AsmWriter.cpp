@@ -12,9 +12,7 @@ void fi::AsmWriter::generate_asm_file(const std::string& p_filename,
 	const std::set<std::size_t>& p_jump_targets,
 	const std::vector<fi::FaxString>& p_strings,
 	const std::vector<fi::Shop>& p_shops,
-	bool p_string_comments, bool p_shop_comments) const {
-
-	bool inline_strings{ true };
+	bool p_shop_comments) const {
 
 	const auto& get_next_label = [](std::size_t p_offset,
 		int p_lastentry, int& p_lastlabel,
@@ -23,18 +21,23 @@ void fi::AsmWriter::generate_asm_file(const std::string& p_filename,
 			if (labiter != end(p_labels))
 				return labiter->second;
 
-			std::string tmp_label{ std::format("iscript_{:03}_{:02}",
+			std::string tmp_label{ std::format("@iscript_{:03}_{:02}",
 				p_lastentry, p_lastlabel++) };
 			p_labels[p_offset] = tmp_label;
 			return tmp_label;
 		};
+
+	// we will report on savings at the end for information
+	std::set<std::string> l_used_strings;
 
 	// make a map from offset to vector of entrypoints
 	std::map<std::size_t, std::vector<std::size_t>> l_eps;
 	for (std::size_t i{ 0 }; i < p_entrypoints.size(); ++i)
 		l_eps[p_entrypoints[i]].push_back(i);
 
-	std::string af;
+	std::string af{
+		" ; IScript assembly file extracted by FaxIScript v0.2\n ; https://github.com/kaimitai/FaxIScripts\n\n"
+	};
 
 	append_defines_section(af);
 	append_strings_section(af, p_strings);
@@ -73,7 +76,20 @@ void fi::AsmWriter::generate_asm_file(const std::string& p_filename,
 			const auto& op{ fi::opcodes.find(instr.opcode_byte)->second };
 			af += std::format("    {}", op.name);
 
-			if (op.arg_type != fi::ArgType::None) {
+			if (op.domain == fi::ArgDomain::TextString) {
+				std::size_t str_ind{ static_cast<std::size_t>(instr.operand.value()) };
+
+				if (str_ind == 0 ||
+					str_ind > p_strings.size())
+					af += std::format(" {} ; invalid string index", str_ind);
+				else {
+					std::string l_out_str{ p_strings.at(str_ind - 1).get_string() };
+					af += std::format(" \"{}\"", l_out_str);
+					l_used_strings.insert(l_out_str);
+				}
+
+			}
+			else if (op.arg_type != fi::ArgType::None) {
 				if (op.arg_type == fi::ArgType::Byte)
 					af += std::format(" {}",
 						get_define(op.domain, static_cast<byte>(instr.operand.value()))
@@ -106,15 +122,22 @@ void fi::AsmWriter::generate_asm_file(const std::string& p_filename,
 				}
 			}
 
-			if (op.domain == fi::ArgDomain::TextString) {
-				if (instr.operand.value() == 0 ||
-					static_cast<std::size_t>(instr.operand.value()) - 1 >= p_strings.size())
-					af += " ; ERROR: Invalid string index";
-				else if (p_string_comments)
-					af += std::format(" ; \"{}\"", p_strings.at(static_cast<std::size_t>(instr.operand.value() - 1)).get_string());
-			}
-
 			af += "\n";
+		}
+	}
+
+	// report on unused strings
+	std::set<std::string> l_discarded_strs;
+	for (std::size_t i{ 0 }; i < p_strings.size(); ++i) {
+		if (c::RESERVED_STRING_IDX.count(static_cast<int>(i + 1)) == 0 &&
+			!l_used_strings.contains(p_strings[i].get_string()))
+			l_discarded_strs.insert(p_strings[i].get_string());
+	}
+
+	if (!l_discarded_strs.empty()) {
+		af += "\n ; Discarded strings (strings with no references)\n";
+		for (const auto& str : l_discarded_strs) {
+			af += std::format(" ; \"{}\"\n", str);
 		}
 	}
 
@@ -168,10 +191,15 @@ std::string fi::AsmWriter::get_define(const std::map<byte, std::string>& p_map, 
 
 void fi::AsmWriter::append_strings_section(std::string& p_asm,
 	const std::vector<fi::FaxString>& p_strings) const {
-	p_asm += "\n[strings]\n";
+	p_asm += std::format("\n ; string indexes referenced directly by game code\n ; change the contents - but not the indexes\n{}\n",
+		c::SECTION_STRINGS);
 
 	for (std::size_t i{ 0 }; i < p_strings.size(); ++i)
-		p_asm += std::format("{}: \"{}\"\n", i + 1, p_strings[i].get_string());
+		if (fi::c::RESERVED_STRING_IDX.find(static_cast<int>(i + 1))
+			!= end(fi::c::RESERVED_STRING_IDX))
+			p_asm += std::format("{}: \"{}\"\n",
+				i + 1,
+				p_strings[i].get_string());
 }
 
 void fi::AsmWriter::append_shops_section(std::string& p_asm,
