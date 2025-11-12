@@ -41,6 +41,9 @@ void fi::AsmReader::read_asm_file(const std::string& p_filename) {
 }
 
 void fi::AsmReader::parse_section_strings(void) {
+	if (!m_sections.contains(SectionType::Strings))
+		return;
+
 	const auto& lines = m_sections.at(SectionType::Strings);
 	std::map<int, std::string> temp;
 	int max_index{ 0 };
@@ -81,6 +84,9 @@ void fi::AsmReader::parse_section_strings(void) {
 }
 
 void fi::AsmReader::parse_section_defines() {
+	if (!m_sections.contains(SectionType::Defines))
+		return;
+
 	const auto& lines = m_sections.at(SectionType::Defines);
 
 	for (const auto& line : lines) {
@@ -113,6 +119,9 @@ void fi::AsmReader::parse_section_defines() {
 }
 
 void fi::AsmReader::parse_section_shops() {
+	if (!m_sections.contains(SectionType::Shops))
+		return;
+
 	const auto& lines = m_sections.at(SectionType::Shops);
 	std::map<std::size_t, Shop> result;
 

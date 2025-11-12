@@ -36,7 +36,7 @@ void fi::AsmWriter::generate_asm_file(const std::string& p_filename,
 		l_eps[p_entrypoints[i]].push_back(i);
 
 	std::string af{
-		" ; IScript assembly file extracted by FaxIScript v0.2\n ; https://github.com/kaimitai/FaxIScripts\n\n"
+		" ; IScript assembly file extracted by FaxIScripts v0.2\n ; https://github.com/kaimitai/FaxIScripts\n\n"
 	};
 
 	append_defines_section(af);

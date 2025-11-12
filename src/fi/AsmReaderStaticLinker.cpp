@@ -52,6 +52,11 @@ Data we need:
 
  */
 void fi::AsmReader::parse_section_iscript(void) {
+	if (!m_sections.contains(SectionType::IScript))
+		throw std::runtime_error(
+			std::format("Missing required section {}", c::SECTION_ISCRIPT
+			));
+
 	// start by calculating the shop offsets and code offset
 	// we are not emitting any bytes in the first pass
 	// we will do this with 0-relative offsets in the first pass

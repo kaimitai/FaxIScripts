@@ -10,16 +10,26 @@ There are two ROM regions we can use when patching, and the users can choose bet
 
 Make sure to read the [documentation](./docs/doc.md) for a detailed overview of the syntax and structure of the assembly files we will be editing, as well as a list of all available opcodes.
 
+This application has a natural companion in [Echoes of Eolis](https://github.com/kaimitai/faxedit/), which is a graphical editor that can patch the other dynamically sized data portions in Faxanadu. To see, or change, which NPCs in Faxanadu are connected to a given script (script entrypoint) this editor can be used.
+
+<hr>
+
+An example of an extracted script:
+
+![Alt text](./docs/img/script067_full_plate_gift.png)
+
+#### Faxanadu script #67 - Free full plate from a man in the Victim pub, if your rank is Solider or higher
+
 <hr>
 
 ## Assembler Capabilities
 The assembler is currently only compatible with the US version of Faxanadu. It has the following features:
 
-* Byte-fidelity with respect to size and content will be retained when extracting and patching content; for both strings and script code
+* Byte-fidelity with respect to size and functionality will be retained when extracting and patching content; for both strings and script code. There is no change to game code itself, just a clean patching of dynamically sized data.
 * When extracting an asm-file from ROM, the constant defines will be populated automatically and used in the code
-* Extracted asm-files can show shop contents and string values in comments wherever they are used as operands
+* Strings will be inlined in the code and can be used as operands directly. The assembler will discard all duplicates and ensure that all string-calling functions point to the correct index. Reserved string indexes (six strings which are used by index directly from the action handlers, even if no scripts reference them) are defined in the asm automatically when extracting, and the assembler will not consider these for re-indexing or discarding.
+* Extracted asm-files can show shop contents as comments wherever they are used as operands
 * Strict-mode; where we don't patch a ROM if we spend more bytes than the original ROM did, tightly packed in one section
-* Extended ROM-mode; where we put the shop data in one section and the script code in the other free section
 * Smart static linker mode; The shop data and code stream starts within the first safe region, and if we overflow the static linker redirects code to the second region while patching all required labels, jumps, pointer table entries and instruction offsets. This is done without inserting a synthetic jump-node.
 
 <hr>
@@ -44,16 +54,24 @@ There is little static code analysis available for the time being, but before ac
 
 ### Roadmap
 
-This assembler was built over the course of a few nights, and hasn't been thoroughly tested yet, so there could be bugs. We prioritize fixing those.
+We prioritize fixing bugs if any are discovered, but here are some ideas for future features:
 
 * Incorporate the application with [Echoes of Eolis](https://github.com/kaimitai/faxedit/) in some fashion. This is my graphical data editor for Faxanadu, and currently shows hard coded labels for the scripts - labels that describe the scripts as they were used in the original game. I would like to dynamically parse scripts there and show descriptive labels or tooltips for scripts that have been edited.
-* We will consider allowing users to inline actual strings and shops as operands in commands. It would improve editability but there are concerns regarding data duplication that need to be considered first. In addition, there are hard coded string index references embedded in the game code, which we need to identify and handle specially.
 * We might do more static analysis to help users identify problems in their code
-* I would like to add an option to sort the instruction stream by entry point (pointer table index) to the extent that it is possible. This takes some care to get right in the general case. 
+* Possibly add an option to sort the instruction stream by entry point (pointer table index) to the extent that it is possible. This takes some care to get right in the general case, but it is not clear that this yields any benefit.
+* Add an option to let the linker insert a jump-instruction to bridge the gap between the safe ROM regions. This could potentially save some bytes over the current bridging strategy.
 
 <hr>
 
 ### Version History
+
+* 2025-11-xx: version 0.2
+    * Use inline strings for both disassembly and assembly. The assembler will deduplicate all strings in the code, and allocate string indexes automatically during builds. Reserved strings will retain their indexes
+    * A consequence of the assembler allocating strings is that unused strings (strings not referenced in code and reserved strings) will be discarded. In the original game data we save 460 bytes by deduplicating strings and discarding unreferenced ones
+    * Include [IScript syntax highlighting for Notepad++](./util/FaxIScript.xml), in a new util-folder
+    * Opcode EndGame will be treated as end-of-stream
+    * Added better error messages in places
+    * Removed "extended ROM mode" as it had no reasonable use case
 
 * 2025-11-09: version 0.1
   * Initial release
