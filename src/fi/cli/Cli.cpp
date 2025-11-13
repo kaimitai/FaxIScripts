@@ -1,4 +1,4 @@
-﻿#include "Cli.h"
+#include "Cli.h"
 #include <format>
 #include <iostream>
 #include "application_constants.h"
@@ -8,10 +8,15 @@
 #include "./../AsmReader.h"
 #include "./../AsmWriter.h"
 #include "./../../common/klib/Kfile.h"
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 void fi::Cli::print_header(void) const {
 	std::cout << fi::appc::APP_NAME << " v" << fi::appc::APP_VERSION << " - Faxanadu IScript Assembler and Disassembler\n";
-	std::cout << "Author: Kai E. Froeland (https://github.com/kaimitai/FaxIScripts)\n";
+	std::cout << "Author: Kai E. Fr";
+	output_oe_on_windows();
+	std::cout << "land (https://github.com/kaimitai/FaxIScripts)\n";
 	std::cout << "Build date: " << __DATE__ << " " << __TIME__ << " CET\n\n";
 }
 
@@ -201,4 +206,19 @@ void fi::Cli::toggle_flag(std::size_t p_flag_idx) {
 		m_strict = !m_strict;
 	else if (p_flag_idx == 2)
 		m_overwrite = !m_overwrite;
+}
+
+// sad that this is needed in 2025
+void fi::Cli::output_oe_on_windows(void) const {
+
+#ifdef _WIN32
+	UINT old_cp = GetConsoleOutputCP();
+	SetConsoleOutputCP(CP_UTF8);
+#endif
+
+	std::cout << "ø";
+
+#ifdef _WIN32
+	SetConsoleOutputCP(old_cp);
+#endif
 }

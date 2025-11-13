@@ -20,6 +20,8 @@ namespace fi {
 		void print_help(void) const;
 		void parse_arguments(int arg_start, int argc, char** argv);
 
+		void output_oe_on_windows(void) const;
+
 		// main logic
 		void asm_to_nes(const std::string& p_asm_filename,
 			const std::string& p_nes_filename,
