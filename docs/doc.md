@@ -10,11 +10,9 @@ If you want to edit the scripts used within Faxanadu, you will have to do some l
 
 The scripting layer of Faxanadu consists of text-strings, shop data and code. The shop data and code live together in one section, whereas the strings live in a different section.
 
-A sprite in Faxanadu - an NPC or an item - can call script code. For certain events, like pickup up items and dying, the index of the script it triggers is hard coded in the game's logic. For NPCs the sprite data defines which script will be called when you interact with it.
+A sprite in Faxanadu - an NPC or an item - can call script code. For certain events, like picking up items, dying, trying to open a door with a key and such - the index of the script it triggers is hard coded in the game's logic. For NPCs the sprite data defines which script will be called when you interact with it.
 
 The script code is one contiguos blob of data, and just before the script data begins there is a so called pointer table - with 152 entries - which tells the game where in the script code the entrypoint for the scripts are.
-
-Sprites (NPCs), as well as certain events in Faxanadu, will trigger a script. The script ID corresponds to one of the 152 entrypoints in the scrip code.
 
 Too see, or edit, which script is connected with a certain NPC in the game, you can use [Echoes of Eolis](https://github.com/kaimitai/faxedit/) - a graphical editor which will let you edit other data portions than the script layer.
 
@@ -61,7 +59,7 @@ To extract a file, called "Faxanadu (U).nes" say, we run the following command f
 
  You can add options when extracting. They are:
 
-* * --no-shop-comments (or -p for short): The same as for strings, just with shop data. Some IScript commands refer to a shop index.
+* --no-shop-comments (or -p for short): Disable comments showing shop contents where a shop index is used as an operand
 * --force (-f for short): Overwrite existing asm-file if it already exists. We don't allow it by default because users might inadvertently overwrite their assembly code if they aren't careful.
 
 To build a file we go in the opposite direction, and assemble. To build a file faxanadu.asm and patch "Faxanadu (U).nes" with it, run the following command:
@@ -73,7 +71,7 @@ To build a file we go in the opposite direction, and assemble. To build a file f
  There are also options when building. They are:
 
  * --original-size (-o for short): This option will make patching fail if we use more ROM data than the original game. Use this if you are already using the free section at the end of the bank for something else. Note that the game code is packed in the code section, so if you add something you will also have to remove something else if you use this mode.
- * --source-rom (-s for short): This option takes an argument, which is a filename for the ROM you will use as a source for patching. If this option is not specified we will patch the file given as output file. Use this if you want to keep a clean ROM as source whenever you patch.
+ * --source-rom (-s for short): This option takes an argument, which is a filename for the ROM you will use as a source for patching. If this option is not specified we will patch the file given as output file. Use this if you don't want to patch a ROM file directly.
 
 ## Assembly file contents
 
@@ -95,9 +93,9 @@ This is the start of an extracted assembly file. Whenever you use the value WEAP
 
 The defines will only replace numeric constants, and only in the [shops] and [iscript] sections.
 
-### [reserved_strings]
+### [strings]
 
-This section contains a list of strings with reserved indexes. The assembler needs to know about these so they are not relocated or discarded during builds. These are strings which are used directly by game logic, and not necessarily any particular script.
+The section [reserved_strings] contains a list of strings with reserved indexes. The assembler needs to know about these so they are not relocated or discarded during builds. These are strings which are used directly by game logic, and not necessarily any particular script.
 
 ```
 [reserved_strings]
@@ -110,7 +108,7 @@ This section contains a list of strings with reserved indexes. The assembler nee
 ```
 These are the reserved strings in the original game. The strings can be edited, but the indexes should be left as they are.
 
-In general, strings are enclosed by double quotes, and we use special syntax for some characters. Valid characters you can write directly are:
+In general, strings are enclosed by double quotes, and we use special syntax for some characters. Valid characters you can write directly in your strings are:
 * A-Z, a-z, 0-9
 * . ? ' , ! - _
 
@@ -135,6 +133,8 @@ Strings are stored in a certain section of ROM, and we can't extend this section
 After assembly, strings indexes are given by 1 byte arguments to opcodes using strings, and they are 1-indexed, meaning you can't use more than 254 distinct strings.
 
 Many strings in the game seem to be missing spaces between words, but in those cases they are taking advantage of the fact that line breaks will occurr there, every 16 characters.
+
+Note: You can still give a string index instead of a string to string-using opcodes. The only reasonable use case might be to use string index 0 which seems to be considered an empty string by the game - if you want to add an empty dialogue without consuming a string index.
 
 ### [shops]
 
@@ -161,7 +161,7 @@ This is where we edit the actual scripts. We have implemented a custom assembly 
 
 #### comments
 
-Comments can be inserted on a line, starting with a semicolon. Anything from the semicolon to the end of the line will be ignored by the assembler. When we extract scripts from a ROM, we populate comments with string and shop contents by default - but this is for information only.
+Comments can be inserted on a line, starting with a semicolon. Anything from the semicolon to the end of the line will be ignored by the assembler. When we extract scripts from a ROM, we populate comments with shop contents by default - but this is for information only.
 
 #### jumps
 
@@ -173,9 +173,9 @@ A label in the assembly file is a target for a jump. When you use a jump instruc
 
 Labels are put on lines in code, and end with a colon, like this:
 
-```iscript_038_01:```
+```@iscript_038_01:```
 
-If an instruction later jumps to label iscript_038_01 it knows where it is. All labels used in your programs must be defined, and the definitions need to be in unique locations per label. You can use the labels as jump targets anywhere you want however.
+If an instruction later jumps to label @iscript_038_01 it knows where it is. All labels used in your programs must be defined, and the definitions need to be in unique locations per label. You can use the labels as jump targets anywhere you want however.
 
 Labels can have any name, but they are case-sensitive. When extracting from ROM labels will be automatically generated for you, but it is a good idea to give your labels descriptive names. I personally like to start labels with @ so they pop out in the code.
 
@@ -230,7 +230,7 @@ All opcodes starting with If will take a label as the last argument. The only ex
 
 The assembler will fail if you give the wrong number of arguments to your opcodes.
 
-Unlike labels and defines, opcodes are not case sensitive; you can write ENDGAME, endgame or EndGame - whichever you prefer.
+Unlike labels and defines, opcodes are not case sensitive; you can write ENDGAME, endgame or EndGame for example - whichever you prefer.
 
 ## A concrete example
 
@@ -335,7 +335,7 @@ This is the script that is called when you start the game and hit the invisible 
 
 ```
 .textbox PINK_SHIRT
-    MsgNoskip "Hello";
+    MsgNoskip "Hello"
     GetGold 1000
     GetHealth 50
     GetItem WEAPON_DRAGON_SLAYER

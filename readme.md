@@ -2,7 +2,7 @@
 
 Welcome to the FaxIScripts code repository and release page. The code is standard C++20, and the project files were created using Microsoft Visual Studio Community 2022. You can compile the application from source, or get the latest precompiled Windows x64 build under the [repository releases](https://github.com/kaimitai/FaxIScripts/releases/).
 
-IScripts are scripts used inside the Faxanadu (NES) game engine, and is surprisingly expressive. The aim of this assembler is to extract IScript code to a human-readable format reminiscent of assembly code. We aim to stay at the highest possible layer of abstraction without losing any extracted information.
+IScripts are scripts used inside the Faxanadu (NES) game engine, and are surprisingly expressive. The aim of this assembler is to extract IScript code to a human-readable format reminiscent of assembly code. We aim to stay at the highest possible layer of abstraction without losing any extracted information.
 
 The scripting layer contains strings, shop data and actual code. The strings are stored in a separate section, but the shop data and code live together in one combined section. The shop data gets moved to its own section in our assembly files, and any opcode referencing a shop uses its index - which is only resolved to an actual address during linking. This provides a zero-cost abstraction - no extra bytes, no layout penalties.
 
@@ -65,7 +65,7 @@ We prioritize fixing bugs if any are discovered, but here are some ideas for fut
 
 ### Version History
 
-* 2025-11-xx: version 0.2
+* 2025-11-13: version 0.2
     * Use inline strings for both disassembly and assembly. The assembler will deduplicate all strings in the code, and allocate string indexes automatically during builds. Reserved strings will retain their indexes
     * A consequence of the assembler allocating strings is that unused strings (strings not referenced in code and reserved strings) will be discarded. In the original game data we save 460 bytes by deduplicating strings and discarding unreferenced ones
     * Include [IScript syntax highlighting for Notepad++](./util/FaxIScript.xml), in a new util-folder
