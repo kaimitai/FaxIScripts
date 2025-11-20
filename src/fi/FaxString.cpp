@@ -12,11 +12,7 @@ const std::string& fi::FaxString::get_string(void) const {
 	return m_string;
 }
 
-std::vector<byte> fi::FaxString::to_bytes(void) const {
-	// Build reverse map: "<n>" -> 0xfe, "A" -> 0x41, etc.
-	std::map<std::string, byte> reverse_map;
-	for (const auto& [b, s] : c::FAXSTRING_CHARS)
-		reverse_map[s] = b;
+std::vector<byte> fi::FaxString::to_bytes(const std::map<std::string, byte>& p_smap) const {
 
 	const auto parse_fallback_token = [](const std::string& token) -> byte {
 		if (token.size() < 3 || token.front() != '<' || token.back() != '>')
@@ -60,8 +56,8 @@ std::vector<byte> fi::FaxString::to_bytes(void) const {
 				throw std::runtime_error("Unterminated token in string: " + m_string);
 
 			std::string token = m_string.substr(pos, end - pos + 1); // includes < and >
-			auto iter = reverse_map.find(token);
-			if (iter != reverse_map.end()) {
+			auto iter = p_smap.find(token);
+			if (iter != p_smap.end()) {
 				result.push_back(iter->second);
 			}
 			else {
@@ -72,8 +68,8 @@ std::vector<byte> fi::FaxString::to_bytes(void) const {
 		}
 		else {
 			std::string ch(1, m_string[pos]);
-			auto iter = reverse_map.find(ch);
-			if (iter == reverse_map.end())
+			auto iter = p_smap.find(ch);
+			if (iter == p_smap.end())
 				throw std::runtime_error(std::format("Unknown character: '{}'", ch));
 			result.push_back(iter->second);
 			pos++;

@@ -130,6 +130,9 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="src\common\klib\Kfile.cpp" />
+    <ClCompile Include="src\common\pugixml\pugixml.cpp" />
+    <ClCompile Include="src\fe\Config.cpp" />
+    <ClCompile Include="src\fe\xml\Xml_helper.cpp" />
     <ClCompile Include="src\fi\AsmReader.cpp" />
     <ClCompile Include="src\fi\AsmReaderStaticLinker.cpp" />
     <ClCompile Include="src\fi\AsmWriter.cpp" />
@@ -142,6 +145,11 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\common\klib\Kfile.h" />
+    <ClInclude Include="src\common\pugixml\pugiconfig.hpp" />
+    <ClInclude Include="src\common\pugixml\pugixml.hpp" />
+    <ClInclude Include="src\fe\Config.h" />
+    <ClInclude Include="src\fe\xml\Xml_constants.h" />
+    <ClInclude Include="src\fe\xml\Xml_helper.h" />
     <ClInclude Include="src\fi\AsmReader.h" />
     <ClInclude Include="src\fi\AsmWriter.h" />
     <ClInclude Include="src\fi\cli\application_constants.h" />

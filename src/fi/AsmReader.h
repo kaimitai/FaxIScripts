@@ -8,6 +8,7 @@
 #include "FaxString.h"
 #include "Shop.h"
 #include "Opcode.h"
+#include "./../fe/Config.h"
 
 namespace fi {
 
@@ -34,7 +35,7 @@ namespace fi {
 		void parse_section_strings(void);
 		void parse_section_defines(void);
 		void parse_section_shops(void);
-		void parse_section_iscript(void);
+		void parse_section_iscript(const fe::Config& p_config);
 
 		std::map<std::string, int> relocate_strings(const std::set<std::string>& p_strings);
 
@@ -56,11 +57,12 @@ namespace fi {
 
 	public:
 		AsmReader(void) = default;
-		void read_asm_file(const std::string& p_filename);
+		void read_asm_file(const fe::Config& p_config,
+			const std::string& p_filename);
 
 		// get ROM bytes
-		std::pair<std::vector<byte>, std::vector<byte>> get_script_bytes(void) const;
-		std::vector<byte> get_string_bytes(void) const;
+		std::pair<std::vector<byte>, std::vector<byte>> get_script_bytes(const fe::Config& p_config) const;
+		std::vector<byte> get_string_bytes(const fe::Config& p_config) const;
 		std::size_t get_string_count(void) const;
 	};
 

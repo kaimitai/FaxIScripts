@@ -9,6 +9,7 @@
 #include "Opcode.h"
 #include "FaxString.h"
 #include "Shop.h"
+#include "./../fe/Config.h"
 
 using byte = unsigned char;
 
@@ -31,9 +32,10 @@ namespace fi {
 		// we parse shops when we see them and assign an index if it is unique
 		std::map<std::size_t, std::size_t> m_shop_addresses;
 
-		void parse_rom(void);
-		void parse_strings(void);
-		void parse_blob_from_entrypoint(size_t offset, bool at_entrypoint);
+		void parse_rom(const fe::Config& p_config);
+		void parse_strings(const fe::Config& p_config);
+		void parse_blob_from_entrypoint(size_t offset, size_t zeroaddr,
+			bool at_entrypoint);
 
 		byte read_byte(std::size_t& offset) const;
 		uint16_t read_short(std::size_t& offset) const;

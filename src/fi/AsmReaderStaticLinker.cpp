@@ -51,11 +51,19 @@ Data we need:
    between our local data-relative zero addr offset and bank zero addr offset
 
  */
-void fi::AsmReader::parse_section_iscript(void) {
+void fi::AsmReader::parse_section_iscript(const fe::Config& p_config) {
 	if (!m_sections.contains(SectionType::IScript))
 		throw std::runtime_error(
 			std::format("Missing required section {}", c::SECTION_ISCRIPT
 			));
+
+	// extract constants we need from the config
+	std::size_t l_iscript_count{ p_config.constant(c::ID_ISCRIPT_COUNT) };
+	std::size_t l_iscript_rg1_size{ p_config.constant(c::ID_ISCRIPT_RG1_SIZE) };
+	std::size_t l_iscript_rg2_offset{ p_config.constant(c::ID_ISCRIPT_RG2_START) };
+	auto l_iscript_ptr{ p_config.pointer(c::ID_ISCRIPT_PTR_LO) };
+	std::size_t l_iscript_data_start{ l_iscript_ptr.first +
+	2 * l_iscript_count };
 
 	// start by calculating the shop offsets and code offset
 	// we are not emitting any bytes in the first pass
@@ -238,7 +246,7 @@ void fi::AsmReader::parse_section_iscript(void) {
 	// we have labels and entrypoint idx to instruction index
 
 	// verify that we can populate each ptr table entry when we need to
-	for (std::size_t i{ 0 }; i < c::ISCRIPT_COUNT; ++i)
+	for (std::size_t i{ 0 }; i < l_iscript_count; ++i)
 		if (ptr_to_instr_index.find(i) == end(ptr_to_instr_index))
 			throw std::runtime_error(std::format("Entrypoint {} not defined. ", i));
 
@@ -258,7 +266,7 @@ void fi::AsmReader::parse_section_iscript(void) {
 
 	for (std::size_t i{ 0 }; i < m_instructions.size(); ++i)
 		if (m_instructions[i].byte_offset.value() + m_instructions[i].size >
-			c::ISCRIPT_DATA_SIZE_REGION_1) {
+			l_iscript_rg1_size) {
 			first_unsafe_inst_idx = i;
 			break;
 		}
@@ -269,7 +277,7 @@ void fi::AsmReader::parse_section_iscript(void) {
 		for (std::size_t i{ first_unsafe_inst_idx.value() - 1 };
 			i > 0; --i)
 			if (m_instructions[i].byte_offset.value() + m_instructions[i].size
-				<= c::ISCRIPT_DATA_SIZE_REGION_1
+				<= l_iscript_rg1_size
 				&& m_instructions[i].type != fi::Instruction_type::Directive
 				&& fi::opcodes.at(m_instructions[i].opcode_byte).ends_stream) {
 				idx_after_last_safe_stream_end = i + 1;
@@ -283,7 +291,10 @@ void fi::AsmReader::parse_section_iscript(void) {
 	// and therefore the same delta to all 
 	if (idx_after_last_safe_stream_end.has_value()) {
 		// calculate the relocation delta
-		std::size_t relocation_delta{ c::ISCRIPT_DATA_OFFSET_REGION_2
+		// this is relative to address 0 being the start of iscript data
+		// (at end of iscript ptr table)
+		std::size_t relocation_delta{
+			(l_iscript_rg2_offset - l_iscript_data_start)
 		- m_instructions.at(idx_after_last_safe_stream_end.value()).byte_offset.value() };
 
 		for (std::size_t i{ idx_after_last_safe_stream_end.value() };
@@ -307,8 +318,8 @@ void fi::AsmReader::parse_section_iscript(void) {
 
 	// our offsets are all relative to the start of the script data immediately
 	// following the ptr table; make all our ptrs bank relative
-	const uint16_t PTR_DELTA{ static_cast<uint16_t>(c::ISCRIPT_ADDR_LO + 2 * c::ISCRIPT_COUNT
-	- c::ISCRIPT_PTR_ZERO_ADDR) };
+	const uint16_t PTR_DELTA{ static_cast<uint16_t>(l_iscript_ptr.first + 2 * l_iscript_count
+	- l_iscript_ptr.second) };
 	for (std::size_t ins{ 0 }; ins < m_instructions.size(); ++ins) {
 		if (m_instructions[ins].jump_target.has_value()) {
 			m_instructions[ins].jump_target = m_instructions[ins].jump_target.value() + PTR_DELTA;
@@ -323,17 +334,25 @@ void fi::AsmReader::parse_section_iscript(void) {
 }
 
 std::pair<std::vector<byte>, std::vector<byte>>
-fi::AsmReader::get_script_bytes(void) const {
+fi::AsmReader::get_script_bytes(const fe::Config& p_config) const {
 	std::vector<byte> region_1, region_2;
 
-	const uint16_t BANK_ZERO_ADDR{ static_cast<uint16_t>(c::ISCRIPT_ADDR_LO + 2 * c::ISCRIPT_COUNT
-- c::ISCRIPT_PTR_ZERO_ADDR) };
+	std::size_t l_iscript_count{ p_config.constant(c::ID_ISCRIPT_COUNT) };
+	auto l_iscript_ptr{ p_config.pointer(c::ID_ISCRIPT_PTR_LO) };
+
+	const uint16_t SCRIPT_DATA_START{
+		static_cast<uint16_t>(
+		l_iscript_ptr.first +
+		2 * l_iscript_count -
+		l_iscript_ptr.second
+			)
+	};
 
 	// lo bytes
-	for (std::size_t i{ 0 }; i < c::ISCRIPT_COUNT; ++i)
+	for (std::size_t i{ 0 }; i < l_iscript_count; ++i)
 		region_1.push_back(static_cast<byte>(m_ptr_table.at(i) % 256));
 	// hi bytes
-	for (std::size_t i{ 0 }; i < c::ISCRIPT_COUNT; ++i)
+	for (std::size_t i{ 0 }; i < l_iscript_count; ++i)
 		region_1.push_back(static_cast<byte>(m_ptr_table.at(i) / 256));
 
 	for (const auto& kv : m_shops) {
@@ -344,7 +363,7 @@ fi::AsmReader::get_script_bytes(void) const {
 	for (const auto& instr : m_instructions) {
 		auto instrbytes{ instr.get_bytes() };
 
-		if (instr.byte_offset < BANK_ZERO_ADDR + c::ISCRIPT_DATA_SIZE_REGION_1)
+		if (instr.byte_offset < SCRIPT_DATA_START + p_config.constant(c::ID_ISCRIPT_RG1_SIZE))
 			region_1.insert(end(region_1), begin(instrbytes), end(instrbytes));
 		else
 			region_2.insert(end(region_2), begin(instrbytes), end(instrbytes));

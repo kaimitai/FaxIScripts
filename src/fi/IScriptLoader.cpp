@@ -8,36 +8,44 @@ fi::IScriptLoader::IScriptLoader(const std::vector<byte>& p_rom) :
 {
 }
 
-void fi::IScriptLoader::parse_rom(void) {
+void fi::IScriptLoader::parse_rom(const fe::Config& p_config) {
 	// parse strings
-	parse_strings();
+	parse_strings(p_config);
 
 	// parse IScript blob
 	ptr_table.clear();
 
-	for (std::size_t i{ 0 }; i < c::ISCRIPT_COUNT; ++i)
-		ptr_table.push_back(static_cast<std::size_t>(rom.at(c::ISCRIPT_ADDR_LO + i))
-			+ 256 * static_cast<std::size_t>(rom.at(c::ISCRIPT_ADDR_HI + i))
-			+ c::ISCRIPT_PTR_ZERO_ADDR);
+	// extract vals we need from config
+	std::size_t l_iscript_count{ p_config.constant(c::ID_ISCRIPT_COUNT) };
+	auto l_iscript_ptr{ p_config.pointer(c::ID_ISCRIPT_PTR_LO) };
+
+	for (std::size_t i{ 0 }; i < l_iscript_count; ++i)
+		ptr_table.push_back(static_cast<std::size_t>(rom.at(l_iscript_ptr.first + i))
+			+ 256 * static_cast<std::size_t>(rom.at(l_iscript_ptr.first + l_iscript_count + i))
+			+ l_iscript_ptr.second);
 
 	for (const auto offset : ptr_table)
-		parse_blob_from_entrypoint(offset, true);
+		parse_blob_from_entrypoint(offset, l_iscript_ptr.second, true);
 }
 
-void fi::IScriptLoader::parse_strings(void) {
+void fi::IScriptLoader::parse_strings(const fe::Config& p_config) {
 	m_strings.clear();
 	std::string encodedstring;
 
-	for (std::size_t i{ c::OFFSET_STRINGS }; i < c::OFFSET_STRINGS + c::SIZE_STRINGS; ++i) {
-			
+	const auto& lc_char_map{ p_config.bmap(c::ID_STRING_CHAR_MAP) };
+
+	for (std::size_t i{ p_config.constant(c::ID_STRING_DATA_START) };
+		i < p_config.constant(c::ID_STRING_DATA_END) && m_strings.size() < 255;
+		++i) {
+
 		if (rom.at(i) == 0xff) {
 			m_strings.push_back(encodedstring);
 			encodedstring.clear();
 		}
 		else {
 			byte b{ rom.at(i) };
-			auto iter{ c::FAXSTRING_CHARS.find(b) };
-			if (iter == end(c::FAXSTRING_CHARS))
+			auto iter{ lc_char_map.find(b) };
+			if (iter == end(lc_char_map))
 				encodedstring += std::format("<${:02x}>", b);
 			else
 				encodedstring += iter->second;
@@ -61,7 +69,8 @@ std::string fi::IScriptLoader::to_hex(size_t value) {
 	return std::format("0x{:x}", value);
 }
 
-void fi::IScriptLoader::parse_blob_from_entrypoint(size_t offset, bool at_entrypoint) {
+void fi::IScriptLoader::parse_blob_from_entrypoint(size_t offset,
+	size_t zeroaddr, bool at_entrypoint) {
 	if (m_instructions.find(offset) != end(m_instructions))
 		return;
 
@@ -100,7 +109,7 @@ void fi::IScriptLoader::parse_blob_from_entrypoint(size_t offset, bool at_entryp
 		// track jump targets, extract shops
 		if (op.flow == Flow::Jump || op.flow == Flow::Read) {
 			target_addr = static_cast<std::size_t>(read_short(cursor))
-				+ c::ISCRIPT_PTR_ZERO_ADDR;
+				+ zeroaddr;
 
 			if (op.flow == Flow::Jump)
 				m_jump_targets.insert(target_addr.value());
@@ -140,12 +149,12 @@ void fi::IScriptLoader::parse_blob_from_entrypoint(size_t offset, bool at_entryp
 			std::size_t temp_cursor{ cursor };
 			cursor = target_addr.value();
 
-			parse_blob_from_entrypoint(cursor, false);
+			parse_blob_from_entrypoint(cursor, zeroaddr, false);
 
 			cursor = temp_cursor;
 		}
 
-		if (op.flow == Flow::End || opcode_byte == 0x17)
+		if (op.ends_stream)
 			break;
 
 	}

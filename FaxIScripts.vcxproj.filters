@@ -37,6 +37,24 @@
     <Filter Include="Source Files\fi\cli">
       <UniqueIdentifier>{b7730ac0-a805-4356-ad99-2195e2b494d6}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\fe">
+      <UniqueIdentifier>{b7a770a2-0a98-4c03-b1df-cb3eff65220a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\fe\xml">
+      <UniqueIdentifier>{d2368fcb-9da2-4b78-a31d-a2d43b42dc13}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\common\pugixml">
+      <UniqueIdentifier>{fe012983-ad7f-4752-bc72-a531953b49da}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\common\pugixml">
+      <UniqueIdentifier>{cf8252e4-eae7-4bd3-b018-c8da6d8ea653}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\fe">
+      <UniqueIdentifier>{f4b058d2-5757-4b38-8010-fb68eaab3036}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\fe\xml">
+      <UniqueIdentifier>{9ec434eb-184e-44ea-9cb3-8ffa90bea495}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp">
@@ -69,6 +87,15 @@
     <ClCompile Include="src\fi\cli\Cli.cpp">
       <Filter>Source Files\fi\cli</Filter>
     </ClCompile>
+    <ClCompile Include="src\common\pugixml\pugixml.cpp">
+      <Filter>Source Files\common\pugixml</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fe\Config.cpp">
+      <Filter>Source Files\fe</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fe\xml\Xml_helper.cpp">
+      <Filter>Source Files\fe\xml</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\fi\Opcode.h">
@@ -100,6 +127,21 @@
     </ClInclude>
     <ClInclude Include="src\fi\cli\application_constants.h">
       <Filter>Header Files\fi\cli</Filter>
+    </ClInclude>
+    <ClInclude Include="src\common\pugixml\pugiconfig.hpp">
+      <Filter>Header Files\common\pugixml</Filter>
+    </ClInclude>
+    <ClInclude Include="src\common\pugixml\pugixml.hpp">
+      <Filter>Header Files\common\pugixml</Filter>
+    </ClInclude>
+    <ClInclude Include="src\fe\xml\Xml_helper.h">
+      <Filter>Header Files\fe\xml</Filter>
+    </ClInclude>
+    <ClInclude Include="src\fe\Config.h">
+      <Filter>Header Files\fe</Filter>
+    </ClInclude>
+    <ClInclude Include="src\fe\xml\Xml_constants.h">
+      <Filter>Header Files\fe\xml</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

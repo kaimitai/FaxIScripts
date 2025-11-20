@@ -28,7 +28,8 @@ void fi::Cli::print_help(void) const {
 	std::cout << "  -p, --no-shop-comments       Disable shop comment extraction (enabled by default)\n";
 	std::cout << "  -o, --original-size          Only patch original ROM location (disabled by default)\n";
 	std::cout << "  -f, --force                  Force assembly-file overwrite when extracting (disabled by default)\n";
-	std::cout << "  -s, --source-rom             The ROM file to be used as a source when assembling (by default the output file itself)\n\n";
+	std::cout << "  -s, --source-rom             The ROM file to be used as a source when assembling (by default the output file itself)\n";
+	std::cout << "  -r, --region                 ROM region which must be defined in the configuration xml (auto-detected by default)\n";
 }
 
 fi::Cli::Cli(int argc, char** argv) :
@@ -49,6 +50,8 @@ fi::Cli::Cli(int argc, char** argv) :
 		m_out_file = argv[3];
 		parse_arguments(4, argc, argv);
 	}
+
+	m_config.load_definitions(appc::CONFIG_XML);
 
 	// we have the info we need to execute
 	if (m_build_mode) {
@@ -80,46 +83,67 @@ void fi::Cli::asm_to_nes(const std::string& p_asm_filename,
 
 	fi::AsmReader reader;
 
-	std::cout << "Attempting to parse assembly file " << p_asm_filename << "\n";
-	reader.read_asm_file(p_asm_filename);
-
 	std::cout << "Attempting to read ROM contents from " << p_source_rom_filename << "\n";
 	auto rom{ klib::file::read_file_as_bytes(p_source_rom_filename) };
 
-	// we use different methods to get the ROM bytes if the smart linker is used
-	auto bytes{ reader.get_script_bytes() };
-	auto strbytes{ reader.get_string_bytes() };
+	if (m_region.empty()) {
+		m_config.determine_region(rom);
+		std::cout << "ROM region resolved to '" << m_config.get_region() << "'\n";
+	}
+	else {
+		m_config.set_region(m_region);
+		std::cout << "ROM region specified as '" << m_region << "'\n";
+	}
 
-	std::cout << std::format("Using {} unique strings out of a maximum of 254\n",
+	m_config.load_config_data(appc::CONFIG_XML);
+
+	std::cout << "Attempting to parse assembly file " << p_asm_filename << "\n";
+	reader.read_asm_file(m_config, p_asm_filename);
+
+	// we use different methods to get the ROM bytes if the smart linker is used
+	auto bytes{ reader.get_script_bytes(m_config) };
+	auto strbytes{ reader.get_string_bytes(m_config) };
+
+	std::cout << std::format("Using {} unique strings out of a maximum of 255\n",
 		reader.get_string_count());
 
-	try_patch_msg("strings", strbytes.size(), fi::c::SIZE_STRINGS);
+	// extract constants we need from config
+	std::size_t l_size_strings{ m_config.constant(c::ID_STRING_DATA_END) - m_config.constant(c::ID_STRING_DATA_START) };
+	std::size_t l_iscript_count{ m_config.constant(c::ID_ISCRIPT_COUNT) };
+	std::size_t l_iscript_rg1_size{ m_config.constant(c::ID_ISCRIPT_RG1_SIZE) };
+	std::size_t l_iscript_rg2_start{ m_config.constant(c::ID_ISCRIPT_RG2_START) };
+	std::size_t l_iscript_rg2_size{ m_config.constant(c::ID_ISCRIPT_RG2_END) - l_iscript_rg2_start };
+	auto l_iscript_ptr{ m_config.pointer(c::ID_ISCRIPT_PTR_LO) };
+	std::size_t l_iscript_string_start{ m_config.constant(c::ID_STRING_DATA_START) };
+	std::size_t l_iscript_string_size{ m_config.constant(c::ID_STRING_DATA_END) - l_iscript_string_start };
+
+	try_patch_msg("strings", strbytes.size(), l_size_strings);
 	try_patch_msg("script data (region 1)",
-		bytes.first.size() - c::ISCRIPT_COUNT * 2,
-		fi::c::ISCRIPT_DATA_SIZE_REGION_1);
+		bytes.first.size() - l_iscript_count * 2,
+		l_iscript_rg1_size);
 
 	try_patch_msg("script data (region 2)",
 		bytes.second.size(),
-		fi::c::ISCRIPT_DATA_SIZE_REGION_2);
+		l_iscript_rg2_size);
 
 	if (p_strict && !bytes.second.empty())
 		throw std::runtime_error("Strict mode was enabled but the original ROM region could not fit all data");
 
 	for (std::size_t i{ 0 }; i < bytes.first.size(); ++i)
-		rom.at(i + fi::c::ISCRIPT_ADDR_LO) = bytes.first[i];
+		rom.at(i + l_iscript_ptr.first) = bytes.first[i];
 
 	for (std::size_t i{ 0 }; i < bytes.second.size(); ++i)
 		rom.at(i + (
 			!p_strict ?
-			fi::c::ISCRIPT_DATA_ROM_OFFSET_REGION_2 : fi::c::ISCRIPT_ADDR_LO + bytes.first.size()
+			l_iscript_rg2_start : l_iscript_ptr.first + bytes.first.size()
 			)) = bytes.second[i];
 
 	for (std::size_t i{ 0 }; i < strbytes.size(); ++i)
-		rom.at(i + fi::c::OFFSET_STRINGS) = strbytes[i];
+		rom.at(i + l_iscript_string_start) = strbytes[i];
 	// make the rest of the string section unparseable so we don't
 	// accidentally import any garbage strings from the file we emit
-	for (std::size_t i{ strbytes.size() }; i < fi::c::SIZE_STRINGS; ++i)
-		rom.at(i + fi::c::OFFSET_STRINGS) = 0x00;
+	for (std::size_t i{ strbytes.size() }; i < l_iscript_string_size; ++i)
+		rom.at(i + l_iscript_string_start) = 0x00;
 
 	std::cout << "Verifying generated ROM contents\n";
 	try {
@@ -149,15 +173,28 @@ void fi::Cli::nes_to_asm(const std::string& p_nes_filename,
 		throw std::runtime_error(std::format("Assembly file {} exists, and overwrite-flag is not set", p_asm_filename));
 
 	std::cout << "Attempting to read " << p_nes_filename << "\n";
-	fi::IScriptLoader loader(klib::file::read_file_as_bytes(p_nes_filename));
+	const auto& rom_data{ klib::file::read_file_as_bytes(p_nes_filename) };
+
+	if (m_region.empty()) {
+		m_config.determine_region(rom_data);
+		std::cout << "ROM region resolved to '" << m_config.get_region() << "'\n";
+	}
+	else {
+		m_config.set_region(m_region);
+		std::cout << "ROM region specified as '" << m_region << "\n";
+	}
+
+	m_config.load_config_data(appc::CONFIG_XML);
+
+	fi::IScriptLoader loader(rom_data);
 
 	std::cout << "Attempting to parse ROM scripting layer\n";
-	loader.parse_rom();
+	loader.parse_rom(m_config);
 
 	fi::AsmWriter asmw;
 
 	std::cout << "Generating output file " << p_asm_filename << "\n";
-	asmw.generate_asm_file(p_asm_filename,
+	asmw.generate_asm_file(m_config, p_asm_filename,
 		loader.m_instructions, loader.ptr_table, loader.m_jump_targets,
 		loader.m_strings, loader.m_shops, m_shop_comments);
 
@@ -173,6 +210,13 @@ void fi::Cli::parse_arguments(int arg_start, int argc, char** argv) {
 				throw std::runtime_error("Source ROM option was set, but no source ROM file was specified");
 			else
 				m_source_rom = argv[++i];
+		}
+		else if (argvi == appc::CLI_REGION.first ||
+			argvi == appc::CLI_REGION.second) {
+			if (i + 1 >= argc)
+				throw std::runtime_error("Region option was used, but no ROM region was specified");
+			else
+				m_region = argv[++i];
 		}
 		else
 			set_flag(argvi);

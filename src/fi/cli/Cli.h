@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <string>
+#include "./../../fe/Config.h"
 
 namespace fi {
 
@@ -10,8 +11,9 @@ namespace fi {
 
 		bool m_build_mode;
 
-		std::string m_in_file, m_out_file, m_source_rom;
+		std::string m_in_file, m_out_file, m_source_rom, m_region;
 		bool m_strict, m_shop_comments, m_overwrite;
+		fe::Config m_config;
 
 		void set_mode(const std::string& p_mode);
 		void toggle_flag(std::size_t p_flag_idx);

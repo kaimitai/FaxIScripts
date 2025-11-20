@@ -10,7 +10,8 @@
 #include <string>
 #include <utility>
 
-void fi::AsmReader::read_asm_file(const std::string& p_filename) {
+void fi::AsmReader::read_asm_file(const fe::Config& p_config,
+	const std::string& p_filename) {
 	auto l_lines{ klib::file::read_file_as_strings(p_filename) };
 	fi::SectionType currentSection{ fi::SectionType::Defines };
 
@@ -36,7 +37,7 @@ void fi::AsmReader::read_asm_file(const std::string& p_filename) {
 	parse_section_strings();
 	parse_section_defines();
 	parse_section_shops();
-	parse_section_iscript();
+	parse_section_iscript(p_config);
 
 }
 
@@ -349,12 +350,14 @@ std::string fi::AsmReader::to_lower(const std::string& str) {
 	return result;
 }
 
-std::vector<byte> fi::AsmReader::get_string_bytes(void) const {
+std::vector<byte> fi::AsmReader::get_string_bytes(const fe::Config& p_config) const {
 	std::vector<byte> result;
+
+	const std::map<std::string, byte> l_smap{ p_config.bmap_reverse(c::ID_STRING_CHAR_MAP) };
 
 	for (const auto& kv : m_strings) {
 		try {
-			const auto& fsbytes{ kv.second.to_bytes() };
+			const auto& fsbytes{ kv.second.to_bytes(l_smap) };
 			result.insert(end(result), begin(fsbytes), end(fsbytes));
 		}
 		catch (const std::runtime_error& ex) {

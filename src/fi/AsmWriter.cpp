@@ -6,7 +6,8 @@
 #include <format>
 #include <map>
 
-void fi::AsmWriter::generate_asm_file(const std::string& p_filename,
+void fi::AsmWriter::generate_asm_file(const fe::Config& p_config,
+	const std::string& p_filename,
 	const std::map<std::size_t, fi::Instruction>& p_instructions,
 	const std::vector<std::size_t>& p_entrypoints,
 	const std::set<std::size_t>& p_jump_targets,
@@ -26,6 +27,13 @@ void fi::AsmWriter::generate_asm_file(const std::string& p_filename,
 			p_labels[p_offset] = tmp_label;
 			return tmp_label;
 		};
+
+	// make copies from config instead of passing the obj down
+	m_reserved_str_idx = p_config.vset_as_set(c::ID_STRING_RESERVED);
+	m_def_textbox = p_config.bmap(c::ID_DEFINES_TEXTBOX);
+	m_def_item = p_config.bmap(c::ID_DEFINES_ITEM);
+	m_def_rank = p_config.bmap(c::ID_DEFINES_RANK);
+	m_def_quest = p_config.bmap(c::ID_DEFINES_QUEST);
 
 	// we will report on savings at the end for information
 	std::set<std::string> l_used_strings;
@@ -129,7 +137,7 @@ void fi::AsmWriter::generate_asm_file(const std::string& p_filename,
 	// report on unused strings
 	std::set<std::string> l_discarded_strs;
 	for (std::size_t i{ 0 }; i < p_strings.size(); ++i) {
-		if (c::RESERVED_STRING_IDX.count(static_cast<int>(i + 1)) == 0 &&
+		if (m_reserved_str_idx.count(static_cast<int>(i + 1)) == 0 &&
 			!l_used_strings.contains(p_strings[i].get_string()))
 			l_discarded_strs.insert(p_strings[i].get_string());
 	}
@@ -147,22 +155,22 @@ void fi::AsmWriter::generate_asm_file(const std::string& p_filename,
 void fi::AsmWriter::append_defines_section(std::string& p_asm) const {
 	std::string result{ "[defines]\n ; Item constants\n" };
 
-	for (const auto& kv : fi::c::DEFINES_ITEMS)
+	for (const auto& kv : m_def_item)
 		result += std::format("define {} ${:02x}\n", kv.second, kv.first);
 
 	result += "\n ; Rank constants\n";
 
-	for (const auto& kv : fi::c::DEFINES_RANKS)
+	for (const auto& kv : m_def_rank)
 		result += std::format("define {} ${:02x}\n", kv.second, kv.first);
 
 	result += "\n ; Textbox constants\n";
 
-	for (const auto& kv : fi::c::DEFINES_TEXTBOX)
+	for (const auto& kv : m_def_textbox)
 		result += std::format("define {} ${:02x}\n", kv.second, kv.first);
 
 	result += "\n ; Quest constants\n";
 
-	for (const auto& kv : fi::c::DEFINES_QUESTS)
+	for (const auto& kv : m_def_quest)
 		result += std::format("define {} ${:02x}\n", kv.second, kv.first);
 
 	p_asm += result;
@@ -170,13 +178,13 @@ void fi::AsmWriter::append_defines_section(std::string& p_asm) const {
 
 std::string fi::AsmWriter::get_define(fi::ArgDomain domain, byte arg) const {
 	if (domain == fi::ArgDomain::Item)
-		return get_define(c::DEFINES_ITEMS, arg);
+		return get_define(m_def_item, arg);
 	else if (domain == fi::ArgDomain::Quest)
-		return get_define(c::DEFINES_QUESTS, arg);
+		return get_define(m_def_quest, arg);
 	else if (domain == fi::ArgDomain::Rank)
-		return get_define(c::DEFINES_RANKS, arg);
+		return get_define(m_def_rank, arg);
 	else if (domain == fi::ArgDomain::TextBox)
-		return get_define(c::DEFINES_TEXTBOX, arg);
+		return get_define(m_def_textbox, arg);
 	else
 		return std::format("{}", arg);
 }
@@ -195,8 +203,8 @@ void fi::AsmWriter::append_strings_section(std::string& p_asm,
 		c::SECTION_STRINGS);
 
 	for (std::size_t i{ 0 }; i < p_strings.size(); ++i)
-		if (fi::c::RESERVED_STRING_IDX.find(static_cast<int>(i + 1))
-			!= end(fi::c::RESERVED_STRING_IDX))
+		if (m_reserved_str_idx.find(static_cast<int>(i + 1))
+			!= end(m_reserved_str_idx))
 			p_asm += std::format("{}: \"{}\"\n",
 				i + 1,
 				p_strings[i].get_string());
