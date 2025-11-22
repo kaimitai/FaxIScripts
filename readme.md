@@ -59,6 +59,7 @@ We prioritize fixing bugs if any are discovered, but here are some ideas for fut
 
 * We might do more static analysis to help users identify problems in their code
 * Add an option to let the linker insert a jump-instruction to bridge the gap between the safe ROM regions. This could potentially save some bytes over the current bridging strategy.
+* Allow Japanese characters directly in strings for the jp region
 
 <hr>
 
