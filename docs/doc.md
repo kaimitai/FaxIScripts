@@ -1,10 +1,8 @@
 # FaxIScripts - User Documentation
 
-This is the user documentation for FaxIScripts (v0.2), an assembler for the internal scripting language used by Faxanadu for the NES. The application code and binaries can be found on its [GitHub repository](https://github.com/kaimitai/faxiscripts/). It is assumed that users are somewhat acquainted with Faxanadu on the NES.
+This is the user documentation for FaxIScripts (v0.3), an assembler for the internal scripting language used by Faxanadu for the NES. The application code and binaries can be found on its [GitHub repository](https://github.com/kaimitai/faxiscripts/). It is assumed that users are somewhat acquainted with Faxanadu on the NES.
 
 <hr>
-
-We currently only support editing the US version of the nes-ROM. The code can probably be changed to support other regions quite easily, but currently all ROM offsets and data sizes used by the assembler assumes US verison.
 
 If you want to edit the scripts used within Faxanadu, you will have to do some low level programming - but the language is simple and most scripts used by the game are self-contained and easy to follow.
 
@@ -49,6 +47,8 @@ The assembler is a command-line tool which can disassemble the scripting layer o
 
 The idea is that users will extract the scripting layer to file, make modifications to this file, and then patch the ROM with their changes.
 
+The assembler needs access to a configuration file (eoe_config.xml) in order to use the correct constants for its calculationes. These constants differ by ROM region.
+
 The assembler will report on how much space it used for each data section, and how much more space is available, if any. If we can't fit the data within the limits patching will not take place.
 
 To extract a file, called "Faxanadu (U).nes" say, we run the following command from the command-line:
@@ -61,6 +61,7 @@ To extract a file, called "Faxanadu (U).nes" say, we run the following command f
 
 * --no-shop-comments (or -p for short): Disable comments showing shop contents where a shop index is used as an operand
 * --force (-f for short): Overwrite existing asm-file if it already exists. We don't allow it by default because users might inadvertently overwrite their assembly code if they aren't careful.
+* --region (-r for short): Override automatic ROM region deduction. The parameter specified must match a region defined in eoe_config.xml
 
 To build a file we go in the opposite direction, and assemble. To build a file faxanadu.asm and patch "Faxanadu (U).nes" with it, run the following command:
 
@@ -72,6 +73,7 @@ To build a file we go in the opposite direction, and assemble. To build a file f
 
  * --original-size (-o for short): This option will make patching fail if we use more ROM data than the original game. Use this if you are already using the free section at the end of the bank for something else. Note that the game code is packed in the code section, so if you add something you will also have to remove something else if you use this mode.
  * --source-rom (-s for short): This option takes an argument, which is a filename for the ROM you will use as a source for patching. If this option is not specified we will patch the file given as output file. Use this if you don't want to patch a ROM file directly.
+ --region (-r for short): Override automatic ROM region deduction. The parameter specified must match a region defined in eoe_config.xml
 
 ## Assembly file contents
 

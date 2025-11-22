@@ -10,7 +10,7 @@ namespace fi {
 	namespace appc {
 
 		constexpr char APP_NAME[]{ "FaxIScripts" };
-		constexpr char APP_VERSION[]{ "0.2" };
+		constexpr char APP_VERSION[]{ "0.3" };
 		constexpr char CONFIG_XML[]{ "eoe_config.xml" };
 
 		inline const std::pair<std::string, std::string> CMD_EXTRACT{ "extract" , "x" };

@@ -6,7 +6,7 @@ IScripts are scripts used inside the Faxanadu (NES) game engine, and are surpris
 
 The scripting layer contains strings, shop data and actual code. The strings are stored in a separate section, but the shop data and code live together in one combined section. The shop data gets moved to its own section in our assembly files, and any opcode referencing a shop uses its index - which is only resolved to an actual address during linking. This provides a zero-cost abstraction - no extra bytes, no layout penalties.
 
-There are two ROM regions we can use when patching, and the users can choose between different patching modes.
+There are two ROM sections we can use when patching, and the users can choose between different patching modes.
 
 Make sure to read the [documentation](./docs/doc.md) for a detailed overview of the syntax and structure of the assembly files we will be editing, as well as a list of all available opcodes.
 
@@ -23,7 +23,7 @@ An example of an extracted script:
 <hr>
 
 ## Assembler Capabilities
-The assembler is currently only compatible with the US version of Faxanadu. It has the following features:
+The assembler has the following features:
 
 * Byte-fidelity with respect to size and functionality will be retained when extracting and patching content; for both strings and script code. There is no change to game code itself, just a clean patching of dynamically sized data.
 * When extracting an asm-file from ROM, the constant defines will be populated automatically and used in the code
@@ -31,6 +31,7 @@ The assembler is currently only compatible with the US version of Faxanadu. It h
 * Extracted asm-files can show shop contents as comments wherever they are used as operands
 * Strict-mode; where we don't patch a ROM if we spend more bytes than the original ROM did, tightly packed in one section
 * Smart static linker mode; The shop data and code stream starts within the first safe region, and if we overflow the static linker redirects code to the second region while patching all required labels, jumps, pointer table entries and instruction offsets. This is done without inserting a synthetic jump-node.
+* Automatic ROM region deduction, ensuring that the assembly code is extracted from, and injected to, the correct ROM locations.
 
 <hr>
 
@@ -56,14 +57,16 @@ There is little static code analysis available for the time being, but before ac
 
 We prioritize fixing bugs if any are discovered, but here are some ideas for future features:
 
-* Incorporate the application with [Echoes of Eolis](https://github.com/kaimitai/faxedit/) in some fashion. This is my graphical data editor for Faxanadu, and currently shows hard coded labels for the scripts - labels that describe the scripts as they were used in the original game. I would like to dynamically parse scripts there and show descriptive labels or tooltips for scripts that have been edited.
 * We might do more static analysis to help users identify problems in their code
-* Possibly add an option to sort the instruction stream by entry point (pointer table index) to the extent that it is possible. This takes some care to get right in the general case, but it is not clear that this yields any benefit.
 * Add an option to let the linker insert a jump-instruction to bridge the gap between the safe ROM regions. This could potentially save some bytes over the current bridging strategy.
 
 <hr>
 
 ### Version History
+
+* 2025-11-22: version 0.3
+    * Added configuration xml file with necessary constants for the major ROM regions as well as for two ROM hacks. This configuration file is also compatible with [Echoes of Eolis](https://github.com/kaimitai/faxedit/).
+    * Added command-line option (-r) for overriding the automatic ROM region deduction
 
 * 2025-11-13: version 0.2
     * Use inline strings for both disassembly and assembly. The assembler will deduplicate all strings in the code, and allocate string indexes automatically during builds. Reserved strings will retain their indexes
