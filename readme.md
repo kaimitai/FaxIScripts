@@ -8,7 +8,7 @@ The scripting layer contains strings, shop data and actual code. The strings are
 
 There are two ROM sections we can use when patching, and the users can choose between different patching modes.
 
-Make sure to read the [documentation](./docs/doc.md) for a detailed overview of the syntax and structure of the assembly files we will be editing, as well as a list of all available opcodes.
+Make sure to read the [documentation](./docs/faxiscripts_doc.md) for a detailed overview of the syntax and structure of the assembly files we will be editing, as well as a list of all available opcodes.
 
 This application has a natural companion in [Echoes of Eolis](https://github.com/kaimitai/faxedit/), which is a graphical editor that can patch the other dynamically sized data portions in Faxanadu. To see, or change, which NPCs in Faxanadu are connected to a given script (script entrypoint) this editor can be used.
 
