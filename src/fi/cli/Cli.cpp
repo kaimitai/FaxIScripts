@@ -3,11 +3,13 @@
 #include <iostream>
 #include "application_constants.h"
 #include "./../fi_constants.h"
+#include "./../../fm/fm_constants.h"
 #include <stdexcept>
 #include "./../IScriptLoader.h"
 #include "./../AsmReader.h"
 #include "./../AsmWriter.h"
 #include "./../../fm/MScriptLoader.h"
+#include "./../../fm/MMLReader.h"
 #include "./../../fm/MMLWriter.h"
 #include "./../../common/klib/Kfile.h"
 #ifdef _WIN32
@@ -24,7 +26,13 @@ void fi::Cli::print_header(void) const {
 
 void fi::Cli::print_help(void) const {
 	std::cout << "Usage:\n";
-	std::cout << "  faxiscripts <[b]uild|e[x]tract> <input file> <output file> [options]\n\n";
+	std::cout << "  faxiscripts <command> <input file> <output file> [options]\n\n" <<
+
+		"  x, extract                Disassemble IScripts from ROM\n" <<
+		"  b, build                  Assemble IScripts into ROM\n" <<
+		"  xm, build-music           Extract MScripts from ROM\n" <<
+		"  bm, extract-music         Assemble MScripts and patch ROM\n\n";
+
 
 	std::cout << "Options:\n";
 	std::cout << "  -p, --no-shop-comments       Disable shop comment extraction (enabled by default)\n";
@@ -62,6 +70,8 @@ fi::Cli::Cli(int argc, char** argv) :
 	}
 	else if (m_script_mode == fi::ScriptMode::IScriptExtract)
 		nes_to_asm(m_in_file, m_out_file, m_shop_comments, m_overwrite);
+	else if (m_script_mode == fi::ScriptMode::MScriptBuild)
+		mml_to_nes(m_in_file, m_out_file, m_source_rom.empty() ? m_out_file : m_source_rom);
 	else if (m_script_mode == fi::ScriptMode::MScriptExtract)
 		nes_to_mml(m_in_file, m_out_file, m_overwrite);
 	else
@@ -161,6 +171,44 @@ void fi::Cli::asm_to_nes(const std::string& p_asm_filename,
 
 	std::cout << "Attempting to patch file " << p_out_filename << "\n";
 	klib::file::write_bytes_to_file(rom, p_out_filename);
+	std::cout << "File patched\n";
+}
+
+void fi::Cli::mml_to_nes(const std::string& p_mml_filename,
+	const std::string& p_nes_filename,
+	const std::string& p_source_rom_filename) {
+
+	std::cout << "Attempting to read ROM contents from " << p_source_rom_filename << "\n";
+	auto rom{ klib::file::read_file_as_bytes(p_source_rom_filename) };
+
+	if (m_region.empty()) {
+		m_config.determine_region(rom);
+		std::cout << "ROM region resolved to '" << m_config.get_region() << "'\n";
+	}
+	else {
+		m_config.set_region(m_region);
+		std::cout << "ROM region specified as '" << m_region << "'\n";
+	}
+
+	m_config.load_config_data(appc::CONFIG_XML);
+
+	fm::MMLReader reader(m_config);
+
+	std::cout << "Attempting to parse assembly file " << p_mml_filename << "\n";
+	reader.read_mml_file(p_mml_filename, m_config);
+
+	auto bytes{ reader.get_bytes() };
+
+	const auto& musicptr{ m_config.pointer(fm::c::ID_MUSIC_PTR) };
+
+	try_patch_msg("Music", bytes.size(),
+		m_config.constant(fm::c::ID_MUSIC_DATA_END) - musicptr.first);
+
+	for (std::size_t i{ 0 }; i < bytes.size(); ++i)
+		rom.at(musicptr.first + i) = bytes[i];
+
+	std::cout << "Attempting to patch file " << p_nes_filename << "\n";
+	klib::file::write_bytes_to_file(rom, p_nes_filename);
 	std::cout << "File patched\n";
 }
 
@@ -265,9 +313,13 @@ void fi::Cli::set_mode(const std::string& p_mode) {
 	else if (p_mode == appc::CMD_EXTRACT.first || p_mode == appc::CMD_EXTRACT.second) {
 		m_script_mode = fi::ScriptMode::IScriptExtract;
 	}
+	else if (p_mode == appc::CMD_BUILD_MUSIC.first || p_mode == appc::CMD_BUILD_MUSIC.second) {
+		m_script_mode = fi::ScriptMode::MScriptBuild;
+	}
 	else if (p_mode == appc::CMD_EXTRACT_MUSIC.first || p_mode == appc::CMD_EXTRACT_MUSIC.second) {
 		m_script_mode = fi::ScriptMode::MScriptExtract;
 	}
+	// can't really happen
 	else throw std::runtime_error("Unknown commad " + p_mode);
 }
 

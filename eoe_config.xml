@@ -1022,6 +1022,23 @@
 		<!-- and be treated as notes, under a separate define map -->
 		<byte_to_string_map name="mscript_opcodes">
 		  <entry byte="$00" str="Mnemonic=r,Type=Note" />
+		  <entry byte="$90" str="Mnemonic=L0" />
+		  <entry byte="$91" str="Mnemonic=L1" />
+		  <entry byte="$92" str="Mnemonic=L2" />
+		  <entry byte="$93" str="Mnemonic=L3" />
+		  <entry byte="$94" str="Mnemonic=L4" />
+		  <entry byte="$95" str="Mnemonic=L5" />
+		  <entry byte="$96" str="Mnemonic=L6" />
+		  <entry byte="$97" str="Mnemonic=L7" />
+		  <entry byte="$98" str="Mnemonic=L8" />
+		  <entry byte="$99" str="Mnemonic=L9" />
+		  <entry byte="$9a" str="Mnemonic=L10" />
+		  <entry byte="$9b" str="Mnemonic=L11" />
+		  <entry byte="$9c" str="Mnemonic=L12" />
+		  <entry byte="$9d" str="Mnemonic=L13" />
+		  <entry byte="$9e" str="Mnemonic=L14" />
+		  <entry byte="$9f" str="Mnemonic=L15" />
+		  <entry byte="$e0" str="Mnemonic=L16" />
 		  <entry byte="$ee" str="Mnemonic=Unk_ee,Arg=byte" />
 		  <entry byte="$ef" str="Mnemonic=Unk_ef,Arg=byte" />
 		  <entry byte="$f0" str="Mnemonic=Decay,Arg=byte" />

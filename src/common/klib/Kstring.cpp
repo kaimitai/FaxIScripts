@@ -1,5 +1,52 @@
 #include "Kstring.h"
+#include <cctype>
 #include <stdexcept>
+
+int klib::str::parse_numeric(const std::string& token) {
+	if (token.empty()) throw std::runtime_error("Empty index token");
+
+	int base = 10;
+	std::string digits;
+
+	if (token[0] == '$') {
+		base = 16;
+		digits = token.substr(1);
+	}
+	else if (token.starts_with("0x") || token.starts_with("0X")) {
+		base = 16;
+		digits = token.substr(2);
+	}
+	else {
+		digits = token;
+	}
+
+	size_t pos;
+
+	int value{ 0 };
+
+	try {
+		value = std::stoi(digits, &pos, base);
+	}
+	catch (const std::invalid_argument&) {
+		throw std::runtime_error("Invalid numeric token: '" + token + "' - not a valid number or define.");
+	}
+	catch (const std::out_of_range&) {
+		throw std::runtime_error("Numeric token out of range: '" + token + "'");
+	}
+
+	if (pos != digits.size()) {
+		throw std::runtime_error("Invalid numeric token: " + token);
+	}
+	return value;
+}
+
+std::string klib::str::strip_comment(const std::string& line, char p_comment_char) {
+	size_t pos = line.find(p_comment_char);
+	if (pos != std::string::npos)
+		return line.substr(0, pos);
+	else
+		return line;
+}
 
 bool klib::str::str_begins_with(const std::string& p_line,
 	const std::string& p_start) {

@@ -2,6 +2,7 @@
 #include <format>
 #include <utility>
 #include "./../common/klib/Kfile.h"
+#include "fm_constants.h"
 
 void fm::MMLWriter::generate_mml_file(const std::string& p_filename,
 	const std::map<std::size_t, fm::MusicInstruction>& p_instructions,
@@ -31,7 +32,7 @@ void fm::MMLWriter::generate_mml_file(const std::string& p_filename,
 			);
 
 	std::string af{
-		" ; MScript MML file extracted by FaxIScripts v0.4\n ; https://github.com/kaimitai/FaxIScripts\n\n"
+		" ; MScript MML file extracted by FaxIScripts v0.4\n ; https://github.com/kaimitai/FaxIScripts\n"
 	};
 
 	int lastentry{ 0 }, lastlabel{ 0 };
@@ -45,13 +46,14 @@ void fm::MMLWriter::generate_mml_file(const std::string& p_filename,
 		// are we at an entrypoint? output it
 		auto ep{ l_eps.find(offset) };
 		if (ep != end(l_eps)) {
-			af += "\n";
+			af += std::format("\n{}", c::ID_MSCRIPT_ENTRYPOINT);
 			for (std::size_t i{ 0 }; i < ep->second.size(); ++i) {
-				af += std::format("#music {}\n#channel {}\n", ep->second[i].first,
-					ep->second[i].second);
+				af += std::format(" {}.{}", ep->second[i].first,
+					c::CHANNEL_LABELS.at(ep->second[i].second));
 				lastentry = static_cast<int>(ep->second[i].first * 4 + ep->second[i].second);
 				lastlabel = 0;
 			}
+			af += "\n";
 		}
 
 		// emit jump labels at this offset

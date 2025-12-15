@@ -9,6 +9,7 @@ namespace klib {
 
 	namespace str {
 
+		std::string strip_comment(const std::string& line, char p_comment_char = ';');
 		bool str_begins_with(const std::string& p_line, const std::string& p_start);
 		std::vector<std::string> split_whitespace(const std::string& p_line);
 		std::vector<std::string> split_string(const std::string& input, char delim);
@@ -18,6 +19,8 @@ namespace klib {
 
 		std::string trim(const std::string& str);
 		std::string to_lower(const std::string& str);
+
+		int parse_numeric(const std::string& token);
 	}
 
 }

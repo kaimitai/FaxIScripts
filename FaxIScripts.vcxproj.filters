@@ -114,6 +114,9 @@
     <ClCompile Include="src\fm\MMLWriter.cpp">
       <Filter>Source Files\fm</Filter>
     </ClCompile>
+    <ClCompile Include="src\fm\MMLReader.cpp">
+      <Filter>Source Files\fm</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\fi\Opcode.h">
@@ -174,6 +177,9 @@
       <Filter>Header Files\common\klib</Filter>
     </ClInclude>
     <ClInclude Include="src\fm\MMLWriter.h">
+      <Filter>Header Files\fm</Filter>
+    </ClInclude>
+    <ClInclude Include="src\fm\MMLReader.h">
       <Filter>Header Files\fm</Filter>
     </ClInclude>
   </ItemGroup>

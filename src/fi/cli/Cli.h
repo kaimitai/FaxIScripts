@@ -37,6 +37,9 @@ namespace fi {
 			bool p_shop_comments, bool p_overwrite);
 
 		// music
+		void mml_to_nes(const std::string& p_mml_filename,
+			const std::string& p_nes_filename,
+			const std::string& p_source_rom_filename);
 		void nes_to_mml(const std::string& p_nes_filename,
 			const std::string& p_mml_filename,
 			bool p_overwrite);

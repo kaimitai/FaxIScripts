@@ -61,12 +61,6 @@ std::vector<byte> fm::MusicInstruction::get_bytes(const std::vector<fm::MusicOpc
 
 	if (op.m_argtype == fm::AudioArgType::Byte)
 		result.push_back(static_cast<byte>(operand.value()));
-	else if (op.m_argtype == fm::AudioArgType::Address) {
-		uint16_t opval{ operand.value() };
-		result.push_back(static_cast<byte>(opval % 256));
-		result.push_back(static_cast<byte>(opval / 256));
-	}
-
 	if (op.m_flow == fm::AudioFlow::Jump) {
 		uint16_t opval{ static_cast<uint16_t>(jump_target.value()) };
 		result.push_back(static_cast<byte>(opval % 256));
