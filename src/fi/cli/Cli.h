@@ -7,9 +7,12 @@
 
 namespace fi {
 
+	enum ScriptMode { IScriptBuild, IScriptExtract,
+		MScriptBuild, MScriptExtract };
+
 	class Cli {
 
-		bool m_build_mode;
+		fi::ScriptMode m_script_mode;
 
 		std::string m_in_file, m_out_file, m_source_rom, m_region;
 		bool m_strict, m_shop_comments, m_overwrite;
@@ -27,11 +30,16 @@ namespace fi {
 		// main logic
 		void asm_to_nes(const std::string& p_asm_filename,
 			const std::string& p_nes_filename,
-			const std::string& p_source_rom_filename, 
+			const std::string& p_source_rom_filename,
 			bool p_strict);
 		void nes_to_asm(const std::string& p_nes_filename,
 			const std::string& p_asm_filename,
 			bool p_shop_comments, bool p_overwrite);
+
+		// music
+		void nes_to_mml(const std::string& p_nes_filename,
+			const std::string& p_mml_filename,
+			bool p_overwrite);
 
 	public:
 		Cli(int argc, char** argv);

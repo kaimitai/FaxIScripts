@@ -7,6 +7,8 @@
 #include "./../IScriptLoader.h"
 #include "./../AsmReader.h"
 #include "./../AsmWriter.h"
+#include "./../../fm/MScriptLoader.h"
+#include "./../../fm/MMLWriter.h"
 #include "./../../common/klib/Kfile.h"
 #ifdef _WIN32
 #include <windows.h>
@@ -33,7 +35,6 @@ void fi::Cli::print_help(void) const {
 }
 
 fi::Cli::Cli(int argc, char** argv) :
-	m_build_mode{ false },
 	m_strict{ false },
 	m_shop_comments{ true },
 	m_overwrite{ false }
@@ -54,13 +55,17 @@ fi::Cli::Cli(int argc, char** argv) :
 	m_config.load_definitions(appc::CONFIG_XML);
 
 	// we have the info we need to execute
-	if (m_build_mode) {
+	if (m_script_mode == fi::ScriptMode::IScriptBuild) {
 		asm_to_nes(m_in_file, m_out_file,
 			m_source_rom.empty() ? m_out_file : m_source_rom,
 			m_strict);
 	}
-	else
+	else if (m_script_mode == fi::ScriptMode::IScriptExtract)
 		nes_to_asm(m_in_file, m_out_file, m_shop_comments, m_overwrite);
+	else if (m_script_mode == fi::ScriptMode::MScriptExtract)
+		nes_to_mml(m_in_file, m_out_file, m_overwrite);
+	else
+		throw(std::runtime_error("Invalid script mode"));
 }
 
 static void try_patch_msg(const std::string& p_data_type,
@@ -201,6 +206,36 @@ void fi::Cli::nes_to_asm(const std::string& p_nes_filename,
 	std::cout << "Extraction complete!\n";
 }
 
+void fi::Cli::nes_to_mml(const std::string& p_nes_filename,
+	const std::string& p_mml_filename, bool p_overwrite) {
+
+	// fail early if output file already exists and we do not overwrite
+	if (!p_overwrite && klib::file::file_exists(p_mml_filename))
+		throw std::runtime_error(std::format("MML file {} exists, and overwrite-flag is not set", p_mml_filename));
+
+	std::cout << "Attempting to read " << p_nes_filename << "\n";
+	const auto& rom_data{ klib::file::read_file_as_bytes(p_nes_filename) };
+
+	if (m_region.empty()) {
+		m_config.determine_region(rom_data);
+		std::cout << "ROM region resolved to '" << m_config.get_region() << "'\n";
+	}
+	else {
+		m_config.set_region(m_region);
+		std::cout << "ROM region specified as '" << m_region << "\n";
+	}
+
+	m_config.load_config_data(appc::CONFIG_XML);
+
+	fm::MScriptLoader loader(rom_data);
+	loader.parse_rom(m_config);
+
+	fm::MMLWriter l_writer;
+	l_writer.generate_mml_file(m_out_file, loader.m_instrs, loader.m_opcodes,
+		loader.m_ptr_table,
+		loader.m_jump_targets);
+}
+
 void fi::Cli::parse_arguments(int arg_start, int argc, char** argv) {
 	for (int i{ arg_start }; i < argc; ++i) {
 		std::string argvi{ argv[i] };
@@ -224,10 +259,15 @@ void fi::Cli::parse_arguments(int arg_start, int argc, char** argv) {
 }
 
 void fi::Cli::set_mode(const std::string& p_mode) {
-	if (p_mode == appc::CMD_BUILD.first || p_mode == appc::CMD_BUILD.second)
-		m_build_mode = true;
-	else if (p_mode == appc::CMD_EXTRACT.first || p_mode == appc::CMD_EXTRACT.second)
-		m_build_mode = false;
+	if (p_mode == appc::CMD_BUILD.first || p_mode == appc::CMD_BUILD.second) {
+		m_script_mode = fi::ScriptMode::IScriptBuild;
+	}
+	else if (p_mode == appc::CMD_EXTRACT.first || p_mode == appc::CMD_EXTRACT.second) {
+		m_script_mode = fi::ScriptMode::IScriptExtract;
+	}
+	else if (p_mode == appc::CMD_EXTRACT_MUSIC.first || p_mode == appc::CMD_EXTRACT_MUSIC.second) {
+		m_script_mode = fi::ScriptMode::MScriptExtract;
+	}
 	else throw std::runtime_error("Unknown commad " + p_mode);
 }
 

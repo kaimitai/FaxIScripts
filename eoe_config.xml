@@ -1,6 +1,6 @@
 <!-- Configuration file used by Echoes of Eolis and FaxIScripts (https://github.com/kaimitai/faxedit) -->
 <!-- Only make changes to this file if you are confident in what you are doing! (and keep backups even then) -->
-<eoe_config app_version="beta-4">
+<eoe_config app_version="beta-5">
 	<regions>
 		<!-- determine region by ROM signature - will take first match -->
 		<!-- make sure to use identifiers that will not change via ROM editing -->
@@ -41,6 +41,8 @@
 		<pointer name="iscript_ptr_lo" region="jp,en-transl" value="0x32377" zero_addr="0x28010" />
 		<pointer name="iscript_ptr_lo" region="us,randum" value="0x31f7b" zero_addr="0x28010" />
 		<pointer name="iscript_ptr_lo" region="eu" value="0x31fc6" zero_addr="0x28010" />
+		<!-- ROM offset to music data - ptr table -->
+		<pointer name="music_ptr" value="0x14f0b" zero_addr="0xc010" />
 	</pointers>
 	<!-- contant addresses and counts -->
 	<!-- data end offsets will point to the first byte after the end, so data size is (end - start) -->
@@ -64,7 +66,9 @@
 		<const name="transition_data_end" value="0x3fff0" />
 		<!-- palettes -->
 		<const name="palette_offset" value="0x2c010" />
-		<const name="default_palette_offset" value="0x3df5c" />
+		<const name="palette_count" value="31" />
+		<const name="hud_attribute_lookup_offset" value="0x3c02b" />
+		<const name="hud_attribute_lookup_count" value="24" />
 		<!-- stages and start data -->
 		<const name="stage_conn_offset" value="0x3e5f7" />
 		<const name="stage_screen_offset" value="0x3e603" />
@@ -77,6 +81,8 @@
 		<const name="spawn_loc_data_start" value="0x3ddbd" />
 		<const name="mattock_animations_offset" value="0x3c69f" />
 		<const name="jump_on_animation_offset" value="0x3d6ff" />
+		<const name="palette_to_music_offset" value="0x3e579" />
+		<const name="palette_to_music_slots" value="7" />
 		<!-- path to mascon line-drawing constants -->
 		<const name="ptm_stage_no_offset" value="0x3d782" />
 		<const name="ptm_screen_no_offset" value="0x3d788" />
@@ -89,6 +95,7 @@
 		<!-- counts -->
 		<const name="sprite_count" value="101" />
 		<const name="iscript_count" value="152" />
+		<const name="music_count" value="16" />
 		<const name="string_data_start" region="eu,us,randum" value="0x34310" />
 		<const name="string_data_end" region="eu,us,randum" value="0x38010" />
 		<const name="string_data_start" region="jp" value="0x35f50" />
@@ -103,12 +110,81 @@
 		<const name="iscript_data_rg2_start" region="jp,en-transl" value="0x33196" />
 		<!-- secondary script data necessarily ends within bank 12 -->
 		<const name="iscript_data_rg2_end" value="0x34010" />
+		<!-- music data necessarily ends within bank 5 -->
+		<const name="music_data_end" value="0x18010" />
+		<!-- chr tile offsets -->
+		<const name="world_tileset_count" value="9" />
+		<const name="chr_world_tile_offset" value="0x10010" />
+		<const name="chr_hud_tile_offset" value="0x28150" />
+		<const name="world_tileset_to_addr_offset" value="0x3cf17" />
+		<!-- scene offsets -->
+		<!-- 10 entries, one for each building room -->
+		<!-- music, palettes, tilesets and start positions  -->
+		<const name="building_scene_offset" value="0x3e60f" />
+		<!-- 8 entries, one for each world -->
+		<!-- tileset, palettes, start pos (unused) and music -->
+		<const name="world_scene_offset" value="0x3df54" />
+		<!-- fog definition constants -->
+		<const name="fog_world_offset" value="0x3dfd8" />
+		<const name="fog_palette_offset" value="0x3dfdf" />
+		<!-- title screen - dimensions given in metatile-space -->
+		<const name="title_screen_mt_x" value="1" />
+		<const name="title_screen_mt_y" value="1" />
+		<const name="title_screen_mt_w" value="14" />
+		<const name="title_screen_mt_h" value="8" />
+		<const name="title_screen_chr_offset" value="0x28e10" />
+		<const name="title_screen_chr_ppu_index" value="$00" />
+		<const name="title_screen_chr_ppu_count" value="214" />
+		<const name="title_screen_tilemap_offset" value="0x30010" />
+		<const name="title_screen_attribute_offset" value="0x29b70" />
+		<const name="title_screen_palette_offset" value="0x2c110" />
+		<!-- intro animation screen - dimensions given in metatile-space -->
+		<const name="intro_anim_mt_x" value="0" />
+		<const name="intro_anim_mt_y" value="0" />
+		<const name="intro_anim_mt_w" value="16" />
+		<const name="intro_anim_mt_h" value="15" />
+		<const name="intro_anim_chr_offset" value="0x2a4b0" />
+		<const name="intro_anim_chr_ppu_index" value="$80" />
+		<const name="intro_anim_chr_ppu_count" value="128" />
+		<const name="intro_anim_tilemap_offset" value="0x2acb0" />
+		<const name="intro_anim_attribute_offset" value="0x2b070" />
+		<const name="intro_anim_palette_offset" region="us,randum" value="0x326d8" />
+		<const name="intro_anim_palette_offset" region="eu" value="0x32723" />
+		<const name="intro_anim_palette_offset" region="jp,en-transl" value="0x32ad4" />
+		<!-- outro animation screen - dimensions given in metatile-space -->
+		<const name="outro_anim_mt_x" value="0" />
+		<const name="outro_anim_mt_y" value="0" />
+		<const name="outro_anim_mt_w" value="16" />
+		<const name="outro_anim_mt_h" value="15" />
+		<const name="outro_anim_chr_offset" value="0x2a4b0" />
+		<const name="outro_anim_chr_ppu_index" value="$80" />
+		<const name="outro_anim_chr_ppu_count" value="128" />
+		<const name="outro_anim_tilemap_offset" value="0x2b0b0" />
+		<const name="outro_anim_attribute_offset" value="0x2b470" />
+		<const name="outro_anim_palette_offset" region="us,randum" value="0x326f8" />
+		<const name="outro_anim_palette_offset" region="eu" value="0x32743" />
+		<const name="outro_anim_palette_offset" region="jp,en-transl" value="0x32af4" />
+		<!-- item background tiles for the 39 items - virtual screen defined for easy bmp imports -->
+		<const name="item_vscreen_mt_x" value="0" />
+		<const name="item_vscreen_mt_y" value="0" />
+		<const name="item_vscreen_mt_w" value="1" />
+		<const name="item_vscreen_mt_h" value="39" />
+		<const name="item_vscreen_chr_offset" value="0x28510" />
+		<const name="item_vscreen_chr_ppu_index" value="$00" />
+		<const name="item_vscreen_chr_ppu_count" value="144" />
+		<const name="item_vscreen_tilemap_offset" value="0x2b4b0" />
+		<!-- some gfx needed for chr tile pool adjustment for the title screen -->
+		<const name="alphabet_chr_offset" value="0x28250" />
+		<const name="numeric_chr_offset" value="0x28450" />
 	</consts>
 	<!-- value sets -->
 	<sets>
 		<!-- reserved string indexes - will not be re-indexed or discarded by the assembler -->
 		<!-- strings called directly from the action handler; like "You can't carry any more." -->
 		<set name="reserved_script_string_indexes" values="3,6,16,18,19,20" />
+		<!-- ppu-indexed chr-tiles which are part of the fog animation -->
+		<!-- should be considered read-only on bmp import -->
+		<set name="reserved_fog_chr_indexes" values="$80,$81,$82,$83,$84,$85,$86,$87" />
 	</sets>
 
 	<!-- map from string byte value to symbols - will be used when translating to and from strings used by script engine -->
@@ -294,6 +370,40 @@
 			<entry byte="$19" str="Martial Arts" />
 			<entry byte="$1a" str="Magic Trainer" />
 			<entry byte="$1b" str="Towns" />
+			<entry byte="$1c" str="Sprites (worlds)" />
+			<entry byte="$1d" str="Sprites (buildings)" />
+			<entry byte="$1e" str="Sprites (portraits)" />
+		</byte_to_string_map>
+		<!-- labels for tilesets -->
+		<byte_to_string_map name="tileset_labels">
+			<entry byte="$00" str="Eolis" />
+			<entry byte="$01" str="Branches" />
+			<entry byte="$02" str="Trunk" />
+			<entry byte="$03" str="Mist" />
+			<entry byte="$04" str="Dartmoor/Zenis" />
+			<entry byte="$05" str="Towns" />
+			<entry byte="$06" str="King/Guru/Hospital" />
+			<entry byte="$07" str="Shops/House" />
+			<entry byte="$08" str="Strength/Magic Trainer" />
+		</byte_to_string_map>
+		<byte_to_string_map name="music_labels">
+			<entry byte="$00" str="None" />
+			<entry byte="$01" str="Intro" />
+			<entry byte="$02" str="Dartmoor Castle" />
+			<entry byte="$03" str="Trunk" />
+			<entry byte="$04" str="Branches" />
+			<entry byte="$05" str="Mist" />
+			<entry byte="$06" str="Towers" />
+			<entry byte="$07" str="Eolis" />
+			<entry byte="$08" str="Mantra/Death" />
+			<entry byte="$09" str="Towns" />
+			<entry byte="$0a" str="Boss Music" />
+			<entry byte="$0b" str="Hour Glass" />
+			<entry byte="$0c" str="Outro" />
+			<entry byte="$0d" str="King" />
+			<entry byte="$0e" str="Guru" />
+			<entry byte="$0f" str="Shops/House" />
+			<entry byte="$10" str="Zenis" />
 		</byte_to_string_map>
 		<!-- labels for building sprite sets with special significance in game code -->
 		<byte_to_string_map name="special_sprite_set_labels">
@@ -316,29 +426,6 @@
 		<byte_to_string_map name="world_tilemap_to_predefined_bank">
 			<!-- due to a bug in the game code, world 0 tilemaps must be in bank 0 -->
 			<entry byte="$00" str="$00" />
-		</byte_to_string_map>
-		<!-- background tile ROM offsets -->
-		<byte_to_string_map name="bg_chr_rom_offsets">
-			<!-- Eolis -->
-			<entry byte="$00" str="0xf810" />
-			<!-- Trunk -->
-			<entry byte="$01" str="0x10010" />
-			<!-- Mist -->
-			<entry byte="$02" str="0x10810" />
-			<!-- Towns -->
-			<entry byte="$03" str="0x11810" />
-			<!-- King, Guru and Hospital -->
-			<entry byte="$04" str="0x11e10" />
-			<!-- Branches -->
-			<entry byte="$05" str="0x11010" />
-			<!-- Dartmoor Castle -->
-			<entry byte="$06" str="0x13010" />
-			<!-- Zenis -->
-			<entry byte="$07" str="0x13010" />
-			<!-- Shops and House -->
-			<entry byte="$08" str="0x12410" />
-			<!-- Training Shops -->
-			<entry byte="$09" str="0x12a10" />
 		</byte_to_string_map>
 		<!-- string mapping used by the iScript assembler and disassembler -->
 		<byte_to_string_map name="iscript_string_characters" region="us,eu,randum">
@@ -924,6 +1011,35 @@
 			<entry byte="$3d" str="$b8b8b8" />
 			<entry byte="$3e" str="$000000" />
 			<entry byte="$3f" str="$000000" />
+		</byte_to_string_map>
+		<!-- hud tilemap - used for previews when editing palette to hud attribute data -->
+		<!-- the key is hud line number (0-3), any line not defined will be filled with zeroes -->
+		<byte_to_string_map name="hud_tilemap">
+			<entry byte="$02" str="$00,$1c,$0a,$09,$09,$09,$09,$09,$09,$07,$07,$07,$07,$0b,$14,$3a,$30,$30,$30,$30,$30,$00,$23,$3a,$30,$30,$00,$2c,$a5,$a6,$2e,$00" />
+			<entry byte="$03" str="$00,$1f,$0a,$08,$08,$08,$08,$08,$08,$07,$07,$07,$07,$0b,$16,$3a,$30,$30,$30,$30,$30,$30,$30,$00,$00,$00,$00,$2d,$a7,$a8,$2f,$00" />
+		</byte_to_string_map>
+		<!-- missing values here (0-255) will just emit their own hex-value -->
+		<!-- and be treated as notes, under a separate define map -->
+		<byte_to_string_map name="mscript_opcodes">
+		  <entry byte="$00" str="Mnemonic=r,Type=Note" />
+		  <entry byte="$ee" str="Mnemonic=Unk_ee,Arg=byte" />
+		  <entry byte="$ef" str="Mnemonic=Unk_ef,Arg=byte" />
+		  <entry byte="$f0" str="Mnemonic=Decay,Arg=byte" />
+		  <entry byte="$f1" str="Mnemonic=Vol,Arg=byte" />
+		  <entry byte="$f2" str="Mnemonic=Unk_f2,Arg=byte" />
+		  <entry byte="$f3" str="Mnemonic=SetRepeat,Arg=byte" />
+		  <entry byte="$f4" str="Mnemonic=Restart,Flow=End" />
+		  <entry byte="$f5" str="Mnemonic=Return,Flow=End" />
+		  <entry byte="$f6" str="Mnemonic=SetSQ1Hi,Arg=byte" />
+		  <entry byte="$f7" str="Mnemonic=SetCounter,Arg=byte" />
+		  <entry byte="$f8" str="Mnemonic=JSR,Arg=Addr,Flow=Jump" />
+		  <entry byte="$f9" str="Mnemonic=PushAddr" />
+		  <entry byte="$fa" str="Mnemonic=NOP" />
+		  <entry byte="$fb" str="Mnemonic=EndLoopIf,Arg=byte" />
+		  <entry byte="$fc" str="Mnemonic=EndLoop" />
+		  <entry byte="$fd" str="Mnemonic=BeginLoop,Arg=byte" />
+		  <entry byte="$fe" str="Mnemonic=PopAddr" />
+		  <entry byte="$ff" str="Mnemonic=End,Flow=End" />
 		</byte_to_string_map>
 	</byte_to_string_maps>
 </eoe_config>
