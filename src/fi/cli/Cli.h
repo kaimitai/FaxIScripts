@@ -15,7 +15,7 @@ namespace fi {
 		fi::ScriptMode m_script_mode;
 
 		std::string m_in_file, m_out_file, m_source_rom, m_region;
-		bool m_strict, m_shop_comments, m_overwrite;
+		bool m_strict, m_shop_comments, m_overwrite, m_notes;
 		fe::Config m_config;
 
 		void set_mode(const std::string& p_mode);

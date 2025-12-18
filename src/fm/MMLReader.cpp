@@ -2,11 +2,12 @@
 #include "fm_constants.h"
 #include "./../common/klib/Kfile.h"
 #include "./../common/klib/Kstring.h"
+#include "fm_util.h"
 #include <format>
 #include <stdexcept>
 
 fm::MMLReader::MMLReader(const fe::Config& p_config) {
-	m_opcodes = parse_xml_map(p_config.bmap(c::ID_MSCRIPT_OPCODES));
+	m_opcodes = parse_opcode_map(p_config.bmap(c::ID_MSCRIPT_OPCODES));
 }
 
 // we employ the same strategy as for iscript, but this is less comples
@@ -14,23 +15,59 @@ fm::MMLReader::MMLReader(const fe::Config& p_config) {
 void fm::MMLReader::read_mml_file(const std::string& p_filename,
 	const fe::Config& p_config) {
 	auto music_ptr{ p_config.pointer(c::ID_MUSIC_PTR) };
+
 	std::vector<std::string> tokens;
+
+	// local scope, we will discard most of this
 	{
+		bool l_defines{ false };
+		std::vector<std::string> mscript_lines;
+
 		auto l_lines{ klib::file::read_file_as_strings(p_filename) };
 
-		for (auto& line : l_lines) {
-			line = klib::str::strip_comment(line);
+		for (const auto& line : l_lines) {
+			auto stripline = klib::str::trim(klib::str::strip_comment(line));
+			if (stripline.empty())
+				continue;
+
+			if (stripline == c::SECTION_DEFINES)
+				l_defines = true;
+			else if (stripline == c::SECTION_MSCRIPT)
+				l_defines = false;
+			else {
+				if (l_defines) {
+					const auto kv{ klib::str::parse_define(stripline) };
+					if (m_defines.contains(kv.first))
+						throw std::runtime_error("Define redefinition: " + kv.first);
+					else
+						m_defines.insert(std::make_pair(kv.first,
+							kv.second));
+				}
+				else {
+					mscript_lines.push_back(stripline);
+				}
+
+			}
+
+		}
+
+		// resolve all tokens already
+		for (const auto& line : mscript_lines) {
 			auto linetokens{ klib::str::split_whitespace(line) };
-			for (const auto& token : linetokens)
-				tokens.push_back(klib::str::to_lower(klib::str::trim(token)));
+			for (const auto& token : linetokens) {
+				std::string finaltoken{ klib::str::trim(token) };
+				if (m_defines.contains(finaltoken))
+					finaltoken = m_defines[finaltoken];
+				tokens.push_back(klib::str::to_lower(finaltoken));
+			}
 		}
 	}
 
 	// make an opcode mnemonic reverse lookup
 	std::map<std::string, byte> mnemonics;
-	for (std::size_t i{ 0 }; i < m_opcodes.size(); ++i) {
+	for (const auto& kv : m_opcodes) {
 		mnemonics.insert(std::make_pair(
-			klib::str::to_lower(m_opcodes[i].m_mnemonic), static_cast<byte>(i)
+			klib::str::to_lower(kv.second.m_mnemonic), kv.first
 		));
 	}
 
@@ -76,11 +113,27 @@ void fm::MMLReader::read_mml_file(const std::string& p_filename,
 			++tokenno;
 		}
 		else if (tokenno < tokens.size()) {
-			if (!mnemonics.contains(token))
-				throw std::runtime_error(std::format("Invalid opcode: ", token));
+			byte opcodebyte{ 0 };
 
-			byte opcodeno{ mnemonics.at(token) };
-			const auto& opcode{ m_opcodes.at(opcodeno) };
+			if (mnemonics.contains(token)) {
+				opcodebyte = mnemonics[token];
+			}
+			else if (util::is_note(token)) {
+				opcodebyte = util::note_to_byte(token, 0);
+			}
+			else
+			{
+				try {
+					opcodebyte = static_cast<byte>(
+						klib::str::parse_numeric(token)
+						);
+				}
+				catch (...) {
+					throw std::runtime_error("Could not parse token " + token);
+				}
+			}
+
+			const auto opcode{ fm::util::decode_opcode_byte(opcodebyte, m_opcodes) };
 
 			std::optional<byte> arg;
 
@@ -92,7 +145,7 @@ void fm::MMLReader::read_mml_file(const std::string& p_filename,
 			}
 
 			m_instructions.push_back(fm::MusicInstruction(
-				opcodeno,
+				opcodebyte,
 				arg,
 				std::nullopt,
 				offset
@@ -129,7 +182,7 @@ void fm::MMLReader::read_mml_file(const std::string& p_filename,
 			if (!m_ptr_table.contains(i))
 				throw std::runtime_error(
 					std::format("Channel {} not defined for song {}",
-						c::CHANNEL_LABELS.at(i % 4), i / 4)
+						c::CHANNEL_LABELS.at((i % 4) + 1), i / 4)
 				);
 	}
 }
@@ -172,8 +225,12 @@ std::pair<std::size_t, std::size_t> fm::MMLReader::parse_entrypoint(const std::s
 			break;
 		}
 
+	int l_song_no{ klib::str::parse_numeric(split[0]) };
+	if (l_song_no < 1)
+		throw std::runtime_error(std::format("Invalid song no {}", l_song_no));
+
 	return std::make_pair(
-		static_cast<std::size_t>(klib::str::parse_numeric(split[0])),
+		static_cast<std::size_t>(l_song_no - 1),
 		l_chan_no);
 }
 
@@ -185,11 +242,8 @@ std::vector<byte> fm::MMLReader::get_bytes(void) const {
 		result.push_back(static_cast<byte>(m_ptr_table.at(i) / 256));
 	}
 	for (const auto& instr : m_instructions) {
-		auto bytes{ instr.get_bytes(m_opcodes) };
+		auto bytes{ instr.get_bytes() };
 		result.insert(end(result), begin(bytes), end(bytes));
-
-		if (bytes.size() != m_opcodes.at(instr.opcode_byte).size())
-			throw std::runtime_error("madda");
 	}
 
 	return result;

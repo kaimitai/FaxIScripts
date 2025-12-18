@@ -1,5 +1,6 @@
 #include "MScriptLoader.h"
 #include "fm_constants.h"
+#include "fm_util.h"
 
 fm::MScriptLoader::MScriptLoader(const std::vector<byte>& p_rom) :
 	m_rom{ p_rom }
@@ -14,6 +15,7 @@ void fm::MScriptLoader::parse_rom(const fe::Config& p_config) {
 	m_ptr_table.clear();
 	m_instrs.clear();
 	m_opcodes.clear();
+	m_chan_pitch_offsets.clear();
 
 	// extract ptr table
 	for (std::size_t i{ 0 }; i < l_music_count; ++i)
@@ -22,7 +24,14 @@ void fm::MScriptLoader::parse_rom(const fe::Config& p_config) {
 			+ l_music_ptr.second);
 
 	// generate opcodes
-	m_opcodes = parse_xml_map(p_config.bmap(c::ID_MSCRIPT_OPCODES));
+	m_opcodes = parse_opcode_map(p_config.bmap(c::ID_MSCRIPT_OPCODES));
+
+	// extract the channel pitch offsets
+	std::size_t l_chan_pitch_offset{ p_config.constant(c::ID_CHAN_PITCH_OFFSET) };
+	for (std::size_t i{ 0 }; i < 4; ++i)
+		m_chan_pitch_offsets.push_back(
+			static_cast<int8_t>(m_rom.at(l_chan_pitch_offset + i))
+		);
 
 	for (std::size_t ep : m_ptr_table)
 		parse_blob_from_entrypoint(ep, l_music_ptr.second);
@@ -37,8 +46,11 @@ void fm::MScriptLoader::parse_blob_from_entrypoint(size_t offset, size_t zeroadd
 
 		std::size_t instr_offset{ cursor };
 
-		byte opcode_byte = read_byte(cursor);
-		const auto& opcode{ m_opcodes[opcode_byte] };
+		byte opcode_byte{ read_byte(cursor) };
+
+		const auto& opcode{
+			fm::util::decode_opcode_byte(opcode_byte, m_opcodes)
+		};
 
 		std::optional<byte> arg;
 		std::optional<std::size_t> target_addr;

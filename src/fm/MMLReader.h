@@ -16,7 +16,8 @@ namespace fm {
 
 		std::vector<fm::MusicInstruction> m_instructions;
 		std::map<std::size_t, std::size_t> m_ptr_table;
-		std::vector<fm::MusicOpcode> m_opcodes;
+		std::map<byte, fm::MusicOpcode> m_opcodes;
+		std::map<std::string, std::string> m_defines;
 
 		bool is_entrypoint(const std::string& p_token) const;
 		std::pair<std::size_t, std::size_t> parse_entrypoint(const std::string& p_token) const;

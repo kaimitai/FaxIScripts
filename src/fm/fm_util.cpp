@@ -1,0 +1,177 @@
+#include <format>
+#include "fm_constants.h"
+#include "fm_util.h"
+
+std::map<byte, std::string> fm::util::generate_note_meta_consts(void) {
+	std::map<byte, std::string> result;
+
+	result[c::HEX_REST] = "r";
+
+	for (byte i{ c::HEX_NOTELENGTH_MIN }; i < c::HEX_NOTELENGTH_END; ++i)
+		result[i] = std::format("l{}", i - c::HEX_NOTELENGTH_MIN);
+
+	return result;
+}
+
+fm::MusicOpcode fm::util::decode_opcode_byte(byte b,
+	const std::map<byte, fm::MusicOpcode>& p_opcodes) {
+	auto iter{ p_opcodes.find(b) };
+	if (iter == end(p_opcodes))
+		return fm::MusicOpcode(std::string(), fm::OpcodeType::Note,
+			fm::AudioArgType::None, fm::AudioFlow::Continue,
+			fm::AudioArgDomain::None);
+	else
+		return iter->second;
+}
+
+std::string fm::util::pitch_offset_to_string(int8_t val) {
+	int total = static_cast<int>(val);
+	
+	bool neg{ total < 0 };
+	if (neg)
+		total *= -1;
+
+	if (total == 0)
+		return "no offset";
+
+	// Compute octave + semitone decomposition
+	int octaves = total / 12;
+	int semitones = total % 12;
+
+	// Normalize semitones into 0-11
+	if (semitones < 0) {
+		semitones += 12;
+		octaves -= 1;
+	}
+
+	// Direction string
+	std::string dir;
+	if (!neg)
+		dir = "up";
+	else
+		dir = "down";
+
+	// Build result
+	std::string result = dir + " ";
+	if (octaves != 0) {
+		result += std::to_string(std::abs(octaves)) + " octave";
+		if (std::abs(octaves) > 1) result += "s";
+		if (semitones != 0) result += ", ";
+	}
+	if (semitones != 0) {
+		result += std::to_string(semitones) + " semitone";
+		if (semitones > 1) result += "s";
+	}
+
+	return result;
+}
+
+std::string fm::util::byte_to_note(byte p_val, int8_t offset) {
+	int noteIndex = (static_cast<int>(p_val) + static_cast<int>(offset)) - 1;
+
+	int octave = 2 + (noteIndex / 12);
+	int semitone = noteIndex % 12;
+
+	return std::format("{}{}", c::NOTE_NAMES.at(semitone), octave);
+}
+
+std::string fm::util::sq_control_to_string(byte val) {
+
+	// Duty cycle (bits 7-6)
+	int dutyBits = (val >> 6) & 0x3;
+	std::string duty;
+	switch (dutyBits) {
+	case 0: duty = "12.5%"; break;
+	case 1: duty = "25%"; break;
+	case 2: duty = "50%"; break;
+	case 3: duty = "75%"; break;
+	}
+
+	// Flags
+	bool lengthHalt = (val & 0x20) != 0;
+	bool constantVol = (val & 0x10) != 0;
+
+	// Volume (bits 3-0)
+	int volume = val & 0x0F;
+
+	// Build comment string
+	std::string comment = "duty=" + duty +
+		", length counter halt=" + (lengthHalt ? "on" : "off") +
+		", constant volume=" + (constantVol ? "on" : "off") +
+		", volume=" + std::to_string(volume);
+
+	return comment;
+}
+
+bool fm::util::is_note(const std::string& token) {
+	if (token.size() < 2)
+		return false;
+
+	// Step 1: first char must be a-g
+	char first = std::tolower(token[0]);
+	if (first < 'a' || first > 'g')
+		return false;
+
+	// Step 2: optional accidental
+	size_t i = 1;
+	if (token[i] == '+' || token[i] == '-')
+		++i;
+
+	// Step 3: remainder must be digits
+	if (i >= token.size())
+		return false;
+
+	for (; i < token.size(); ++i)
+		if (!std::isdigit(static_cast<unsigned char>(token[i])))
+			return false;
+
+	return true;
+}
+
+byte fm::util::note_to_byte(const std::string& token, int8_t offset) {
+	char base = std::tolower(token[0]);
+	int semitone; switch (base) {
+	case 'c': semitone = 0; break;
+	case 'd': semitone = 2; break;
+	case 'e': semitone = 4; break;
+	case 'f': semitone = 5; break;
+	case 'g': semitone = 7; break;
+	case 'a': semitone = 9; break;
+	case 'b': semitone = 11; break;
+	default: throw std::runtime_error("Invalid note letter");
+	}
+
+	size_t i = 1;
+	if (i < token.size() && (token[i] == '+' || token[i] == '-')) {
+		if (token[i] == '+')
+			semitone += 1;
+		else semitone -= 1;
+		++i;
+	}
+
+	// Normalize semitone into 0-11 range
+	if (semitone < 0)
+		semitone += 12;
+	if (semitone > 11)
+		semitone -= 12;
+
+	// Step 3: parse octave (assume valid digits)
+	int octave = std::stoi(token.substr(i));
+
+	// Step 4: compute raw index (C2 = $01)
+	int noteIndex = (octave - 2) * 12 + semitone;
+	int rawIndex = noteIndex + 1;
+
+	// Step 5: apply channel offset
+	int finalByte = rawIndex + static_cast<int>(offset);
+
+	// Step 6: range check
+	if (finalByte < c::HEX_NOTE_MIN)
+		throw std::runtime_error("Note index underflow after transpose");
+
+	if (finalByte >= c::HEX_NOTE_END) {
+		throw std::runtime_error("Note index overflow after transpose");
+	}
+
+	return static_cast<uint8_t>(finalByte);
+}

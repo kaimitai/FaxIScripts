@@ -21,7 +21,8 @@ namespace fi {
 		inline const std::vector<std::pair<std::string, std::string>> CLI_FLAGS{
 			{"--no-shop-comments", "-p"},
 			{"--original-size", "-o"},
-			{"--force", "-f"}
+			{"--force", "-f"},
+			{"--no-notes", "-n"}
 		};
 
 		inline const std::pair<std::string, std::string> CLI_SOURCE_ROM

@@ -117,6 +117,9 @@
     <ClCompile Include="src\fm\MMLReader.cpp">
       <Filter>Source Files\fm</Filter>
     </ClCompile>
+    <ClCompile Include="src\fm\fm_util.cpp">
+      <Filter>Source Files\fm</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\fi\Opcode.h">
@@ -180,6 +183,9 @@
       <Filter>Header Files\fm</Filter>
     </ClInclude>
     <ClInclude Include="src\fm\MMLReader.h">
+      <Filter>Header Files\fm</Filter>
+    </ClInclude>
+    <ClInclude Include="src\fm\fm_util.h">
       <Filter>Header Files\fm</Filter>
     </ClInclude>
   </ItemGroup>

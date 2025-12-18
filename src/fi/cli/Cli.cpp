@@ -28,16 +28,17 @@ void fi::Cli::print_help(void) const {
 	std::cout << "Usage:\n";
 	std::cout << "  faxiscripts <command> <input file> <output file> [options]\n\n" <<
 
-		"  x, extract                Disassemble IScripts from ROM\n" <<
-		"  b, build                  Assemble IScripts into ROM\n" <<
-		"  xm, build-music           Extract MScripts from ROM\n" <<
-		"  bm, extract-music         Assemble MScripts and patch ROM\n\n";
+		"  x,  extract                Disassemble IScripts from ROM\n" <<
+		"  b,  build                  Assemble IScripts into ROM\n" <<
+		"  xm, extract-music          Disassemble MScripts from ROM\n" <<
+		"  bm, build-music            Assemble MScripts and patch ROM\n\n";
 
 
 	std::cout << "Options:\n";
 	std::cout << "  -p, --no-shop-comments       Disable shop comment extraction (enabled by default)\n";
 	std::cout << "  -o, --original-size          Only patch original ROM location (disabled by default)\n";
 	std::cout << "  -f, --force                  Force assembly-file overwrite when extracting (disabled by default)\n";
+	std::cout << "  -n, --no-notes               Do not emit notes in music disassembly (notes enabled by default)\n";
 	std::cout << "  -s, --source-rom             The ROM file to be used as a source when assembling (by default the output file itself)\n";
 	std::cout << "  -r, --region                 ROM region which must be defined in the configuration xml (auto-detected by default)\n";
 }
@@ -45,7 +46,8 @@ void fi::Cli::print_help(void) const {
 fi::Cli::Cli(int argc, char** argv) :
 	m_strict{ false },
 	m_shop_comments{ true },
-	m_overwrite{ false }
+	m_overwrite{ false },
+	m_notes{ true }
 {
 	print_header();
 
@@ -257,9 +259,12 @@ void fi::Cli::nes_to_asm(const std::string& p_nes_filename,
 void fi::Cli::nes_to_mml(const std::string& p_nes_filename,
 	const std::string& p_mml_filename, bool p_overwrite) {
 
+	std::cout << std::format("Note value emission {}\n",
+		m_notes ? "enabled" : "disabled");
+
 	// fail early if output file already exists and we do not overwrite
 	if (!p_overwrite && klib::file::file_exists(p_mml_filename))
-		throw std::runtime_error(std::format("MML file {} exists, and overwrite-flag is not set", p_mml_filename));
+		throw std::runtime_error(std::format("music asm file {} exists, and overwrite-flag is not set", p_mml_filename));
 
 	std::cout << "Attempting to read " << p_nes_filename << "\n";
 	const auto& rom_data{ klib::file::read_file_as_bytes(p_nes_filename) };
@@ -278,10 +283,14 @@ void fi::Cli::nes_to_mml(const std::string& p_nes_filename,
 	fm::MScriptLoader loader(rom_data);
 	loader.parse_rom(m_config);
 
-	fm::MMLWriter l_writer;
+	fm::MMLWriter l_writer(m_config);
 	l_writer.generate_mml_file(m_out_file, loader.m_instrs, loader.m_opcodes,
 		loader.m_ptr_table,
-		loader.m_jump_targets);
+		loader.m_jump_targets,
+		loader.m_chan_pitch_offsets,
+		m_notes);
+
+	std::cout << "Extraction complete!\n";
 }
 
 void fi::Cli::parse_arguments(int arg_start, int argc, char** argv) {
@@ -342,6 +351,8 @@ void fi::Cli::toggle_flag(std::size_t p_flag_idx) {
 		m_strict = !m_strict;
 	else if (p_flag_idx == 2)
 		m_overwrite = !m_overwrite;
+	else if (p_flag_idx == 3)
+		m_notes = !m_notes;
 }
 
 // sad that this is needed in 2025

@@ -12,8 +12,16 @@ int klib::str::parse_numeric(const std::string& token) {
 		base = 16;
 		digits = token.substr(1);
 	}
+	else if (token[0] == '%') {
+		base = 2;
+		digits = token.substr(1);
+	}
 	else if (token.starts_with("0x") || token.starts_with("0X")) {
 		base = 16;
+		digits = token.substr(2);
+	}
+	else if (token.starts_with("0b") || token.starts_with("0B")) {
+		base = 2;
 		digits = token.substr(2);
 	}
 	else {
@@ -166,4 +174,23 @@ std::map<std::string, std::string> klib::str::extract_keyval_str(const std::stri
 	}
 
 	return result;
+}
+
+std::pair<std::string, std::string> klib::str::parse_define(const std::string& str) {
+	if (!str.starts_with("define "))
+		throw std::runtime_error("Malformed define line: " + str);
+
+	// Strip "define " prefix
+	std::string rest = str.substr(7);
+	size_t space_pos = rest.find(' ');
+	if (space_pos == std::string::npos)
+		throw std::runtime_error("Malformed define line (missing value): " + str);
+
+	std::string key = trim(rest.substr(0, space_pos));
+	std::string value_token = trim(rest.substr(space_pos + 1));
+
+	if (key.empty() || value_token.empty())
+		throw std::runtime_error("Empty key or value in define: " + str);
+
+	return std::make_pair(key, value_token);
 }

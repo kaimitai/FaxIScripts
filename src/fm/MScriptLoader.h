@@ -1,6 +1,7 @@
 #ifndef FM_MML_LOADER_H
 #define FM_MML_LOADER_H
 
+#include <cstdint>
 #include <map>
 #include <set>
 #include <vector>
@@ -18,9 +19,10 @@ namespace fm {
 
 		const std::vector<byte> m_rom;
 		std::vector<std::size_t> m_ptr_table;
-		std::vector<fm::MusicOpcode> m_opcodes;
+		std::map<byte, fm::MusicOpcode> m_opcodes;
 		std::map<std::size_t, fm::MusicInstruction> m_instrs;
 		std::set<std::size_t> m_jump_targets;
+		std::vector<int8_t> m_chan_pitch_offsets;
 
 		void parse_blob_from_entrypoint(size_t offset, size_t zeroaddr);
 

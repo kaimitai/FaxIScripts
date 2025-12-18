@@ -142,6 +142,7 @@
     <ClCompile Include="src\fi\IScriptLoader.cpp" />
     <ClCompile Include="src\fi\Opcode.cpp" />
     <ClCompile Include="src\fi\Shop.cpp" />
+    <ClCompile Include="src\fm\fm_util.cpp" />
     <ClCompile Include="src\fm\MMLReader.cpp" />
     <ClCompile Include="src\fm\MMLWriter.cpp" />
     <ClCompile Include="src\fm\MScriptLoader.cpp" />
@@ -166,6 +167,7 @@
     <ClInclude Include="src\fi\Opcode.h" />
     <ClInclude Include="src\fi\Shop.h" />
     <ClInclude Include="src\fm\fm_constants.h" />
+    <ClInclude Include="src\fm\fm_util.h" />
     <ClInclude Include="src\fm\MMLReader.h" />
     <ClInclude Include="src\fm\MMLWriter.h" />
     <ClInclude Include="src\fm\MScriptLoader.h" />

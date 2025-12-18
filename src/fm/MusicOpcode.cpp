@@ -4,21 +4,32 @@
 #include <format>
 #include <stdexcept>
 
+fm::MusicOpcode::MusicOpcode(void) :
+	MusicOpcode("", fm::OpcodeType::Note,
+		fm::AudioArgType::None,
+		fm::AudioFlow::Continue,
+		fm::AudioArgDomain::None)
+{
+}
+
 fm::MusicOpcode::MusicOpcode(const std::string& p_mnemonic,
 	fm::OpcodeType p_opcodetype,
 	fm::AudioArgType p_argtype,
-	fm::AudioFlow p_flow) :
+	fm::AudioFlow p_flow,
+	fm::AudioArgDomain p_argdomain) :
 	m_opcodetype{ p_opcodetype },
 	m_mnemonic{ p_mnemonic },
 	m_argtype{ p_argtype },
-	m_flow{ p_flow }
+	m_flow{ p_flow },
+	m_arg_domain{ p_argdomain }
 {
 }
 
 fm::MusicOpcode::MusicOpcode(const std::string& p_params) :
 	m_opcodetype{ fm::OpcodeType::Opcode },
 	m_argtype{ fm::AudioArgType::None },
-	m_flow{ fm::AudioFlow::Continue }
+	m_flow{ fm::AudioFlow::Continue },
+	m_arg_domain{ fm::AudioArgDomain::None }
 {
 	auto kvs{ klib::str::extract_keyval_str(p_params) };
 
@@ -34,6 +45,9 @@ fm::MusicOpcode::MusicOpcode(const std::string& p_params) :
 		}
 		else if (klib::str::to_lower(kv.first) == klib::str::to_lower(c::XML_OPCODE_PARAM_TYPE)) {
 			m_opcodetype = string_to_enum_opcodetype(kv.second);
+		}
+		else if (klib::str::to_lower(kv.first) == klib::str::to_lower(c::XML_OPCODE_PARAM_DOMAIN)) {
+			m_arg_domain = string_to_enum_argdomain(kv.second);
 		}
 		else
 			throw std::runtime_error("Invalid opcode parameter name " + kv.first);
@@ -54,14 +68,12 @@ std::size_t fm::MusicOpcode::size(void) const {
 	return result;
 }
 
-std::vector<byte> fm::MusicInstruction::get_bytes(const std::vector<fm::MusicOpcode>& p_opcodes) const {
+std::vector<byte> fm::MusicInstruction::get_bytes(void) const {
 	std::vector<byte> result{ opcode_byte };
 
-	const auto& op{ p_opcodes.at(opcode_byte) };
-
-	if (op.m_argtype == fm::AudioArgType::Byte)
+	if (operand.has_value())
 		result.push_back(static_cast<byte>(operand.value()));
-	if (op.m_flow == fm::AudioFlow::Jump) {
+	if (jump_target.has_value()) {
 		uint16_t opval{ static_cast<uint16_t>(jump_target.value()) };
 		result.push_back(static_cast<byte>(opval % 256));
 		result.push_back(static_cast<byte>(opval / 256));
@@ -70,25 +82,11 @@ std::vector<byte> fm::MusicInstruction::get_bytes(const std::vector<fm::MusicOpc
 	return result;
 }
 
+std::map<byte, fm::MusicOpcode> fm::parse_opcode_map(const std::map<byte, std::string>& p_map) {
+	std::map<byte, fm::MusicOpcode> result;
 
-std::vector<fm::MusicOpcode> fm::parse_xml_map(const std::map<byte, std::string>& p_map) {
-	std::vector<fm::MusicOpcode> result;
-
-	std::map<byte, fm::MusicOpcode> ops;
 	for (const auto& kv : p_map)
-		ops.insert(std::make_pair(kv.first, fm::MusicOpcode(kv.second)));
-
-	for (byte b{ 0 }; b < 255; ++b)
-		if (ops.find(b) == end(ops)) {
-			ops.insert(std::make_pair(b,
-				fm::MusicOpcode(std::format("${:02x}", b),
-					fm::OpcodeType::Note, fm::AudioArgType::None,
-					fm::AudioFlow::Continue)
-			));
-		}
-
-	for (const auto& kv : ops)
-		result.push_back(kv.second);
+		result.insert(std::make_pair(kv.first, fm::MusicOpcode(kv.second)));
 
 	return result;
 }
@@ -122,4 +120,17 @@ fm::OpcodeType fm::string_to_enum_opcodetype(const std::string& p_str) {
 		return fm::OpcodeType::Note;
 	else
 		throw std::runtime_error("Not a valid opcode type: " + p_str);
+}
+
+fm::AudioArgDomain fm::string_to_enum_argdomain(const std::string& p_str) {
+	if (klib::str::to_lower(p_str) == "none")
+		return fm::AudioArgDomain::None;
+	else if (klib::str::to_lower(p_str) == "pitchoffset")
+		return fm::AudioArgDomain::PitchOffset;
+	else if (klib::str::to_lower(p_str) == "sqcontrol")
+		return fm::AudioArgDomain::SQControl;
+	else if (klib::str::to_lower(p_str) == "envelope")
+		return fm::AudioArgDomain::Envelope;
+	else
+		throw std::runtime_error("Not a valid argument domain: " + p_str);
 }
