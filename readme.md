@@ -74,7 +74,7 @@ We prioritize fixing bugs if any are discovered, but here are some ideas for fut
 
 ### Version History
 
-* 2025-11-22: version 0.4
+* 2025-12-20: version 0.4
     * Added support for extracting the music layer as an assembly file in the context of Faxanadu's music engine (mScripts). 
 
 * 2025-11-22: version 0.3
