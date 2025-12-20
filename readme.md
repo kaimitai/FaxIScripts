@@ -98,4 +98,4 @@ We prioritize fixing bugs if any are discovered, but here are some ideas for fut
 
 Special thanks to the following contributors and fellow digital archaeologists:
 
-[ChipX86/Christian Hammond](http://chipx86.com/) - For entirely mapping out the IScript language in his [Faxanadu disassembly](https://chipx86.com/faxanadu/) - and for coining the term IScript (Interaction Script) itself. This project would not have existed without his resources.
+[ChipX86/Christian Hammond](http://chipx86.com/) - For entirely mapping out the IScript language in his [Faxanadu disassembly](https://chipx86.com/faxanadu/) - and for coining the term IScript (Interaction Script) itself. He also single-handedly mapped out the music format, an incredibly impressive feat. This project would not have existed without his resources.

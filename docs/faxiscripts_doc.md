@@ -1,6 +1,6 @@
 # FaxIScripts - User Documentation
 
-This is the user documentation for FaxIScripts (v0.3), an assembler for the internal scripting language used by Faxanadu for the NES. The application code and binaries can be found on its [GitHub repository](https://github.com/kaimitai/faxiscripts/). It is assumed that users are somewhat acquainted with Faxanadu on the NES.
+This is the user documentation for FaxIScripts (v0.4), an assembler for the internal scripting language used by Faxanadu for the NES. The application code and binaries can be found on its [GitHub repository](https://github.com/kaimitai/faxiscripts/). It is assumed that users are somewhat acquainted with Faxanadu on the NES.
 
 <hr>
 
@@ -39,7 +39,7 @@ The music assembly format is described separately.
 - [Behind the scenes](#behind-the-scenes)
 - [Music](#music)
 - [Music Assembly file contents](#music-assembly-file-contents)
-    - [mScript opcodes]
+    - [mScript opcodes](#mscript-opcodes)
 
 <hr>
 
@@ -437,7 +437,7 @@ To squeeze out even more bytes here you can insert an unconditional jump to brid
 
 ## Music
 
-Music in Faxanadu uses four channels per song, two square wave channels, one triangle wave channels and one noise channel.
+Music in Faxanadu uses four channels per song, two square wave channels, one triangle wave channel and one noise channel.
 
 The note lengths can be given as a one-byte value ($80-$ed represent note lengths from 0 to 109) or via a note length-setting opcode which can set note lengths up to 255 ticks. The NES runs at roughly 60 ticks per minute in this context, so a note length of 60 means one second or so of sound.
 
@@ -455,9 +455,9 @@ The channels use different pitch offsets at several levels. The global offsets a
  ; ========================================
 ```
 
-This means that if you see the note c4 in an sq1 or sq2 channel, it will really be c3. For the triangle channel c4 would really be c5. It is also possible to set song-wide or channel-wide transpositions on top of this global transpositions, and they stack.
+This means that if you see the note c4 in an sq1 or sq2 channel, it will really be c3. For the triangle channel c4 would really be c5. It is also possible to set song-wide or channel-wide transpositions on top of the global transpositions, and they stack.
 
-Transposition values are given as a signed byte (-127 - 128), and are given in semitones. A transposition which is a multiple of 12 means the pitch is shifted by an octave up or down.
+Transposition values are given as a signed byte (negative 128 to 127), and are given in semitones. A transposition which is a multiple of 12 means the pitch is shifted by an octave up or down.
 
 ### Music Assembly file contents
 
@@ -479,7 +479,9 @@ Apart from that it is just music data (notes, rests, note lengths) and op-codes 
 
 The noise channel works differently from the other three, and is used for percussion. In the original game only 3 different sounds (values 1, 2 and 3) are used, and they are given as the high nibble of noise bytes. The low nibble is the repeat count for that sound.
 
-For example, a noise channel note byte of $35 will repeat noise #3 five times.
+For example, a noise channel note byte of $35 will repeat noise 3 five times.
+
+Loops are supported, but not nested loops. There is a pair of opcodes for "push address" and "pop address and jump" which can act as an infinite loop, however.
 
 #### mScript opcodes
 
@@ -501,7 +503,7 @@ Once we are past the channel entrypoints, we are ready to run regular opcodes an
 | `$F8`  | JSR                    | Addr                | Jump label       | Jumps to subroutine |
 | `$F9`  | PushAddr               | —                   | —          | Pushes current address onto the return stack. |
 | `$FA`  | NOP                    | —                   | —          | Does nothing (safe filler). |
-| `$FB`  | NextLoopIf             | byte                | —          | Decrements loop counter and repeats if non‑zero. |
+| `$FB`  | NextLoopIf             | byte                | —          | Goes back to the start of the loop if the iteration count equals the argument |
 | `$FC`  | EndLoop                | —                   | —          | Marks loop end (paired with BeginLoop). |
 | `$FD`  | BeginLoop              | byte                | —          | Starts a counted loop with given iteration count. |
 | `$FE`  | PopAddr                | —                   | —          | Pops return address and jumps. |
