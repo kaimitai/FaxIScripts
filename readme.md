@@ -8,6 +8,8 @@ The scripting layer contains strings, shop data and actual code. The strings are
 
 There are two ROM sections we can use when patching, and the users can choose between different patching modes.
 
+We also support extracting and patching the music layer of Faxanadu at the assembly level. This is functional, but it is tedious to make music by editing music asm-files. It is good for experimentation, however, and is necessary scaffolding once we raise the level of abstraction.
+
 Make sure to read the [documentation](./docs/faxiscripts_doc.md) for a detailed overview of the syntax and structure of the assembly files we will be editing, as well as a list of all available opcodes.
 
 This application has a natural companion in [Echoes of Eolis](https://github.com/kaimitai/faxedit/), which is a graphical editor that can patch the other dynamically sized data portions in Faxanadu. To see, or change, which NPCs in Faxanadu are connected to a given script (script entrypoint) this editor can be used.
@@ -51,12 +53,19 @@ The asm-files may look a little daunting at first, but I am sure it will be very
 
 There is little static code analysis available for the time being, but before actually patching the ROM we ensure the code is good by trying to traverse all code paths from all entry points to verify that the code the game can potentially use can actually be parsed.
 
+The command `faxiscripts xm "Faxanadu (U).nes" faxanadu.masm` will extract the music layer from file "Faxanadu (U).nes" and write it to file faxanadu.masm.
+
+Another instruction will pack your music, and patch it back to ROM.
+
+The command `faxiscripts bm faxanadu.masm "Faxanadu (U).nes"` will patch "Faxanadu (U).nes" with the music from faxanadu.masm.
+
 <hr>
 
 ### Roadmap
 
 We prioritize fixing bugs if any are discovered, but here are some ideas for future features:
 
+* Allow music exports and imports at a higher level of abstraction, once we know enough to decide what the abstraction should look like. Most likely a music macro language (mml) of some sort.
 * We might do more static analysis to help users identify problems in their code
 * Add an option to let the linker insert a jump-instruction to bridge the gap between the safe ROM regions. This could potentially save some bytes over the current bridging strategy.
 * Allow Japanese characters directly in strings for the jp region
@@ -64,6 +73,9 @@ We prioritize fixing bugs if any are discovered, but here are some ideas for fut
 <hr>
 
 ### Version History
+
+* 2025-11-22: version 0.4
+    * Added support for extracting the music layer as an assembly file in the context of Faxanadu's music engine (mScripts). 
 
 * 2025-11-22: version 0.3
     * Added configuration xml file with necessary constants for the major ROM regions as well as for two ROM hacks. This configuration file is also compatible with [Echoes of Eolis](https://github.com/kaimitai/faxedit/).

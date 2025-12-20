@@ -14,6 +14,8 @@ The script code is one contiguos blob of data, and just before the script data b
 
 Too see, or edit, which script is connected with a certain NPC in the game, you can use [Echoes of Eolis](https://github.com/kaimitai/faxedit/) - a graphical editor which will let you edit other data portions than the script layer.
 
+The music assembly format is described separately.
+
 <hr>
 
 ## Table of Contents
@@ -35,9 +37,9 @@ Too see, or edit, which script is connected with a certain NPC in the game, you 
 - [Well-formed code](#well-formed-code)
 - [A highly technical note on Quests](#a-highly-technical-note-on-quests)
 - [Behind the scenes](#behind-the-scenes)
-
-
-
+- [Music](#music)
+- [Music Assembly file contents](#music-assembly-file-contents)
+    - [mScript opcodes]
 
 <hr>
 
@@ -72,6 +74,30 @@ To build a file we go in the opposite direction, and assemble. To build a file f
  There are also options when building. They are:
 
  * --original-size (-o for short): This option will make patching fail if we use more ROM data than the original game. Use this if you are already using the free section at the end of the bank for something else. Note that the game code is packed in the code section, so if you add something you will also have to remove something else if you use this mode.
+ * --source-rom (-s for short): This option takes an argument, which is a filename for the ROM you will use as a source for patching. If this option is not specified we will patch the file given as output file. Use this if you don't want to patch a ROM file directly.
+ --region (-r for short): Override automatic ROM region deduction. The parameter specified must match a region defined in eoe_config.xml
+
+ For extracting and inserting music assembly, the assembler is used in the following way:
+
+ To extract music from a file, called "Faxanadu (U).nes" say, we run the following command from the command-line:
+
+ ```faxiscripts extract-music "Faxanadu (U).nes" faxanadu.masm```
+
+  Quotes are only necessary if any of your arguments contain spaces. You can write "xm" instead of "extract-music".
+
+ You can add options when extracting music. They are:
+
+* --no-notes (or -n for short): Ouput raw hex bytes in the note stream instead of note names. Note names are enabled by default.
+* --force (-f for short): Overwrite existing music asm-file if it already exists. We don't allow it by default because users might inadvertently overwrite their assembly code if they aren't careful.
+
+To build a file we go in the opposite direction, and assemble. To build a file faxanadu.asm and patch "Faxanadu (U).nes" with it, run the following command:
+
+ ```faxiscripts build-music faxanadu.asm "Faxanadu (U).nes"```
+
+ You can write "bm" instead of "build-music".
+
+ There are also options when building. They are:
+
  * --source-rom (-s for short): This option takes an argument, which is a filename for the ROM you will use as a source for patching. If this option is not specified we will patch the file given as output file. Use this if you don't want to patch a ROM file directly.
  --region (-r for short): Override automatic ROM region deduction. The parameter specified must match a region defined in eoe_config.xml
 
@@ -408,3 +434,76 @@ What it does, is as follows:
 This was not trivial to get right before I made the decision to link pointer table entries and labels to instruction indexes while parsing, rather than to byte offsets directly. After the relocation - and only after all instruction byte offsets have been completely resolved - we go back and assign byte offsets to pointers and references by querying the offset of the instruction it points to.
 
 To squeeze out even more bytes here you can insert an unconditional jump to bridge the code stream at the very last moment you overflow (but only if the last safe instruction is not already stream-ending) but you need to ensure that the jump itself completely fits in the region - and now all reference indexes after the jump shift by one. It is perfectly doable, but I opted not to do it since it will change the assembly code of the user - but we might make this optional in a future release.
+
+## Music
+
+Music in Faxanadu uses four channels per song, two square wave channels, one triangle wave channels and one noise channel.
+
+The note lengths can be given as a one-byte value ($80-$ed represent note lengths from 0 to 109) or via a note length-setting opcode which can set note lengths up to 255 ticks. The NES runs at roughly 60 ticks per minute in this context, so a note length of 60 means one second or so of sound.
+
+When a note length has been set, all subsequent notes and rests last that long - until a new note length command is given.
+
+Notes take on the values $01 to $7f, and start at c2. (note c, octave 2) There are 12 notes, or semitones, in an octave. They are: c, c+, d, d+, e, f, f+, g, g+, a, a+, b - where + denotes a sharp note.
+
+The channels use different pitch offsets at several levels. The global offsets are encoded in the ROM file, and appear as comments near the top of the music asm file. In a default ROM you will see:
+
+```
+ ; ========================================
+ ; SQ1 pitch offset: down 1 octave
+ ; SQ2 pitch offset: down 1 octave
+ ; TRI pitch offset: up 1 octave
+ ; ========================================
+```
+
+This means that if you see the note c4 in an sq1 or sq2 channel, it will really be c3. For the triangle channel c4 would really be c5. It is also possible to set song-wide or channel-wide transpositions on top of this global transpositions, and they stack.
+
+Transposition values are given as a signed byte (-127 - 128), and are given in semitones. A transposition which is a multiple of 12 means the pitch is shifted by an octave up or down.
+
+### Music Assembly file contents
+
+The generated music assembly files produce two sections. Defines and mscript - which is the actual music code.
+
+For music you can define note length constants. If you want a quarter note to be 36 ticks, for example, you can write
+
+```define quarter $a4```
+
+and use quarter as a symbol in your music code.
+
+```.song directive```
+
+.song will be followed by a song number and a channel. **1.SQ1** for example, means the square 1 channel of song 1 starts at that point.
+
+All songs need to have entrypoints defined for all 4 channels. This is needed to construct the pointer table to the music, so the music engine knows where each channel starts.
+
+Apart from that it is just music data (notes, rests, note lengths) and op-codes which define the music.
+
+The noise channel works differently from the other three, and is used for percussion. In the original game only 3 different sounds (values 1, 2 and 3) are used, and they are given as the high nibble of noise bytes. The low nibble is the repeat count for that sound.
+
+For example, a noise channel note byte of $35 will repeat noise #3 five times.
+
+#### mScript opcodes
+
+Once we are past the channel entrypoints, we are ready to run regular opcodes and emit notes. Each opcode has a mnemonic, and an optional list of arguments and a jump target. All available opcodes are as follows, but note that some of this information might be wrong or incomplete:
+
+
+| Opcode | Name                   | Argument            | Jump Addr | Description |
+|--------|-------------------------|----------------------|------------|-------------|
+| `$EE`  | SQ2PitchBias           | byte                | —          | Applies a pitch offset to Square 2 (fine bias). |
+| `$EF`  | SQPitchEffectDepth     | byte                | —          | Sets vibrato/tremolo depth for square channels. |
+| `$F0`  | SQEnvelope             | byte (Envelope)     | —          | Selects envelope shape for square channels. |
+| `$F1`  | Volume                 | byte                | —          | Decrease channel volume (0–9?). |
+| `$F2`  | SQControl              | byte (SQControl)    | —          | Configures duty cycle / sweep for square channels. |
+| `$F3`  | NoteLength             | byte                | —          | Overrides note duration for the next notes. |
+| `$F4`  | Restart                | —                   | —          | Restarts the song when all channels have finished |
+| `$F5`  | Return                 | —                   | —          | Returns from subroutine |
+| `$F6`  | ChannelTranspose       | byte (PitchOffset)  | —          | Applies per‑channel pitch shift. |
+| `$F7`  | GlobalTranspose        | byte (PitchOffset)  | —          | Applies global pitch shift to all channels. |
+| `$F8`  | JSR                    | Addr                | Jump label       | Jumps to subroutine |
+| `$F9`  | PushAddr               | —                   | —          | Pushes current address onto the return stack. |
+| `$FA`  | NOP                    | —                   | —          | Does nothing (safe filler). |
+| `$FB`  | NextLoopIf             | byte                | —          | Decrements loop counter and repeats if non‑zero. |
+| `$FC`  | EndLoop                | —                   | —          | Marks loop end (paired with BeginLoop). |
+| `$FD`  | BeginLoop              | byte                | —          | Starts a counted loop with given iteration count. |
+| `$FE`  | PopAddr                | —                   | —          | Pops return address and jumps. |
+| `$FF`  | End                    | —                   | —          | Terminates the song. |
+

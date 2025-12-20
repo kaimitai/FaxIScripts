@@ -1024,30 +1024,30 @@
 		</byte_to_string_map>
 		<!-- music engine opcodes  -->
 		<byte_to_string_map name="mscript_opcodes">
-		  <entry byte="$ee" str="Mnemonic=SQ2PitchBias,Arg=byte" />
-		  <entry byte="$ef" str="Mnemonic=SQPitchEffectDepth,Arg=byte" />
-		  <entry byte="$f0" str="Mnemonic=SQEnvelope,Arg=byte,ArgDomain=Envelope" />
-		  <entry byte="$f1" str="Mnemonic=Volume,Arg=byte" />
-		  <entry byte="$f2" str="Mnemonic=SQControl,Arg=byte,ArgDomain=SQControl" />
-		  <entry byte="$f3" str="Mnemonic=NoteLength,Arg=byte" />
-		  <entry byte="$f4" str="Mnemonic=Restart,Flow=End" />
-		  <entry byte="$f5" str="Mnemonic=Return,Flow=End" />
-		  <entry byte="$f6" str="Mnemonic=ChannelTranspose,Arg=byte,ArgDomain=PitchOffset" />
-		  <entry byte="$f7" str="Mnemonic=GlobalTranspose,Arg=byte,ArgDomain=PitchOffset" />
-		  <entry byte="$f8" str="Mnemonic=JSR,Arg=Addr,Flow=Jump" />
-		  <entry byte="$f9" str="Mnemonic=PushAddr" />
-		  <entry byte="$fa" str="Mnemonic=NOP" />
-		  <entry byte="$fb" str="Mnemonic=EndLoopIf,Arg=byte" />
-		  <entry byte="$fc" str="Mnemonic=EndLoop" />
-		  <entry byte="$fd" str="Mnemonic=BeginLoop,Arg=byte" />
-		  <entry byte="$fe" str="Mnemonic=PopAddr" />
-		  <entry byte="$ff" str="Mnemonic=End,Flow=End" />
+			<entry byte="$ee" str="Mnemonic=SQ2PitchBias,Arg=byte" />
+			<entry byte="$ef" str="Mnemonic=SQPitchEffectDepth,Arg=byte" />
+			<entry byte="$f0" str="Mnemonic=SQEnvelope,Arg=byte,ArgDomain=Envelope" />
+			<entry byte="$f1" str="Mnemonic=Volume,Arg=byte" />
+			<entry byte="$f2" str="Mnemonic=SQControl,Arg=byte,ArgDomain=SQControl" />
+			<entry byte="$f3" str="Mnemonic=NoteLength,Arg=byte" />
+			<entry byte="$f4" str="Mnemonic=Restart,Flow=End" />
+			<entry byte="$f5" str="Mnemonic=Return,Flow=End" />
+			<entry byte="$f6" str="Mnemonic=ChannelTranspose,Arg=byte,ArgDomain=PitchOffset" />
+			<entry byte="$f7" str="Mnemonic=GlobalTranspose,Arg=byte,ArgDomain=PitchOffset" />
+			<entry byte="$f8" str="Mnemonic=JSR,Arg=Addr,Flow=Jump" />
+			<entry byte="$f9" str="Mnemonic=PushAddr" />
+			<entry byte="$fa" str="Mnemonic=NOP" />
+			<entry byte="$fb" str="Mnemonic=NextLoopIf,Arg=byte" />
+			<entry byte="$fc" str="Mnemonic=EndLoop" />
+			<entry byte="$fd" str="Mnemonic=BeginLoop,Arg=byte" />
+			<entry byte="$fe" str="Mnemonic=PopAddr" />
+			<entry byte="$ff" str="Mnemonic=End,Flow=End" />
 		</byte_to_string_map>
 		<!-- mscript defines: envelopes  -->
 		<byte_to_string_map name="mscript_defines_env">
-		  <entry byte="$00" str="ENV_VOLUME_DECAY" />
-		  <entry byte="$01" str="ENV_CURVE_HELD" />
-		  <entry byte="$02" str="ENV_ATTACK_DECAY_CURVE" />
+			<entry byte="$00" str="ENV_VOLUME_DECAY" />
+			<entry byte="$01" str="ENV_CURVE_HELD" />
+			<entry byte="$02" str="ENV_ATTACK_DECAY_CURVE" />
 		</byte_to_string_map>
 	</byte_to_string_maps>
 </eoe_config>
