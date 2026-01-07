@@ -22,6 +22,8 @@ namespace fm {
 		bool is_note(const std::string& token);
 		byte note_to_byte(const std::string& token, int8_t offset);
 
+		int note_string_to_pitch(const std::string& s);
+
 	}
 
 }

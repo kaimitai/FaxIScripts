@@ -61,6 +61,18 @@
     <Filter Include="Source Files\fm">
       <UniqueIdentifier>{58e5cf6e-4f06-4c1e-b6cd-9f6829b3fb0c}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\fm\song">
+      <UniqueIdentifier>{755e7f6a-8e25-4feb-99df-872ccd9fdd1f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\fm\song">
+      <UniqueIdentifier>{3d069d09-a551-45ab-9077-674e67d51df5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\common\midifile">
+      <UniqueIdentifier>{1f61f41b-63fa-492d-a5d0-022eaec9d1c0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\common\midifile">
+      <UniqueIdentifier>{94e19ae3-6a22-4b07-9aa3-be934924dca2}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp">
@@ -119,6 +131,42 @@
     </ClCompile>
     <ClCompile Include="src\fm\fm_util.cpp">
       <Filter>Source Files\fm</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fm\song\MMLChannel.cpp">
+      <Filter>Source Files\fm\song</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fm\song\MMLSong.cpp">
+      <Filter>Source Files\fm\song</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fm\song\Tokenizer.cpp">
+      <Filter>Source Files\fm\song</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fm\song\Parser.cpp">
+      <Filter>Source Files\fm\song</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fm\song\Fraction.cpp">
+      <Filter>Source Files\fm\song</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fm\song\MMLSongCollection.cpp">
+      <Filter>Source Files\fm\song</Filter>
+    </ClCompile>
+    <ClCompile Include="src\common\midifile\Binasc.cpp">
+      <Filter>Source Files\common\midifile</Filter>
+    </ClCompile>
+    <ClCompile Include="src\common\midifile\MidiEvent.cpp">
+      <Filter>Source Files\common\midifile</Filter>
+    </ClCompile>
+    <ClCompile Include="src\common\midifile\MidiEventList.cpp">
+      <Filter>Source Files\common\midifile</Filter>
+    </ClCompile>
+    <ClCompile Include="src\common\midifile\MidiFile.cpp">
+      <Filter>Source Files\common\midifile</Filter>
+    </ClCompile>
+    <ClCompile Include="src\common\midifile\MidiMessage.cpp">
+      <Filter>Source Files\common\midifile</Filter>
+    </ClCompile>
+    <ClCompile Include="src\common\midifile\Options.cpp">
+      <Filter>Source Files\common\midifile</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -187,6 +235,51 @@
     </ClInclude>
     <ClInclude Include="src\fm\fm_util.h">
       <Filter>Header Files\fm</Filter>
+    </ClInclude>
+    <ClInclude Include="src\fm\song\MMLSong.h">
+      <Filter>Header Files\fm\song</Filter>
+    </ClInclude>
+    <ClInclude Include="src\fm\song\Tokenizer.h">
+      <Filter>Header Files\fm\song</Filter>
+    </ClInclude>
+    <ClInclude Include="src\fm\song\MMLEvent.h">
+      <Filter>Header Files\fm\song</Filter>
+    </ClInclude>
+    <ClInclude Include="src\fm\song\Parser.h">
+      <Filter>Header Files\fm\song</Filter>
+    </ClInclude>
+    <ClInclude Include="src\fm\song\mml_constants.h">
+      <Filter>Header Files\fm\song</Filter>
+    </ClInclude>
+    <ClInclude Include="src\fm\song\ChannelWalker.h">
+      <Filter>Header Files\fm\song</Filter>
+    </ClInclude>
+    <ClInclude Include="src\fm\song\MMLChannel.h">
+      <Filter>Header Files\fm\song</Filter>
+    </ClInclude>
+    <ClInclude Include="src\fm\song\Fraction.h">
+      <Filter>Header Files\fm\song</Filter>
+    </ClInclude>
+    <ClInclude Include="src\fm\song\MMLSongCollection.h">
+      <Filter>Header Files\fm\song</Filter>
+    </ClInclude>
+    <ClInclude Include="src\common\midifile\Binasc.h">
+      <Filter>Header Files\common\midifile</Filter>
+    </ClInclude>
+    <ClInclude Include="src\common\midifile\MidiEvent.h">
+      <Filter>Header Files\common\midifile</Filter>
+    </ClInclude>
+    <ClInclude Include="src\common\midifile\MidiEventList.h">
+      <Filter>Header Files\common\midifile</Filter>
+    </ClInclude>
+    <ClInclude Include="src\common\midifile\MidiFile.h">
+      <Filter>Header Files\common\midifile</Filter>
+    </ClInclude>
+    <ClInclude Include="src\common\midifile\MidiMessage.h">
+      <Filter>Header Files\common\midifile</Filter>
+    </ClInclude>
+    <ClInclude Include="src\common\midifile\Options.h">
+      <Filter>Header Files\common\midifile</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

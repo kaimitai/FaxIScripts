@@ -12,6 +12,12 @@
 #include "./../../fm/MMLReader.h"
 #include "./../../fm/MMLWriter.h"
 #include "./../../common/klib/Kfile.h"
+#include "./../../common/klib/Kstring.h"
+#include "./../../fm/song/MMLSong.h"
+#include "./../../fm/song/MMLSongCollection.h"
+#include "./../../fm/song/Tokenizer.h"
+#include "./../../fm/song/Parser.h"
+
 #ifdef _WIN32
 #include <windows.h>
 #endif
@@ -76,6 +82,8 @@ fi::Cli::Cli(int argc, char** argv) :
 		mml_to_nes(m_in_file, m_out_file, m_source_rom.empty() ? m_out_file : m_source_rom);
 	else if (m_script_mode == fi::ScriptMode::MScriptExtract)
 		nes_to_mml(m_in_file, m_out_file, m_overwrite);
+	else if (m_script_mode == fi::ScriptMode::MidiExtract)
+		nes_to_midi(m_in_file, m_out_file);
 	else
 		throw(std::runtime_error("Invalid script mode"));
 }
@@ -280,8 +288,8 @@ void fi::Cli::nes_to_mml(const std::string& p_nes_filename,
 
 	m_config.load_config_data(appc::CONFIG_XML);
 
-	fm::MScriptLoader loader(rom_data);
-	loader.parse_rom(m_config);
+	fm::MScriptLoader loader(m_config, rom_data);
+	loader.parse_rom();
 
 	fm::MMLWriter l_writer(m_config);
 	l_writer.generate_mml_file(m_out_file, loader.m_instrs, loader.m_opcodes,
@@ -291,6 +299,35 @@ void fi::Cli::nes_to_mml(const std::string& p_nes_filename,
 		m_notes);
 
 	std::cout << "Extraction complete!\n";
+}
+
+void fi::Cli::nes_to_midi(const std::string& p_nes_filename,
+	const std::string& p_out_file_prefix) {
+
+	std::cout << "Attempting to read " << p_nes_filename << "\n";
+	const auto& rom_data{ klib::file::read_file_as_bytes(p_nes_filename) };
+
+	if (m_region.empty()) {
+		m_config.determine_region(rom_data);
+		std::cout << "ROM region resolved to '" << m_config.get_region() << "'\n";
+	}
+	else {
+		m_config.set_region(m_region);
+		std::cout << "ROM region specified as '" << m_region << "\n";
+	}
+
+	m_config.load_config_data(appc::CONFIG_XML);
+
+	fm::MScriptLoader loader(m_config, rom_data);
+	fm::MMLSongCollection coll(3600);
+	coll.extract_bytecode_collection(loader);
+	
+	klib::file::write_string_to_file(coll.to_string(), "c:/temp/faxanadu.mml");
+
+	for (std::size_t i{ 0 }; i < loader.get_song_count(); ++i) {
+		auto midi = coll.songs.at(i).to_midi(3600);
+		midi.write(std::format("c:/temp/faxanadu{:02}.mid", i + 1));
+	}
 }
 
 void fi::Cli::parse_arguments(int arg_start, int argc, char** argv) {
@@ -327,6 +364,9 @@ void fi::Cli::set_mode(const std::string& p_mode) {
 	}
 	else if (p_mode == appc::CMD_EXTRACT_MUSIC.first || p_mode == appc::CMD_EXTRACT_MUSIC.second) {
 		m_script_mode = fi::ScriptMode::MScriptExtract;
+	}
+	else if (p_mode == appc::CMD_EXTRACT_MIDI.first || p_mode == appc::CMD_EXTRACT_MIDI.second) {
+		m_script_mode = fi::ScriptMode::MidiExtract;
 	}
 	// can't really happen
 	else throw std::runtime_error("Unknown commad " + p_mode);

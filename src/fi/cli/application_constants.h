@@ -10,13 +10,14 @@ namespace fi {
 	namespace appc {
 
 		constexpr char APP_NAME[]{ "FaxIScripts" };
-		constexpr char APP_VERSION[]{ "0.4" };
+		constexpr char APP_VERSION[]{ "0.5" };
 		constexpr char CONFIG_XML[]{ "eoe_config.xml" };
 
 		inline const std::pair<std::string, std::string> CMD_EXTRACT{ "extract" , "x" };
 		inline const std::pair<std::string, std::string> CMD_BUILD{ "build" , "b" };
 		inline const std::pair<std::string, std::string> CMD_EXTRACT_MUSIC{ "extract-music" , "xm" };
 		inline const std::pair<std::string, std::string> CMD_BUILD_MUSIC{ "build-music" , "bm" };
+		inline const std::pair<std::string, std::string> CMD_EXTRACT_MIDI{ "extract-midi" , "xmid" };
 
 		inline const std::vector<std::pair<std::string, std::string>> CLI_FLAGS{
 			{"--no-shop-comments", "-p"},

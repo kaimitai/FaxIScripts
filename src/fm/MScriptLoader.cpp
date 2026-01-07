@@ -2,29 +2,19 @@
 #include "fm_constants.h"
 #include "fm_util.h"
 
-fm::MScriptLoader::MScriptLoader(const std::vector<byte>& p_rom) :
-	m_rom{ p_rom }
+fm::MScriptLoader::MScriptLoader(const fe::Config& p_config,
+	const std::vector<byte>& p_rom) :
+	m_rom{ p_rom },
+	m_music_ptr{ p_config.pointer(c::ID_MUSIC_PTR) },
+	m_music_count{ 4 * p_config.constant(c::ID_MUSIC_COUNT) },
+	m_opcodes{ parse_opcode_map(p_config.bmap(c::ID_MSCRIPT_OPCODES)) }
+
 {
-}
-
-void fm::MScriptLoader::parse_rom(const fe::Config& p_config) {
-	auto l_music_ptr{ p_config.pointer(c::ID_MUSIC_PTR) };
-	// 4 channels per tune
-	auto l_music_count{ 4 * p_config.constant(c::ID_MUSIC_COUNT) };
-
-	m_ptr_table.clear();
-	m_instrs.clear();
-	m_opcodes.clear();
-	m_chan_pitch_offsets.clear();
-
 	// extract ptr table
-	for (std::size_t i{ 0 }; i < l_music_count; ++i)
-		m_ptr_table.push_back(static_cast<std::size_t>(m_rom.at(l_music_ptr.first + 2 * i))
-			+ 256 * static_cast<std::size_t>(m_rom.at(l_music_ptr.first + 2 * i + 1))
-			+ l_music_ptr.second);
-
-	// generate opcodes
-	m_opcodes = parse_opcode_map(p_config.bmap(c::ID_MSCRIPT_OPCODES));
+	for (std::size_t i{ 0 }; i < m_music_count; ++i)
+		m_ptr_table.push_back(static_cast<std::size_t>(m_rom.at(m_music_ptr.first + 2 * i))
+			+ 256 * static_cast<std::size_t>(m_rom.at(m_music_ptr.first + 2 * i + 1))
+			+ m_music_ptr.second);
 
 	// extract the channel pitch offsets
 	std::size_t l_chan_pitch_offset{ p_config.constant(c::ID_CHAN_PITCH_OFFSET) };
@@ -33,8 +23,29 @@ void fm::MScriptLoader::parse_rom(const fe::Config& p_config) {
 			static_cast<int8_t>(m_rom.at(l_chan_pitch_offset + i))
 		);
 
+}
+
+void fm::MScriptLoader::parse_rom(void) {
+	clear_parsed_data();
+
 	for (std::size_t ep : m_ptr_table)
-		parse_blob_from_entrypoint(ep, l_music_ptr.second);
+		parse_blob_from_entrypoint(ep, m_music_ptr.second);
+}
+
+void fm::MScriptLoader::parse_channel(std::size_t p_song_no, std::size_t p_chan_no) {
+	clear_parsed_data();
+	parse_blob_from_entrypoint(get_channel_offset(p_song_no, p_chan_no),
+		m_music_ptr.second);
+}
+
+void fm::MScriptLoader::clear_parsed_data(void) {
+	m_instrs.clear();
+	m_jump_targets.clear();
+}
+
+std::size_t fm::MScriptLoader::get_channel_offset(std::size_t p_song_no,
+	std::size_t p_chan_no) const {
+	return m_ptr_table.at(4 * p_song_no + p_chan_no);
 }
 
 void fm::MScriptLoader::parse_blob_from_entrypoint(size_t offset, size_t zeroaddr) {
@@ -90,4 +101,8 @@ uint16_t fm::MScriptLoader::read_short(std::size_t& offset) const {
 	byte lo = read_byte(offset);
 	byte hi = read_byte(offset);
 	return static_cast<uint16_t>(hi << 8 | lo);
+}
+
+std::size_t fm::MScriptLoader::get_song_count(void) const {
+	return m_ptr_table.size() / 4;
 }

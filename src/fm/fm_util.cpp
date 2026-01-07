@@ -175,3 +175,33 @@ byte fm::util::note_to_byte(const std::string& token, int8_t offset) {
 
 	return static_cast<uint8_t>(finalByte);
 }
+
+int fm::util::note_string_to_pitch(const std::string& s) {
+	// s is something like "c", "c+", "f-", "g+8.", etc.
+	// We only care about the first 1–2 chars.
+
+	char letter = s[0];
+	int base = 0;
+
+	switch (letter) {
+	case 'c': base = 0;  break;
+	case 'd': base = 2;  break;
+	case 'e': base = 4;  break;
+	case 'f': base = 5;  break;
+	case 'g': base = 7;  break;
+	case 'a': base = 9;  break;
+	case 'b': base = 11; break;
+	}
+
+	// accidental
+	if (s.size() > 1) {
+		if (s[1] == '+') base += 1;
+		else if (s[1] == '-') base -= 1;
+	}
+
+	if (base < 0)
+		base += 12;
+	base %= 12;
+
+	return base; // 0..11, but may be -1 or 12 before wrap
+}

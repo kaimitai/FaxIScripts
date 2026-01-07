@@ -8,7 +8,7 @@
 namespace fi {
 
 	enum ScriptMode { IScriptBuild, IScriptExtract,
-		MScriptBuild, MScriptExtract };
+		MScriptBuild, MScriptExtract, MidiExtract };
 
 	class Cli {
 
@@ -43,6 +43,9 @@ namespace fi {
 		void nes_to_mml(const std::string& p_nes_filename,
 			const std::string& p_mml_filename,
 			bool p_overwrite);
+
+		void nes_to_midi(const std::string& p_nes_filename,
+			const std::string& p_out_file_prefix);
 
 	public:
 		Cli(int argc, char** argv);

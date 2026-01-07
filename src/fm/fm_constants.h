@@ -4,6 +4,8 @@
 #include <map>
 #include <string>
 #include <vector>
+#include <set>
+#include "./song/Fraction.h"
 
 using byte = unsigned char;
 
@@ -31,6 +33,29 @@ namespace fm {
 		constexpr char XML_OPCODE_PARAM_TYPE[]{ "Type" };
 		constexpr char XML_OPCODE_PARAM_DOMAIN[]{ "ArgDomain" };
 
+		// let us hard code some opcodes for the mml converter
+		// instead of making a messy config xml
+		// TODO: Revisit if hacking the mScript opcodes becomes a reality
+		
+		constexpr byte MSCRIPT_OPCODE_SQ2_DETUNE{ 0xee };
+		constexpr byte MSCRIPT_OPCODE_SQ_PITCH_EFFECT{ 0xef };
+		constexpr byte MSCRIPT_OPCODE_SQ_ENVELOPE{ 0xf0 };
+		constexpr byte MSCRIPT_OPCODE_VOLUME{ 0xf1 };
+		constexpr byte MSCRIPT_OPCODE_SQ_CONTROL{ 0xf2 };
+		constexpr byte MSCRIPT_OPCODE_SET_LENGTH{ 0xf3 };
+		constexpr byte MSCRIPT_OPCODE_RESTART{ 0xf4 };
+		constexpr byte MSCRIPT_OPCODE_RETURN{ 0xf5 };
+		constexpr byte MSCRIPT_OPCODE_CHANNEL_TRANSPOSE{ 0xf6 };
+		constexpr byte MSCRIPT_OPCODE_GLOBAL_TRANSPOSE{ 0xf7 };
+		constexpr byte MSCRIPT_OPCODE_JSR{ 0xf8 };
+		constexpr byte MSCRIPT_OPCODE_PUSHADDR{ 0xf9 };
+		constexpr byte MSCRIPT_OPCODE_NOP{ 0xfa };
+		constexpr byte MSCRIPT_OPCODE_LOOPIF{ 0xfb };
+		constexpr byte MSCRIPT_OPCODE_END_LOOP{ 0xfc };
+		constexpr byte MSCRIPT_OPCODE_BEGIN_LOOP{ 0xfd };
+		constexpr byte MSCRIPT_OPCODE_POPADDR{ 0xfe };
+		constexpr byte MSCRIPT_OPCODE_END{ 0xff };
+
 		constexpr char SECTION_DEFINES[]{ "[defines]" };
 		constexpr char SECTION_MSCRIPT[]{ "[mscript]" };
 
@@ -46,6 +71,34 @@ namespace fm {
 
 		inline const std::vector<std::string> CHANNEL_LABELS{
 			"SQ1", "SQ2", "TRI", "NOISE" };
+
+		inline const std::set<Fraction> ALLOWED_FRACTIONS = {
+			// Power-of-two base lengths
+			{1,1},   // whole
+			{1,2},   // half
+			{1,4},   // quarter
+			{1,8},   // eighth
+			{1,16},  // sixteenth
+			{1,32},  // thirty-second
+
+			// Triplets (common musical triplets)
+			{1,3},   // quarter-triplet
+			{1,6},   // eighth-triplet
+			{1,12},  // sixteenth-triplet
+			{1,24},  // thirty-second-triplet
+			/*
+			// Tuplet complements (used for scoring, not for emitting)
+			{2,3},   // two-in-the-time-of-three (rare but helps Q scoring?)
+			{4,3},   // four-in-the-time-of-three
+			*/
+			// Single-dotted (3/2N)
+			{3,2},   // dotted whole
+			{3,4},   // dotted half
+			{3,8},   // dotted quarter
+			{3,16},  // dotted eighth
+			{3,32}   // dotted sixteenth
+		};
+
 
 	}
 }

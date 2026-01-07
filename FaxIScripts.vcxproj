@@ -131,6 +131,12 @@
   <ItemGroup>
     <ClCompile Include="src\common\klib\Kfile.cpp" />
     <ClCompile Include="src\common\klib\Kstring.cpp" />
+    <ClCompile Include="src\common\midifile\Binasc.cpp" />
+    <ClCompile Include="src\common\midifile\MidiEvent.cpp" />
+    <ClCompile Include="src\common\midifile\MidiEventList.cpp" />
+    <ClCompile Include="src\common\midifile\MidiFile.cpp" />
+    <ClCompile Include="src\common\midifile\MidiMessage.cpp" />
+    <ClCompile Include="src\common\midifile\Options.cpp" />
     <ClCompile Include="src\common\pugixml\pugixml.cpp" />
     <ClCompile Include="src\fe\Config.cpp" />
     <ClCompile Include="src\fe\xml\Xml_helper.cpp" />
@@ -147,11 +153,23 @@
     <ClCompile Include="src\fm\MMLWriter.cpp" />
     <ClCompile Include="src\fm\MScriptLoader.cpp" />
     <ClCompile Include="src\fm\MusicOpcode.cpp" />
+    <ClCompile Include="src\fm\song\Fraction.cpp" />
+    <ClCompile Include="src\fm\song\MMLChannel.cpp" />
+    <ClCompile Include="src\fm\song\MMLSong.cpp" />
+    <ClCompile Include="src\fm\song\MMLSongCollection.cpp" />
+    <ClCompile Include="src\fm\song\Parser.cpp" />
+    <ClCompile Include="src\fm\song\Tokenizer.cpp" />
     <ClCompile Include="src\main.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\common\klib\Kfile.h" />
     <ClInclude Include="src\common\klib\Kstring.h" />
+    <ClInclude Include="src\common\midifile\Binasc.h" />
+    <ClInclude Include="src\common\midifile\MidiEvent.h" />
+    <ClInclude Include="src\common\midifile\MidiEventList.h" />
+    <ClInclude Include="src\common\midifile\MidiFile.h" />
+    <ClInclude Include="src\common\midifile\MidiMessage.h" />
+    <ClInclude Include="src\common\midifile\Options.h" />
     <ClInclude Include="src\common\pugixml\pugiconfig.hpp" />
     <ClInclude Include="src\common\pugixml\pugixml.hpp" />
     <ClInclude Include="src\fe\Config.h" />
@@ -172,6 +190,15 @@
     <ClInclude Include="src\fm\MMLWriter.h" />
     <ClInclude Include="src\fm\MScriptLoader.h" />
     <ClInclude Include="src\fm\MusicOpcode.h" />
+    <ClInclude Include="src\fm\song\ChannelWalker.h" />
+    <ClInclude Include="src\fm\song\Fraction.h" />
+    <ClInclude Include="src\fm\song\MMLChannel.h" />
+    <ClInclude Include="src\fm\song\MMLEvent.h" />
+    <ClInclude Include="src\fm\song\MMLSong.h" />
+    <ClInclude Include="src\fm\song\MMLSongCollection.h" />
+    <ClInclude Include="src\fm\song\mml_constants.h" />
+    <ClInclude Include="src\fm\song\Parser.h" />
+    <ClInclude Include="src\fm\song\Tokenizer.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
