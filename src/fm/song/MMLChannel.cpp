@@ -9,11 +9,11 @@
 
 using byte = unsigned char;
 
-fm::MMLChannel::MMLChannel(int p_song_tempo, int* p_bpm) :
+fm::MMLChannel::MMLChannel(fm::Fraction p_song_tempo, int* p_bpm) :
+	song_tempo{ p_song_tempo },
 	bpm{ p_bpm }
 {
 	reset_vm();
-	set_qnote_length_from_tempo(p_song_tempo);
 }
 
 int fm::MMLChannel::get_song_transpose(void) const {
@@ -53,10 +53,6 @@ std::size_t fm::MMLChannel::get_label_addr(const std::string& label) {
 	throw std::runtime_error(std::format("Could not find label with name {}", label));
 }
 
-void fm::MMLChannel::set_qnote_length_from_tempo(int tempo) {
-	vm.qnote_length = fm::Fraction(*bpm, tempo);
-}
-
 void fm::MMLChannel::reset_vm(bool point_at_start) {
 	vm.current_index = -1;
 	vm.index = 0;
@@ -72,6 +68,7 @@ void fm::MMLChannel::reset_vm(bool point_at_start) {
 	vm.st.pitchoffset = 0;
 	vm.st.volume = 15;
 	vm.st.duty_cycle = 0;
+	vm.tempo = song_tempo;
 
 	if (point_at_start) {
 		vm.pc = get_start_index();
@@ -100,6 +97,224 @@ bool fm::MMLChannel::step(void) {
 	++vm.index;
 
 	return true;
+}
+
+byte fm::MMLChannel::encode_percussion(int p_perc, int p_repeat) const {
+	byte result{ static_cast<byte>(p_perc * 16 + p_repeat) };
+	if (result == c::HEX_REST || result >= c::HEX_NOTELENGTH_MIN)
+		throw std::runtime_error("Percussion byte out of range");
+	else
+		return result;
+}
+
+// add set-length instructions if the input tick length differs from the previous
+void fm::MMLChannel::emit_set_length_bytecode_if_necessary(
+	std::vector<fm::MusicInstruction>& instrs,
+	std::optional<int> length, int dots, std::optional<int> raw,
+	bool force) {
+	auto dur{ resolve_duration(length, dots, raw) };
+	auto ticks{ tick_length(dur) };
+
+	vm.st.fraq += ticks.fraq;
+	int carry = vm.st.fraq.extract_whole();
+	int final_ticks = ticks.whole + carry;
+
+	if (final_ticks > 255)
+		throw std::runtime_error("Tick-length exceeds 255");
+
+	if (force || (final_ticks != vm.st.ticklength)) {
+		vm.st.ticklength = final_ticks;
+
+		constexpr byte HEX_NOTELENGTH_MAX{ c::HEX_NOTELENGTH_END - c::HEX_NOTELENGTH_MIN };
+
+		if (final_ticks > 109) {
+			fm::MusicInstruction sli{ c::MSCRIPT_OPCODE_SET_LENGTH,
+			static_cast<byte>(final_ticks) };
+			instrs.push_back(sli);
+		}
+		else {
+			fm::MusicInstruction sli(c::HEX_NOTELENGTH_MIN + static_cast<byte>(final_ticks));
+			instrs.push_back(sli);
+		}
+	}
+
+}
+
+fm::ChannelBytecodeExport fm::MMLChannel::to_bytecode(void) {
+	std::vector<fm::MusicInstruction> instrs;
+
+	// label to instruction index the label points to
+	std::map<std::string, std::size_t> label_idx;
+	// label to all instr indexes jumping to it
+	std::map<std::string, std::vector<std::size_t>> jump_targets;
+
+	reset_vm();
+
+	for (std::size_t i{ 0 }; i < events.size(); ++i) {
+		const auto& ev{ events[i] };
+
+		// musical note
+		if (std::holds_alternative<NoteEvent>(ev)) {
+			auto& note = std::get<NoteEvent>(ev);
+
+			emit_set_length_bytecode_if_necessary(instrs, note.length, note.dots, note.raw);
+			byte note_byte{ static_cast<byte>(note_index(vm.st.octave, note.pitch)) };
+
+			fm::MusicInstruction notei(note_byte);
+			instrs.push_back(notei);
+		}
+		// percussion note
+		else if (std::holds_alternative<PercussionEvent>(ev)) {
+			auto& perce = std::get<PercussionEvent>(ev);
+
+			// check the tick length and emit length event if needed
+			emit_set_length_bytecode_if_necessary(instrs);
+
+			fm::MusicInstruction perci(encode_percussion(perce.perc_no, perce.repeat));
+			instrs.push_back(perci);
+		}
+		// rest
+		else if (std::holds_alternative<RestEvent>(ev)) {
+			auto& reste{ std::get<RestEvent>(ev) };
+
+			emit_set_length_bytecode_if_necessary(instrs, reste.length, reste.dots, reste.raw);
+			fm::MusicInstruction resti(c::HEX_REST);
+			instrs.push_back(resti);
+		}
+		// length - an abstraction that also exists in Faxanadu's music engine
+		else if (std::holds_alternative<LengthEvent>(ev)) {
+			auto& lene{ std::get<LengthEvent>(ev) };
+			if (lene.raw.has_value()) {
+				vm.st.default_length = { std::nullopt, lene.raw.value(), 0 };
+			}
+			else if (lene.length.has_value()) {
+				vm.st.default_length = { lene.length.value(), std::nullopt, lene.dots };
+			}
+			else
+				throw std::runtime_error("Malformed length event");
+
+			emit_set_length_bytecode_if_necessary(instrs, lene.length, lene.dots, lene.raw, true);
+		}
+		// music opcodes
+		else if (std::holds_alternative<SongTransposeEvent>(ev)) {
+			auto& ste{ std::get<SongTransposeEvent>(ev) };
+			fm::MusicInstruction sti(c::MSCRIPT_OPCODE_GLOBAL_TRANSPOSE,
+				int_to_byte(ste.semitones));
+			instrs.push_back(sti);
+		}
+		else if (std::holds_alternative<ChannelTransposeEvent>(ev)) {
+			auto& cte{ std::get<ChannelTransposeEvent>(ev) };
+			fm::MusicInstruction cti(c::MSCRIPT_OPCODE_CHANNEL_TRANSPOSE,
+				int_to_byte(cte.semitones));
+			instrs.push_back(cti);
+		}
+		else if (std::holds_alternative<DetuneEvent>(ev)) {
+			auto& dete{ std::get<DetuneEvent>(ev) };
+			fm::MusicInstruction deti(c::MSCRIPT_OPCODE_SQ2_DETUNE, int_to_byte(dete.value));
+			instrs.push_back(deti);
+		}
+		else if (std::holds_alternative<EffectEvent>(ev)) {
+			auto& effe{ std::get<EffectEvent>(ev) };
+			fm::MusicInstruction effi(c::MSCRIPT_OPCODE_SQ_PITCH_EFFECT,
+				int_to_byte(effe.value));
+			instrs.push_back(effi);
+		}
+		else if (std::holds_alternative<EnvelopeEvent>(ev)) {
+			auto& enve{ std::get<EnvelopeEvent>(ev) };
+			fm::MusicInstruction envi(c::MSCRIPT_OPCODE_SQ_ENVELOPE,
+				int_to_byte(enve.value));
+			instrs.push_back(envi);
+		}
+		else if (std::holds_alternative<VolumeSetEvent>(ev)) {
+			auto& vse{ std::get<VolumeSetEvent>(ev) };
+			fm::MusicInstruction vsi(c::MSCRIPT_OPCODE_VOLUME,
+				int_to_volume_byte(vse.volume));
+			instrs.push_back(vsi);
+		}
+		else if (std::holds_alternative<PulseEvent>(ev)) {
+			auto& pulsee{ std::get<PulseEvent>(ev) };
+			fm::MusicInstruction pulsei(c::MSCRIPT_OPCODE_SQ_CONTROL,
+				ints_to_sq_control(pulsee.duty_cycle, pulsee.length_counter,
+					pulsee.constant_volume, pulsee.volume_period));
+			instrs.push_back(pulsei);
+		}
+		// control flow
+		else if (std::holds_alternative<LabelEvent>(ev)) {
+			auto& labe = std::get<LabelEvent>(ev);
+			if (label_idx.contains(labe.name))
+				throw std::runtime_error(std::format("Label redefinition: {}", labe.name));
+			else
+				label_idx.insert(std::make_pair(labe.name, instrs.size()));
+		}
+		else if (std::holds_alternative<JSREvent>(ev)) {
+			auto& jsre = std::get<JSREvent>(ev);
+			jump_targets[jsre.label_name].push_back(instrs.size());
+			// will add jump target at the end
+			fm::MusicInstruction jsri(c::MSCRIPT_OPCODE_JSR);
+			instrs.push_back(jsri);
+		}
+		else if (std::holds_alternative<ReturnEvent>(ev)) {
+			fm::MusicInstruction reti(c::MSCRIPT_OPCODE_RETURN);
+			instrs.push_back(reti);
+		}
+		else if (std::holds_alternative<RestartEvent>(ev)) {
+			fm::MusicInstruction resti(c::MSCRIPT_OPCODE_RESTART);
+			instrs.push_back(resti);
+		}
+		else if (std::holds_alternative<NOPEvent>(ev)) {
+			fm::MusicInstruction nopi(c::MSCRIPT_OPCODE_NOP);
+			instrs.push_back(nopi);
+		}
+		else if (std::holds_alternative<EndEvent>(ev)) {
+			fm::MusicInstruction endi(c::MSCRIPT_OPCODE_END);
+			instrs.push_back(endi);
+		}
+		// loops
+		else if (std::holds_alternative<PushAddrEvent>(ev)) {
+			fm::MusicInstruction pushaddri(c::MSCRIPT_OPCODE_PUSHADDR);
+			instrs.push_back(pushaddri);
+		}
+		else if (std::holds_alternative<PopAddrEvent>(ev)) {
+			fm::MusicInstruction popaddri(c::MSCRIPT_OPCODE_POPADDR);
+			instrs.push_back(popaddri);
+		}
+		else if (std::holds_alternative<BeginLoopEvent>(ev)) {
+			auto& bloope = std::get<BeginLoopEvent>(ev);
+			fm::MusicInstruction bloopi(c::MSCRIPT_OPCODE_BEGIN_LOOP, static_cast<byte>(bloope.iterations));
+			instrs.push_back(bloopi);
+		}
+		else if (std::holds_alternative<LoopIfEvent>(ev)) {
+			auto& lie = std::get<LoopIfEvent>(ev);
+			fm::MusicInstruction lii(c::MSCRIPT_OPCODE_LOOPIF,
+				static_cast<byte>(lie.iterations));
+			instrs.push_back(lii);
+		}
+		else if (std::holds_alternative<EndLoopEvent>(ev)) {
+			fm::MusicInstruction eloopi(c::MSCRIPT_OPCODE_END_LOOP);
+			instrs.push_back(eloopi);
+		}
+		// mml abstractions
+		else if (std::holds_alternative<OctaveSetEvent>(ev)) {
+			auto& ose = std::get<OctaveSetEvent>(ev);
+			vm.st.octave = ose.octave;
+		}
+		else if (std::holds_alternative<OctaveShiftEvent>(ev)) {
+			auto& oshe = std::get<OctaveShiftEvent>(ev);
+			vm.st.octave += oshe.amount;
+		}
+		else if (std::holds_alternative<TempoSetEvent>(ev)) {
+			auto& tse = std::get<TempoSetEvent>(ev);
+			vm.tempo = tse.tempo;
+		}
+
+	}
+
+	// patch jumps - jumps to label @label get the instr idx of @label as target
+	for (const auto& kv : label_idx)
+		for (const auto& n : jump_targets[kv.first])
+			instrs[n].jump_target = kv.second;
+
+	return fm::ChannelBytecodeExport{ instrs, get_start_index() };
 }
 
 std::string fm::MMLChannel::get_asm(void) {
@@ -145,7 +360,7 @@ std::string fm::MMLChannel::get_asm(void) {
 				throw std::runtime_error("Malformed length event");
 		}
 		else if (auto* r = std::get_if<TempoSetEvent>(ev)) {
-			set_qnote_length_from_tempo(r->tempo);
+			vm.tempo = r->tempo;
 		}
 		else if (auto* r = std::get_if<RestEvent>(ev)) {
 			auto dur{ resolve_duration(r->length, r->dots, r->raw) };
@@ -222,8 +437,8 @@ fm::TickResult fm::MMLChannel::tick_length(const fm::Duration& dur) const {
 	}
 
 	// MUSICAL DURATION
-	// total = qnote_length * (dur.musical * 4)
-	Fraction total = vm.qnote_length * (dur.musical * Fraction(4, 1));
+	Fraction qnote = Fraction(3600 * vm.tempo.get_den(), vm.tempo.get_num());
+	Fraction total = qnote * (dur.musical * Fraction(4, 1));
 
 	int whole = total.extract_whole();
 
@@ -332,7 +547,26 @@ bool fm::MMLChannel::current_event_is_note_with_tie_next(void) const {
 	return true;
 }
 
-int fm::MMLChannel::byte_to_unsigned_int(byte b) const {
+byte fm::MMLChannel::ints_to_sq_control(int duty, int envLoop,
+	int constVol, int volume) const {
+	return static_cast<byte>((duty << 6) | (envLoop << 5) | (constVol << 4) | (volume & 0x0F));
+}
+
+byte fm::MMLChannel::int_to_volume_byte(int p_volume) const {
+	if (p_volume >= 15)
+		return static_cast<byte>(0);
+	else if (p_volume < 0)
+		return static_cast<byte>(15);
+	else
+		return static_cast<byte>(15 - p_volume);
+}
+
+byte fm::MMLChannel::int_to_byte(int n) const {
+	char r{ static_cast<char>(n) };
+	return static_cast<byte>(r);
+}
+
+int fm::MMLChannel::byte_to_int(byte b) const {
 	char r{ static_cast<char>(b) };
 	return static_cast<int>(r);
 }
@@ -345,7 +579,7 @@ int fm::MMLChannel::byte_to_volume(byte b) const {
 }
 
 std::string fm::MMLChannel::to_string(void) const {
-	std::string result{ std::format("#{} {{\n", this->name) };
+	std::string result{ std::format("{} {{\n", channel_type_to_string()) };
 	std::optional<int> loopcnt{ std::nullopt };
 
 	for (const auto& ev : events) {
@@ -365,6 +599,15 @@ std::string fm::MMLChannel::to_string(void) const {
 					result.push_back('.');
 			}
 			result.push_back(note.tie_to_next ? '&' : ' ');
+		}
+		else if (std::holds_alternative<PercussionEvent>(ev)) {
+			auto& pee = std::get<PercussionEvent>(ev);
+
+			result += std::format("p{}", pee.perc_no);
+			if (pee.repeat != 1)
+				result += std::format("*{}", pee.repeat);
+
+			result.push_back(' ');
 		}
 		else if (std::holds_alternative<RestEvent>(ev)) {
 			auto& r = std::get<RestEvent>(ev);
@@ -496,6 +739,17 @@ std::string fm::MMLChannel::to_string(void) const {
 	return result;
 }
 
+std::string fm::MMLChannel::channel_type_to_string(void) const {
+	if (channel_type == fm::ChannelType::sq1)
+		return fm::c::CHANNEL_NAMES[0];
+	else if (channel_type == fm::ChannelType::sq2)
+		return fm::c::CHANNEL_NAMES[1];
+	else if (channel_type == fm::ChannelType::tri)
+		return fm::c::CHANNEL_NAMES[2];
+	else
+		return fm::c::CHANNEL_NAMES[3];
+}
+
 // ROM bytecode to MML
 void fm::MMLChannel::parse_bytecode(const std::vector<fm::MusicInstruction>& instrs,
 	std::size_t entrypoint_idx, std::set<std::size_t> jump_targets) {
@@ -503,8 +757,8 @@ void fm::MMLChannel::parse_bytecode(const std::vector<fm::MusicInstruction>& ins
 	int octave{ 4 };
 
 	const auto reset = [&octave, this]() -> void {
-		octave = 4;
-		this->events.push_back(OctaveSetEvent{ octave });
+		if (channel_type != fm::ChannelType::noise)
+			this->events.push_back(OctaveSetEvent{ octave });
 		};
 
 	for (std::size_t i{ 0 }; i < instrs.size(); ++i) {
@@ -537,12 +791,23 @@ void fm::MMLChannel::parse_bytecode(const std::vector<fm::MusicInstruction>& ins
 		}
 		// note
 		else if (ob > c::HEX_REST && ob < c::HEX_NOTELENGTH_MIN) {
-			auto snote{ split_note(ob) };
-			if (snote.second != octave) {
-				octave = snote.second;
-				events.push_back(OctaveSetEvent{ octave });
+			// notes for musical channels
+			if (channel_type != fm::ChannelType::noise) {
+
+				auto snote{ split_note(ob) };
+				if (snote.second != octave) {
+					octave = snote.second;
+					events.push_back(OctaveSetEvent{ octave });
+				}
+				events.push_back(NoteEvent{ snote.first });
 			}
-			events.push_back(NoteEvent{ snote.first });
+			// percussion
+			else {
+				int ptype{ static_cast<int>(ob / 16) };
+				int prep{ static_cast<int>(ob % 16) };
+
+				events.push_back(PercussionEvent{ ptype, prep });
+			}
 		}
 		// begin loop
 		else if (ob == c::MSCRIPT_OPCODE_BEGIN_LOOP) {
@@ -553,10 +818,10 @@ void fm::MMLChannel::parse_bytecode(const std::vector<fm::MusicInstruction>& ins
 			events.push_back(EndLoopEvent{});
 		} // song transpose
 		else if (ob == c::MSCRIPT_OPCODE_GLOBAL_TRANSPOSE) {
-			events.push_back(SongTransposeEvent{ byte_to_unsigned_int(instr.operand.value()) });
+			events.push_back(SongTransposeEvent{ byte_to_int(instr.operand.value()) });
 		}
 		else if (ob == c::MSCRIPT_OPCODE_CHANNEL_TRANSPOSE) {
-			events.push_back(ChannelTransposeEvent{ byte_to_unsigned_int(instr.operand.value()) });
+			events.push_back(ChannelTransposeEvent{ byte_to_int(instr.operand.value()) });
 		}
 		else if (ob == c::MSCRIPT_OPCODE_VOLUME) {
 			events.push_back(VolumeSetEvent{ byte_to_volume(instr.operand.value()) });
@@ -617,11 +882,11 @@ std::vector<fm::DefaultLength> fm::MMLChannel::calc_tick_lengths(void) const {
 	for (int i{ 0 }; i < 256; ++i)
 		result.push_back(fm::DefaultLength(std::nullopt, i, 0));
 
-	auto qntmp{ vm.qnote_length };
-	int wholenotelength{ 4 * qntmp.extract_whole() };
+	int qnote_ticks = (*bpm * song_tempo.get_den()) / song_tempo.get_num();
+	int whole_note_ticks = 4 * qnote_ticks;
 
 	for (int i{ 0 }; i < 256; ++i) {
-		Fraction r(i, wholenotelength);
+		Fraction r(i, whole_note_ticks);
 
 		if (c::ALLOWED_FRACTIONS.contains(r)) {
 
@@ -647,21 +912,27 @@ std::vector<fm::DefaultLength> fm::MMLChannel::calc_tick_lengths(void) const {
 
 void fm::MMLChannel::add_midi_track(smf::MidiFile& p_midi, int p_pitch_offset) {
 	const std::vector<int> duty_cycle_to_instr{ 80, 81, 62, 64 };
+	const std::vector<int> perc_note_no{ 0, 36, 38, 42, 0, 0, 0, 0 };
+	bool is_perc{ channel_type == fm::ChannelType::noise };
 
 	p_midi.addTrack();
 	int l_track_no{ p_midi.getTrackCount() - 1 };
-	int l_channel_no{ 0 };
+	int l_channel_no{ is_perc ? 9 : 0 };
 
 	std::set<VMState> vmstates;
 
-	// auto xnote{ vm.qnote_length };
-	// auto xtempo{ *bpm / xnote.extract_whole() };
+	int default_midi_volume{ 100 };
+	if (channel_type == fm::ChannelType::tri)
+		default_midi_volume = 70;
+	else if (channel_type == fm::ChannelType::noise)
+		default_midi_volume = 65;
 
-	// p_midi.addTempo(l_track_no, 0, 1000000);
-	p_midi.addController(l_track_no, 0, 0, 7, 100);
+	p_midi.addController(l_track_no, 0, l_channel_no, 7,
+		default_midi_volume
+	);
 
-	p_midi.addTimbre(l_track_no, 0, 0,
-		name == "TRI" ? 33 :
+	p_midi.addTimbre(l_track_no, 0, l_channel_no,
+		channel_type == fm::ChannelType::tri ? 33 :
 		duty_cycle_to_instr.at(vm.st.duty_cycle)
 	);
 
@@ -691,10 +962,23 @@ void fm::MMLChannel::add_midi_track(smf::MidiFile& p_midi, int p_pitch_offset) {
 			auto tickdur = tick_length(resolve_duration(note.length, note.dots, note.raw));
 
 			p_midi.addNoteOn(l_track_no, ticks, l_channel_no,
-				12 * (vm.st.octave + 1) + note.pitch + p_pitch_offset + vm.st.pitchoffset, (100 * vm.st.volume) / 15);
+				12 * (vm.st.octave + 1) + note.pitch + p_pitch_offset + vm.st.pitchoffset, (default_midi_volume * vm.st.volume) / 15);
 			ticks += tickdur.whole;
 			p_midi.addNoteOff(l_track_no, ticks, l_channel_no,
 				12 * (vm.st.octave + 1) + note.pitch + p_pitch_offset + vm.st.pitchoffset, 0);
+		}
+		else if (std::holds_alternative<PercussionEvent>(ev)) {
+			auto& perce = std::get<PercussionEvent>(ev);
+			auto tickdur = tick_length(resolve_duration(vm.st.default_length.length,
+				vm.st.default_length.dots, vm.st.default_length.raw));
+
+			for (int i{ 0 }; i < (perce.repeat == 0 ? 255 : perce.repeat); ++i) {
+				p_midi.addNoteOn(l_track_no, ticks, l_channel_no,
+					perc_note_no.at(perce.perc_no), default_midi_volume);
+				ticks += tickdur.whole;
+				p_midi.addNoteOff(l_track_no, ticks, l_channel_no,
+					perc_note_no.at(perce.perc_no), 0);
+			}
 		}
 		else if (std::holds_alternative<LengthEvent>(ev)) {
 			auto& le = std::get<LengthEvent>(ev);

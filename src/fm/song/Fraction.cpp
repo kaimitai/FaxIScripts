@@ -1,4 +1,5 @@
 #include "Fraction.h"
+#include <format>
 #include <numeric>
 #include <stdexcept>
 
@@ -27,6 +28,31 @@ int fm::Fraction::get_den(void) const {
 bool fm::Fraction::is_zero(void) const {
 	return num == 0;
 }
+
+bool fm::Fraction::is_integer(void) const {
+	return den == 1;
+}
+
+double fm::Fraction::to_double(void) const {
+	return static_cast<double>(num) / static_cast<double>(den);
+}
+
+std::string fm::Fraction::to_tempo_string(void) const {
+	// whole part
+	int whole = num / den;
+
+	// remainder part
+	int rem = num % den;
+
+	// If no fractional part -> just "NNN"
+	if (rem == 0) {
+		return std::format("{}", whole);
+	}
+
+	// Otherwise -> "NNN+p/q"
+	return std::format("{}+{}/{}", whole, rem, den);
+}
+
 
 fm::Fraction& fm::Fraction::operator+=(const fm::Fraction& rhs) {
 	*this = *this + rhs;
@@ -66,6 +92,19 @@ fm::Fraction& fm::Fraction::operator*=(const Fraction& rhs) {
 	num *= rhs.num;
 	den *= rhs.den;
 	normalize();
+	return *this;
+}
+
+fm::Fraction fm::Fraction::operator/(const Fraction& rhs) const {
+	// a/b ÷ c/d = (a*d) / (b*c)
+	Fraction out(num * rhs.den, den * rhs.num);
+	return out;
+}
+
+fm::Fraction& fm::Fraction::operator/=(const Fraction& rhs) {
+	num *= rhs.den;
+	den *= rhs.num;
+	normalize();   // constructor does this, but *= must do it manually
 	return *this;
 }
 

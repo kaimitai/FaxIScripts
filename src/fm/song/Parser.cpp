@@ -81,25 +81,22 @@ fm::MMLSong fm::Parser::parse_single_song(int* p_bpm) {
 	// parse until next #song or EOF
 	while (!at_end() && !check_song_header()) {
 
+		if (check(TokenType::TempoSet)) {
+			auto l_tempo{ parse_tempo_set_event() };
+			auto& tmpevent{ std::get<TempoSetEvent>(l_tempo) };
+			song.tempo = tmpevent.tempo;
+			continue;
+		}
+
 		// song-level directive?
 		if (check(TokenType::Directive)) {
-			const Token& d = peek();
-
-			if (d.text == c::DIRECTIVE_TEMPO) {
-				advance(); // consume #tempo
-
-				if (check(TokenType::Number)) {
-					song.tempo = advance().number;
-				}
-
-				continue;
-			}
+			const Token& d{ peek() };
 
 			// channel directive?
 			if (is_channel_name(d.text)) {
 				advance();
-				// consume channel directive
-				song.channels.push_back(parse_channel(d.text.substr(1),
+
+				song.channels.push_back(parse_channel(d.text,
 					song.tempo, p_bpm));
 				continue;
 			}
@@ -124,9 +121,9 @@ bool fm::Parser::is_channel_name(const std::string& s) const {
 }
 
 fm::MMLChannel fm::Parser::parse_channel(const std::string& name,
-	int p_song_tempo, int* p_bpm) {
+	fm::Fraction p_song_tempo, int* p_bpm) {
 	fm::MMLChannel ch(p_song_tempo, p_bpm);
-	ch.name = name;
+	ch.channel_type = string_to_channel_type(name);
 
 	// expect '{'
 	if (!check(TokenType::Brace) || peek().text != "{") {
@@ -148,6 +145,11 @@ fm::MMLChannel fm::Parser::parse_channel(const std::string& name,
 		// --- event dispatch ---
 		if (check(TokenType::Note)) {
 			ch.events.push_back(parse_note_event());
+			continue;
+		}
+
+		if (check(TokenType::Percussion)) {
+			ch.events.push_back(parse_percussion_event());
 			continue;
 		}
 
@@ -178,11 +180,6 @@ fm::MMLChannel fm::Parser::parse_channel(const std::string& name,
 
 		if (check(TokenType::OctaveSet)) {
 			ch.events.push_back(parse_octave_set_event());
-			continue;
-		}
-
-		if (check(TokenType::VolumeSet)) {
-			ch.events.push_back(parse_volume_set_event());
 			continue;
 		}
 
@@ -308,8 +305,62 @@ fm::MmlEvent fm::Parser::parse_tempo_set_event() {
 	Token t = advance();
 
 	TempoSetEvent ev{};
+	std::string s = t.text;   // "nnn", "nnn+a/b", or "nnn.dddd"
 
-	ev.tempo = t.number; // tokenizer already parsed it
+	int num = 0;
+	int den = 1;
+
+	// ------------------------------------------------------------
+	// Case 1: integer + fraction: "120+1/4"
+	// ------------------------------------------------------------
+	if (s.find('+') != std::string::npos) {
+		auto plusPos = s.find('+');
+		std::string intPart = s.substr(0, plusPos);
+		std::string fracPart = s.substr(plusPos + 1); // "a/b"
+
+		// integer part
+		int i = std::stoi(intPart);
+
+		// fraction part
+		auto slashPos = fracPart.find('/');
+		int a = std::stoi(fracPart.substr(0, slashPos));
+		int b = std::stoi(fracPart.substr(slashPos + 1));
+
+		// tempo = i + a/b = (i*b + a) / b
+		num = i * b + a;
+		den = b;
+	}
+
+	// ------------------------------------------------------------
+	// Case 2: decimal: "120.75"
+	// ------------------------------------------------------------
+	else if (s.find('.') != std::string::npos) {
+		auto dotPos = s.find('.');
+		std::string intPart = s.substr(0, dotPos);
+		std::string decPart = s.substr(dotPos + 1);
+
+		int i = std::stoi(intPart);
+		int d = std::stoi(decPart);
+		int scale = 1;
+
+		for (size_t k = 0; k < decPart.size(); ++k)
+			scale *= 10;
+
+		// tempo = i + d/scale = (i*scale + d) / scale
+		num = i * scale + d;
+		den = scale;
+	}
+
+	// ------------------------------------------------------------
+	// Case 3: integer only: "120"
+	// ------------------------------------------------------------
+	else {
+		num = std::stoi(s);
+		den = 1;
+	}
+
+	// fraction is reduced in constructor
+	ev.tempo = fm::Fraction(num, den);
 	return ev;
 }
 
@@ -337,6 +388,38 @@ fm::MmlEvent fm::Parser::parse_octave_set_event() {
 	OctaveSetEvent ev{};
 
 	ev.octave = t.number; // tokenizer already parsed it
+	return ev;
+}
+
+fm::MmlEvent fm::Parser::parse_percussion_event(void) {
+	Token t = advance(); // e.g. p1 or p3*5
+
+	PercussionEvent ev{ };
+
+	const std::string& s = t.text;
+	std::size_t i{ 0 };
+
+	int p{ 0 }, rep{ 0 };
+
+	while (i < s.size() && std::isdigit(static_cast<unsigned char>(s[i]))) {
+		p *= 10;
+		p += s[i++] - '0';
+	}
+
+	++i;
+
+	if (i < s.size()) {
+		while (i < s.size() && std::isdigit(static_cast<unsigned char>(s[i]))) {
+			rep *= 10;
+			rep += s[i++] - '0';
+		}
+	}
+	else
+		rep = 1;
+
+	ev.perc_no = p;
+	ev.repeat = rep;
+
 	return ev;
 }
 
@@ -391,11 +474,16 @@ fm::MmlEvent fm::Parser::parse_length_event(void) {
 	LengthEvent ev{};
 
 	const std::string& s = t.text;
+	int i = 0;
 
-	// s[0] == 'l'
-	int i = 1; // skip 'l'
+	bool raw{ false };
+	if (!t.text.empty() && s.at(i) == c::RAW_DELIM) {
+		++i;
+		raw = true;
+	}
 
-	// --- MUSICAL LENGTH DIGITS ---
+
+	// --- MUSICAL OR RAW LENGTH DIGITS ---
 	int start = i;
 	while (i < (int)s.size() && std::isdigit((unsigned char)s[i]))
 		i++;
@@ -407,14 +495,19 @@ fm::MmlEvent fm::Parser::parse_length_event(void) {
 	if (length <= 0)
 		throw std::runtime_error("Default length must be > 0");
 
-	ev.length = length;
+	if (raw)
+		ev.raw = length;
+	else
+		ev.length = length;
 
 	// --- DOT COUNT ---
-	int dot_count = 0;
-	while (i < (int)s.size() && s[i] == '.')
-		dot_count++, i++;
+	if (!raw) {
+		int dot_count = 0;
+		while (i < (int)s.size() && s[i] == '.')
+			dot_count++, i++;
 
-	ev.dots = dot_count;
+		ev.dots = dot_count;
+	}
 
 	return ev;
 }
@@ -541,4 +634,17 @@ fm::MmlEvent fm::Parser::parse_channel_transpose_event(void) {
 	ChannelTransposeEvent ev{};
 	ev.semitones = t.number;
 	return ev;
+}
+
+fm::ChannelType fm::Parser::string_to_channel_type(const std::string& str) const {
+	if (str == c::CHANNEL_NAMES[0])
+		return fm::ChannelType::sq1;
+	else if (str == c::CHANNEL_NAMES[1])
+		return fm::ChannelType::sq2;
+	else if (str == c::CHANNEL_NAMES[2])
+		return fm::ChannelType::tri;
+	else if (str == c::CHANNEL_NAMES[3])
+		return fm::ChannelType::noise;
+	else
+		throw std::runtime_error(std::format("Invalid channel name directive: {}", str));
 }

@@ -1,11 +1,23 @@
 #ifndef FM_MML_CONSTANTS_H
 #define FM_MML_CONSTANTS_H
 
+#include <string>
+#include <vector>
+
 namespace fm {
+
+	enum class ChannelType { sq1, sq2, tri, noise };
 
 	namespace c {
 		constexpr char DIRECTIVE_SONG[]{ "#song" };
-		constexpr char DIRECTIVE_TEMPO[]{ "#tempo" };
+		// delimiter for raw tick lengths
+		constexpr char RAW_DELIM{ '#' };
+
+		inline const std::vector<std::string> CHANNEL_NAMES
+		{ "#sq1", "#sq2", "#tri", "#noise" };
+		inline const std::vector<fm::ChannelType> CHANNEL_TYPES
+		{ fm::ChannelType::sq1, fm::ChannelType::sq2,
+		fm::ChannelType::tri, fm::ChannelType::noise };
 
 		constexpr char DIRECTIVE_SQ1[]{ "#sq1" };
 		constexpr char DIRECTIVE_SQ2[]{ "#sq2" };

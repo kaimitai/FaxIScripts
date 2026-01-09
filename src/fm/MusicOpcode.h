@@ -43,6 +43,7 @@ namespace fm {
 		std::optional<std::size_t> jump_target;
 		std::optional<std::size_t> byte_offset;
 
+		std::size_t size(void) const;
 		std::vector<byte> get_bytes(void) const;
 	};
 

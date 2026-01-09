@@ -10,12 +10,18 @@
 #include <vector>
 #include "MMLEvent.h"
 #include "Fraction.h"
+#include "mml_constants.h"
 #include "./../MusicOpcode.h"
 #include "./../../common/midifile/MidiFile.h"
 
 using byte = unsigned char;
 
 namespace fm {
+
+	struct ChannelBytecodeExport {
+		std::vector<fm::MusicInstruction> instrs;
+		std::size_t entrypt_idx;
+	};
 
 	struct TieResult {
 		int pitch;
@@ -44,7 +50,7 @@ namespace fm {
 		int current_index = -1; // event just executed
 
 		std::size_t pc{ 0 };
-		fm::Fraction qnote_length = fm::Fraction(36, 1); // when tempo = 100
+		fm::Fraction tempo = fm::Fraction(0, 1);
 		ChannelState st;
 		int loop_count{ 0 }, loop_iters{ 0 };
 		std::optional<std::size_t> push_addr, jsr_addr,
@@ -74,19 +80,25 @@ namespace fm {
 		void reset_vm(bool point_at_start = false);
 		const MmlEvent* current_event(void) const;
 
-		std::string name;
+		fm::ChannelType channel_type;
 		std::vector<fm::MmlEvent> events;
+		fm::Fraction song_tempo;
 		int* bpm;
 
-		MMLChannel(int p_song_tempo, int* p_bpm);
+		MMLChannel(fm::Fraction p_song_tempo, int* p_bpm);
 		std::size_t get_start_index(void) const;
 		std::size_t get_label_addr(const std::string& label);
 		int get_song_transpose(void) const;
-		void set_qnote_length_from_tempo(int tempo);
 
 		std::string get_asm(void);
 
 		fm::TickResult tick_length(const fm::Duration& dur) const;
+		void emit_set_length_bytecode_if_necessary(
+			std::vector<fm::MusicInstruction>& instrs,
+			std::optional<int> length = std::nullopt,
+			int dots = 0,
+			std::optional<int> raw = std::nullopt,
+			bool force = false);
 		fm::Duration resolve_duration(std::optional<int> length = std::nullopt,
 			int dots = 0,
 			std::optional<int> raw = std::nullopt) const;
@@ -94,7 +106,10 @@ namespace fm {
 		std::pair<int, int> split_note(byte p_note_no) const;
 		fm::TieResult resolve_tie_chain(const NoteEvent& start);
 		bool current_event_is_note_with_tie_next(void) const;
-		int byte_to_unsigned_int(byte b) const;
+		byte ints_to_sq_control(int duty, int envLoop, int constVol, int volume) const;
+		byte int_to_volume_byte(int p_volume) const;
+		byte int_to_byte(int n) const;
+		int byte_to_int(byte b) const;
 		int byte_to_volume(byte b) const;
 
 		// DEBUG functions
@@ -103,6 +118,7 @@ namespace fm {
 		// output functions
 		std::string note_no_to_str(int p_note_no) const;
 		std::string to_string(void) const;
+		std::string channel_type_to_string(void) const;
 
 		// bytecode to mml function
 		void parse_bytecode(const std::vector<fm::MusicInstruction>& instrs,
@@ -111,6 +127,10 @@ namespace fm {
 
 		// midi functions
 		void add_midi_track(smf::MidiFile& p_midi, int p_pitch_offset);
+
+		// mml to bytecode function
+		fm::ChannelBytecodeExport to_bytecode(void);
+		byte encode_percussion(int p_perc, int p_repeat) const;
 	};
 
 }

@@ -70,7 +70,7 @@ namespace fm {
 		};
 
 		inline const std::vector<std::string> CHANNEL_LABELS{
-			"SQ1", "SQ2", "TRI", "NOISE" };
+			"sq1", "sq2", "tri", "noise" };
 
 		inline const std::set<Fraction> ALLOWED_FRACTIONS = {
 			// Power-of-two base lengths

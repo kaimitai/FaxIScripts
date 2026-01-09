@@ -4,6 +4,7 @@
 #include <optional>
 #include <string>
 #include <variant>
+#include "Fraction.h"
 
 namespace fm {
 
@@ -12,6 +13,10 @@ namespace fm {
 		std::optional<int> length, raw;
 		int dots;
 		bool tie_to_next = false;
+	};
+	struct PercussionEvent {
+		int perc_no = 0;
+		int repeat = 0;
 	};
 	struct RestEvent {
 		std::optional<int> length, raw;
@@ -22,7 +27,7 @@ namespace fm {
 		int dots;
 	};
 	struct TempoSetEvent {
-		int tempo;
+		fm::Fraction tempo;
 	};
 	struct OctaveShiftEvent {
 		int amount; // +1 or -1
@@ -82,6 +87,7 @@ namespace fm {
 
 	using MmlEvent = std::variant<
 		NoteEvent,
+		PercussionEvent,
 		RestEvent,
 		LengthEvent,
 		TempoSetEvent,

@@ -10,6 +10,7 @@ namespace fm {
         Directive,          // #song, #tempo, #sq1, #tri, #noise
         Number,             // 1, 100, 16, 4, etc.
         Note,               // c16, g8., a+4, f#2, etc.
+        Percussion,         // p0, p1, p1*4 etc
         Rest,               // r4, r8., r16
         Length,             // l4, l8.
         OctaveShift,        // < or >
@@ -28,7 +29,7 @@ namespace fm {
 	};
 
     struct Token {
-        TokenType type;
+        TokenType type = fm::TokenType::EndOfFile;
 
         // For error reporting
         int line = 0;
@@ -64,6 +65,7 @@ namespace fm {
         fm::Token create_number();
         fm::Token create_rest();
         fm::Token create_note();
+        fm::Token create_percussion();
         fm::Token create_length();
         fm::Token create_label_or_ref();
         fm::Token create_identifier();

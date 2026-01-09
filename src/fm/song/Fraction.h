@@ -1,6 +1,7 @@
 #ifndef FM_FRACTION_H
 #define FM_FRACTION_H
 
+#include <string>
 #include <optional>
 
 namespace fm {
@@ -19,12 +20,19 @@ namespace fm {
 		Fraction& operator+=(const Fraction& rhs);
 		fm::Fraction operator*(const Fraction& rhs) const;
 		fm::Fraction& operator*=(const Fraction& rhs);
+		fm::Fraction operator/(const Fraction& rhs) const;
+		fm::Fraction& operator/=(const Fraction& rhs);
+
 		bool operator==(const Fraction& rhs) const;
 		bool operator<(const Fraction& rhs) const;
 		int extract_whole(void);
 
 		int get_num(void) const;
 		int get_den(void) const;
+
+		bool is_integer(void) const;
+		double to_double(void) const;
+		std::string to_tempo_string(void) const;
 	};
 
 	// note length struct which makes use of fractions

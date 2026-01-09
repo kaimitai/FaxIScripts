@@ -8,6 +8,7 @@
 #include "MMLChannel.h"
 #include "MmlEvent.h"   // variant + event structs
 #include "MMLSongCollection.h"
+#include "mml_constants.h"
 
 namespace fm {
 
@@ -32,10 +33,11 @@ namespace fm {
 		fm::MMLSongCollection parse_all_songs(int p_bpm);
 		fm::MMLSong parse_single_song(int* p_bpm);
 		fm::MMLChannel parse_channel(const std::string& name,
-			int p_song_tempo, int* p_bpm);
+			fm::Fraction p_song_tempo, int* p_bpm);
 
 		// --- event parsers ---
 		MmlEvent parse_note_event(void);
+		MmlEvent parse_percussion_event(void);
 		MmlEvent parse_rest_event();
 		MmlEvent parse_length_event(void);
 		MmlEvent parse_tempo_set_event(void);
@@ -54,6 +56,8 @@ namespace fm {
 		std::size_t find_loop_end_token(std::size_t index) const;
 
 		int consume_number(const std::string& p_label, int p_min, int p_max);
+
+		fm::ChannelType string_to_channel_type(const std::string& str) const;
 
 	public:
 		Parser(const std::vector<Token>& toks);

@@ -321,13 +321,45 @@ void fi::Cli::nes_to_midi(const std::string& p_nes_filename,
 	fm::MScriptLoader loader(m_config, rom_data);
 	fm::MMLSongCollection coll(3600);
 	coll.extract_bytecode_collection(loader);
-	
 	klib::file::write_string_to_file(coll.to_string(), "c:/temp/faxanadu.mml");
 
+	auto bc{ coll.to_bytecode(m_config) };
+	auto xom{ rom_data };
+	auto ptr{ m_config.pointer("music_ptr") };
+	for (std::size_t i{ 0 }; i < bc.size(); ++i)
+		xom.at(i + ptr.first) = bc[i];
+	klib::file::write_bytes_to_file(xom, "c:/temp/mml.nes");
+
+	fm::MScriptLoader loader2(m_config, xom);
+	fm::MMLSongCollection coll2(3600);
+	coll2.extract_bytecode_collection(loader2);
+	klib::file::write_string_to_file(coll2.to_string(), "c:/temp/xom.mml");
+	
 	for (std::size_t i{ 0 }; i < loader.get_song_count(); ++i) {
 		auto midi = coll.songs.at(i).to_midi(3600);
 		midi.write(std::format("c:/temp/faxanadu{:02}.mid", i + 1));
 	}
+	/*
+	std::string mml;
+	{
+		const auto strs{klib::file::read_file_as_strings("c:/temp/faxanadu.mml")};
+
+		for (const auto& str : strs)
+			mml += " " + str;
+	}
+
+	fm::Tokenizer tokenizer(mml);
+	const auto tokens{ tokenizer.tokenize() };
+
+	fm::Parser parser(tokens);
+
+	auto coll2{ parser.parse(3600) };
+	for (std::size_t i{ 0 }; i < coll2.songs.size(); ++i) {
+		// auto midi = coll2.songs.at(i).to_midi(3600);
+		// midi.write(std::format("c:/temp/faxanadu-out{:02}.mid", i + 1));
+	}
+	klib::file::write_string_to_file(coll2.to_string(), "c:/temp/faxanadu-out.mml");
+	*/
 }
 
 void fi::Cli::parse_arguments(int arg_start, int argc, char** argv) {

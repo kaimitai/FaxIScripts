@@ -5,7 +5,7 @@
 
 std::string fm::MMLSong::to_string(void) const {
 	std::string result{ std::format("#song {}\n", index) };
-	result += std::format("#tempo {}\n\n", tempo);
+	result += std::format("t{}\n\n", tempo.to_tempo_string());
 
 	for (const auto& ch : channels)
 		result += ch.to_string() + "\n";
@@ -23,6 +23,7 @@ smf::MidiFile fm::MMLSong::to_midi(int p_bpm) {
 	channels.at(0).add_midi_track(l_midi, -12 + songtransp);
 	channels.at(1).add_midi_track(l_midi, -12 + songtransp);
 	channels.at(2).add_midi_track(l_midi, 12 + songtransp);
+	channels.at(3).add_midi_track(l_midi, 0);
 
 	return l_midi;
 }

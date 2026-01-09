@@ -5,6 +5,7 @@
 #include <optional>
 #include <vector>
 #include "MMLChannel.h"
+#include "Fraction.h"
 #include "./../../common/midifile/MidiFile.h"
 
 namespace fm {
@@ -12,7 +13,8 @@ namespace fm {
 	struct MMLSong {
 
 		std::vector<fm::MMLChannel> channels;
-		int index{ 0 }, tempo{ 0 };
+		int index{ 0 };
+		fm::Fraction tempo{ fm::Fraction(100, 1) };
 
 	public:
 		MMLSong(void) = default;

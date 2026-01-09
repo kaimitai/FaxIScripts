@@ -68,6 +68,17 @@ std::size_t fm::MusicOpcode::size(void) const {
 	return result;
 }
 
+std::size_t fm::MusicInstruction::size(void) const {
+	std::size_t result{ 1 };
+
+	if (operand.has_value())
+		++result;
+	if (jump_target.has_value())
+		result += 2;
+
+	return result;
+}
+
 std::vector<byte> fm::MusicInstruction::get_bytes(void) const {
 	std::vector<byte> result{ opcode_byte };
 

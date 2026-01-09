@@ -40,6 +40,8 @@ std::vector<fm::Token> fm::Tokenizer::tokenize(void) {
 			tokens.push_back(create_volume_set());
 		else if ((c == 's' || c == 'S'))
 			tokens.push_back(create_song_transpose());
+		else if ((c == 'p' || c == 'P'))
+			tokens.push_back(create_percussion());
 		else if (c == '_')
 			tokens.push_back(create_channel_transpose());
 		else if (c == '&')
@@ -129,7 +131,8 @@ fm::Token fm::Tokenizer::create_tempo_set() {
 
 	while (!at_end()) {
 		char c = peek();
-		if (std::isdigit(static_cast<unsigned char>(c))) {
+		if (std::isdigit(static_cast<unsigned char>(c)) ||
+			c == '.' || c == '+' || c == '/') {
 			tok.text.push_back(c);
 			advance();
 		}
@@ -137,8 +140,6 @@ fm::Token fm::Tokenizer::create_tempo_set() {
 			break;
 		}
 	}
-
-	tok.number = std::stoi(tok.text);
 
 	return tok;
 }
@@ -208,11 +209,8 @@ fm::Token fm::Tokenizer::create_volume_set() {
 	tok.text = value; // Extract the numeric part (skip the 'v')
 	tok.number = std::stoi(value.substr(1));
 
-	// invert the number to match the engine's format
 	if (tok.number < 0 || tok.number > 15)
 		throw std::runtime_error("Volume must be in the range 0-15");
-	else
-		tok.number = 15 - tok.number;
 
 	return tok;
 }
@@ -364,13 +362,12 @@ fm::Token fm::Tokenizer::create_length() {
 	std::string value;
 
 	// 1. Consume the 'l' or 'L'
-	char letter = peek();
-
-	value.push_back(std::tolower(letter));
 	advance();
 
+	char letter = peek();
+
 	// RAW TICK LITERAL: f.ex. r#13
-	if (!at_end() && peek() == '#') {
+	if (letter == '#') {
 		value.push_back('#');
 		advance();
 
@@ -487,6 +484,33 @@ fm::Token fm::Tokenizer::create_channel_transpose() {
 	return tok;
 }
 
+fm::Token fm::Tokenizer::create_percussion() {
+	Token tok;
+	tok.type = TokenType::Percussion;
+
+	tok.line = line;
+	tok.column = column;
+
+	std::string value;
+
+	advance(); // consume 'p' or 'P'
+
+	while (!at_end()) {
+		char d = peek();
+		if (std::isdigit((unsigned char)d) || d == '*') {
+			value.push_back(d);
+			advance();
+		}
+		else {
+			break;
+		}
+	}
+
+	tok.text = value;
+
+	return tok;
+}
+
 fm::Token fm::Tokenizer::create_label_or_ref(void) {
 	Token tok;
 
@@ -574,12 +598,7 @@ bool fm::Tokenizer::is_rest_start(void) const {
 bool fm::Tokenizer::is_length_start(void) const {
 	char c = peek();
 
-	if (c != 'l' && c != 'L')
-		return false;
-
-	char n = peek_next();
-
-	return std::isdigit((unsigned char)n);
+	return c == 'l' || c == 'L';
 }
 
 bool fm::Tokenizer::is_whitespace(char c) const {

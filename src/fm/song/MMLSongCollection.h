@@ -4,6 +4,7 @@
 #include "MMLSong.h"
 #include "./../MScriptLoader.h"
 #include "./../MusicOpcode.h"
+#include "./../../fe/Config.h"
 #include <map>
 #include <set>
 #include <utility>
@@ -34,6 +35,8 @@ namespace fm {
 		MMLSongCollection(int p_bpm);
 		std::string to_string(void) const;
 
+		std::vector<byte> to_bytecode(const fe::Config& p_config);
+
 	private:
 		// turn bytecode into mml via an MML loader
 		fm::NormalizedBytecodeChannel normalize_bytecode_channel(
@@ -42,8 +45,7 @@ namespace fm {
 			std::size_t p_channel_no);
 		std::vector<BytecodeChannel> extract_bytecode_song(MScriptLoader& p_loader, std::size_t p_song_no);
 
-		int determine_tempo(const std::vector<BytecodeChannel>& p_song) const;
-		std::set<int> candidate_q(void) const;
+		fm::Fraction determine_tempo(const std::vector<BytecodeChannel>& p_song) const;
 	};
 
 }
