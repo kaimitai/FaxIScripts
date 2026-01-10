@@ -437,7 +437,7 @@ fm::TickResult fm::MMLChannel::tick_length(const fm::Duration& dur) const {
 	}
 
 	// MUSICAL DURATION
-	Fraction qnote = Fraction(3600 * vm.tempo.get_den(), vm.tempo.get_num());
+	Fraction qnote = Fraction(*bpm * vm.tempo.get_den(), vm.tempo.get_num());
 	Fraction total = qnote * (dur.musical * Fraction(4, 1));
 
 	int whole = total.extract_whole();
@@ -929,9 +929,10 @@ std::vector<fm::DefaultLength> fm::MMLChannel::calc_tick_lengths(void) const {
 	return result;
 }
 
-void fm::MMLChannel::add_midi_track(smf::MidiFile& p_midi, int p_pitch_offset) {
-	const std::vector<int> duty_cycle_to_instr{ 80, 81, 62, 64 };
-	const std::vector<int> perc_note_no{ 0, 36, 38, 42, 0, 0, 0, 0 };
+int fm::MMLChannel::add_midi_track(smf::MidiFile& p_midi, int p_pitch_offset,
+	int p_max_ticks) {
+	const std::vector<int> duty_cycle_to_instr{ 80, 80, 81, 62, 64, 64, 64, 64 };
+	const std::vector<int> perc_note_no{ 0, 36, 38, 42, 0, 70, 70, 0 };
 	bool is_perc{ channel_type == fm::ChannelType::noise };
 
 	p_midi.addTrack();
@@ -944,7 +945,7 @@ void fm::MMLChannel::add_midi_track(smf::MidiFile& p_midi, int p_pitch_offset) {
 	if (channel_type == fm::ChannelType::tri)
 		default_midi_volume = 70;
 	else if (channel_type == fm::ChannelType::noise)
-		default_midi_volume = 65;
+		default_midi_volume = 75;
 
 	p_midi.addController(l_track_no, 0, l_channel_no, 7,
 		default_midi_volume
@@ -955,16 +956,17 @@ void fm::MMLChannel::add_midi_track(smf::MidiFile& p_midi, int p_pitch_offset) {
 		duty_cycle_to_instr.at(vm.st.duty_cycle)
 	);
 
-	int ticks{ 0 };
+	int ticks{ 1 };
 	reset_vm(true);
 
-	// DEBUG: TODO REMOVE
-	int debug{ 0 };
+	// TODO: Find a better solution
+	int guard_count{ 0 };
 
 	while (vm.pc < events.size()) {
-		++debug;
-		if (debug > 20000)
+		++guard_count;
+		if (guard_count > 20000)
 			break;
+
 		VMState state{ vm.pc,
 		vm.loop_count, vm.loop_iters, vm.st.pitchoffset, vm.st.volume, vm.st.duty_cycle,
 		vm.push_addr, vm.jsr_addr, vm.loop_addr, vm.loop_end_addr };
@@ -991,13 +993,25 @@ void fm::MMLChannel::add_midi_track(smf::MidiFile& p_midi, int p_pitch_offset) {
 			auto tickdur = tick_length(resolve_duration(vm.st.default_length.length,
 				vm.st.default_length.dots, vm.st.default_length.raw));
 
-			for (int i{ 0 }; i < (perce.repeat == 0 ? 255 : perce.repeat); ++i) {
+			int reps{ perce.repeat == 0 ? 255 : perce.repeat };
+			bool l_end_channel{ false };
+
+			for (int rep{ 0 }; rep < reps; ++rep) {
 				p_midi.addNoteOn(l_track_no, ticks, l_channel_no,
 					perc_note_no.at(perce.perc_no), default_midi_volume);
 				ticks += tickdur.whole;
+
 				p_midi.addNoteOff(l_track_no, ticks, l_channel_no,
 					perc_note_no.at(perce.perc_no), 0);
+
+				if (ticks > p_max_ticks) {
+					l_end_channel = true;
+					break;
+				}
 			}
+
+			if (l_end_channel)
+				break;
 		}
 		else if (std::holds_alternative<LengthEvent>(ev)) {
 			auto& le = std::get<LengthEvent>(ev);
@@ -1027,7 +1041,7 @@ void fm::MMLChannel::add_midi_track(smf::MidiFile& p_midi, int p_pitch_offset) {
 		}
 		else if (std::holds_alternative<ChannelTransposeEvent>(ev)) {
 			auto& cte = std::get<ChannelTransposeEvent>(ev);
-			vm.st.pitchoffset += cte.semitones;
+			vm.st.pitchoffset = cte.semitones;
 		}
 		else if (std::holds_alternative<VolumeSetEvent>(ev)) {
 			auto& vse = std::get<VolumeSetEvent>(ev);
@@ -1078,14 +1092,16 @@ void fm::MMLChannel::add_midi_track(smf::MidiFile& p_midi, int p_pitch_offset) {
 		}
 		else if (std::holds_alternative<LoopIfEvent>(ev)) {
 			auto& lie = std::get<LoopIfEvent>(ev);
-			if (vm.loop_count > lie.iterations)
-				vm.pc = vm.loop_end_addr.value();
+			if (vm.loop_count >= lie.iterations)
+				vm.pc = vm.loop_end_addr.value() + 1;
 			else
 				++vm.pc;
 		}
 		else
 			++vm.pc;
 	}
+
+	return ticks;
 }
 
 bool fm::VMState::operator<(const fm::VMState& rhs) const {

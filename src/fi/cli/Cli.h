@@ -4,11 +4,13 @@
 #include <vector>
 #include <string>
 #include "./../../fe/Config.h"
+#include "./../../fm/song/MMLSongCollection.h"
 
 namespace fi {
 
 	enum ScriptMode { IScriptBuild, IScriptExtract,
-		MScriptBuild, MScriptExtract, MidiExtract };
+		MmlExtract, MmlBuild, MmlToMidi, RomToMidi,
+		MScriptBuild, MScriptExtract };
 
 	class Cli {
 
@@ -36,7 +38,15 @@ namespace fi {
 			const std::string& p_asm_filename,
 			bool p_shop_comments, bool p_overwrite);
 
-		// music
+		// music (asm)
+		void masm_to_nes(const std::string& p_mml_filename,
+			const std::string& p_nes_filename,
+			const std::string& p_source_rom_filename);
+		void nes_to_masm(const std::string& p_nes_filename,
+			const std::string& p_mml_filename,
+			bool p_overwrite);
+
+		// music (mml)
 		void mml_to_nes(const std::string& p_mml_filename,
 			const std::string& p_nes_filename,
 			const std::string& p_source_rom_filename);
@@ -44,8 +54,20 @@ namespace fi {
 			const std::string& p_mml_filename,
 			bool p_overwrite);
 
-		void nes_to_midi(const std::string& p_nes_filename,
+		// to-midi
+		void rom_to_midi(const std::string& p_nes_filename,
 			const std::string& p_out_file_prefix);
+		void mml_to_midi(const std::string& p_mml_filename,
+			const std::string& p_out_file_prefix);
+
+		// common
+		std::vector<byte> load_rom_and_determine_region(const std::string& p_nes_filename);
+		fm::MMLSongCollection load_mml_file(const std::string& p_mml_file) const;
+		void save_midi_files(fm::MMLSongCollection& coll,
+			const std::string& p_out_file_prefix) const;
+		bool check_mode(const std::string& p_mode,
+			const std::pair<std::string, std::string>& p_cmds);
+		std::vector<int> get_global_transpose(const std::vector<byte>& p_rom) const;
 
 	public:
 		Cli(int argc, char** argv);

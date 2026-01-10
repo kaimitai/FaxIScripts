@@ -15,9 +15,12 @@ namespace fi {
 
 		inline const std::pair<std::string, std::string> CMD_EXTRACT{ "extract" , "x" };
 		inline const std::pair<std::string, std::string> CMD_BUILD{ "build" , "b" };
+		inline const std::pair<std::string, std::string> CMD_EXTRACT_MML{ "extract-mml" , "xmml" };
+		inline const std::pair<std::string, std::string> CMD_BUILD_MML{ "build-mml" , "bmml" };
+		inline const std::pair<std::string, std::string> CMD_MML_TO_MIDI{ "mml-to-midi" , "m2m" };
+		inline const std::pair<std::string, std::string> CMD_ROM_TO_MIDI{ "rom-to-midi" , "r2m" };
 		inline const std::pair<std::string, std::string> CMD_EXTRACT_MUSIC{ "extract-music" , "xm" };
 		inline const std::pair<std::string, std::string> CMD_BUILD_MUSIC{ "build-music" , "bm" };
-		inline const std::pair<std::string, std::string> CMD_EXTRACT_MIDI{ "extract-midi" , "xmid" };
 
 		inline const std::vector<std::pair<std::string, std::string>> CLI_FLAGS{
 			{"--no-shop-comments", "-p"},

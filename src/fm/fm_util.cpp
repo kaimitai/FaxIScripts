@@ -178,7 +178,7 @@ byte fm::util::note_to_byte(const std::string& token, int8_t offset) {
 
 int fm::util::note_string_to_pitch(const std::string& s) {
 	// s is something like "c", "c+", "f-", "g+8.", etc.
-	// We only care about the first 1–2 chars.
+	// We only care about the first 1-2 chars.
 
 	char letter = s[0];
 	int base = 0;

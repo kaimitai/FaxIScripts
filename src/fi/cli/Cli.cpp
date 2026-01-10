@@ -36,6 +36,10 @@ void fi::Cli::print_help(void) const {
 
 		"  x,  extract                Disassemble IScripts from ROM\n" <<
 		"  b,  build                  Assemble IScripts into ROM\n" <<
+		"  xmml, extract-mml          Extract music as MML file from ROM\n" <<
+		"  bmml, build-mml            Compile MML file and patch ROM\n" <<
+		"  m2m, mml-to-midi           Convert MML file to midi-files\n" <<
+		"  r2m, rom-to-midi           Extract music from ROM to midi-files directly\n" <<
 		"  xm, extract-music          Disassemble MScripts from ROM\n" <<
 		"  bm, build-music            Assemble MScripts and patch ROM\n\n";
 
@@ -43,7 +47,7 @@ void fi::Cli::print_help(void) const {
 	std::cout << "Options:\n";
 	std::cout << "  -p, --no-shop-comments       Disable shop comment extraction (enabled by default)\n";
 	std::cout << "  -o, --original-size          Only patch original ROM location (disabled by default)\n";
-	std::cout << "  -f, --force                  Force assembly-file overwrite when extracting (disabled by default)\n";
+	std::cout << "  -f, --force                  Force file overwrite when extracting data (disabled by default)\n";
 	std::cout << "  -n, --no-notes               Do not emit notes in music disassembly (notes enabled by default)\n";
 	std::cout << "  -s, --source-rom             The ROM file to be used as a source when assembling (by default the output file itself)\n";
 	std::cout << "  -r, --region                 ROM region which must be defined in the configuration xml (auto-detected by default)\n";
@@ -78,12 +82,21 @@ fi::Cli::Cli(int argc, char** argv) :
 	}
 	else if (m_script_mode == fi::ScriptMode::IScriptExtract)
 		nes_to_asm(m_in_file, m_out_file, m_shop_comments, m_overwrite);
+
 	else if (m_script_mode == fi::ScriptMode::MScriptBuild)
-		mml_to_nes(m_in_file, m_out_file, m_source_rom.empty() ? m_out_file : m_source_rom);
+		masm_to_nes(m_in_file, m_out_file, m_source_rom.empty() ? m_out_file : m_source_rom);
 	else if (m_script_mode == fi::ScriptMode::MScriptExtract)
+		nes_to_masm(m_in_file, m_out_file, m_overwrite);
+
+	else if (m_script_mode == fi::ScriptMode::MmlBuild)
+		mml_to_nes(m_in_file, m_out_file, m_source_rom.empty() ? m_out_file : m_source_rom);
+	else if (m_script_mode == fi::ScriptMode::MmlExtract)
 		nes_to_mml(m_in_file, m_out_file, m_overwrite);
-	else if (m_script_mode == fi::ScriptMode::MidiExtract)
-		nes_to_midi(m_in_file, m_out_file);
+
+	else if (m_script_mode == fi::ScriptMode::MmlToMidi)
+		mml_to_midi(m_in_file, m_out_file);
+	else if (m_script_mode == fi::ScriptMode::RomToMidi)
+		rom_to_midi(m_in_file, m_out_file);
 	else
 		throw(std::runtime_error("Invalid script mode"));
 }
@@ -184,7 +197,7 @@ void fi::Cli::asm_to_nes(const std::string& p_asm_filename,
 	std::cout << "File patched\n";
 }
 
-void fi::Cli::mml_to_nes(const std::string& p_mml_filename,
+void fi::Cli::masm_to_nes(const std::string& p_mml_filename,
 	const std::string& p_nes_filename,
 	const std::string& p_source_rom_filename) {
 
@@ -264,7 +277,7 @@ void fi::Cli::nes_to_asm(const std::string& p_nes_filename,
 	std::cout << "Extraction complete!\n";
 }
 
-void fi::Cli::nes_to_mml(const std::string& p_nes_filename,
+void fi::Cli::nes_to_masm(const std::string& p_nes_filename,
 	const std::string& p_mml_filename, bool p_overwrite) {
 
 	std::cout << std::format("Note value emission {}\n",
@@ -301,65 +314,76 @@ void fi::Cli::nes_to_mml(const std::string& p_nes_filename,
 	std::cout << "Extraction complete!\n";
 }
 
-void fi::Cli::nes_to_midi(const std::string& p_nes_filename,
+void fi::Cli::nes_to_mml(const std::string& p_nes_filename,
+	const std::string& p_mml_filename,
+	bool p_overwrite) {
+
+	// fail early if output file already exists and we do not overwrite
+	if (!p_overwrite && klib::file::file_exists(p_mml_filename))
+		throw std::runtime_error(std::format("mml file {} exists, and overwrite-flag is not set", p_mml_filename));
+
+	auto rom_data{ load_rom_and_determine_region(p_nes_filename) };
+	fm::MScriptLoader loader(m_config, rom_data);
+
+	fm::MMLSongCollection coll(static_cast<int>(m_config.constant(fm::c::ID_CLOCKS_PER_MINUTE)),
+		get_global_transpose(rom_data));
+	coll.extract_bytecode_collection(loader);
+
+	klib::file::write_string_to_file(coll.to_string(), p_mml_filename);
+
+	std::cout << "MML extracted to " << p_mml_filename << "!\n";
+}
+
+void fi::Cli::mml_to_nes(const std::string& p_mml_filename,
+	const std::string& p_nes_filename,
+	const std::string& p_source_rom_filename) {
+
+	auto rom{ load_rom_and_determine_region(p_source_rom_filename) };
+	auto coll{ load_mml_file(p_mml_filename) };
+
+	auto bytes{ coll.to_bytecode(m_config) };
+
+	const auto& musicptr{ m_config.pointer(fm::c::ID_MUSIC_PTR) };
+
+	try_patch_msg("Music", bytes.size(),
+		m_config.constant(fm::c::ID_MUSIC_DATA_END) - musicptr.first);
+
+	for (std::size_t i{ 0 }; i < bytes.size(); ++i)
+		rom.at(musicptr.first + i) = bytes[i];
+
+	std::cout << "Attempting to patch file " << p_nes_filename << "\n";
+	klib::file::write_bytes_to_file(rom, p_nes_filename);
+	std::cout << "File patched\n";
+}
+
+void fi::Cli::rom_to_midi(const std::string& p_nes_filename,
 	const std::string& p_out_file_prefix) {
 
-	std::cout << "Attempting to read " << p_nes_filename << "\n";
-	const auto& rom_data{ klib::file::read_file_as_bytes(p_nes_filename) };
-
-	if (m_region.empty()) {
-		m_config.determine_region(rom_data);
-		std::cout << "ROM region resolved to '" << m_config.get_region() << "'\n";
-	}
-	else {
-		m_config.set_region(m_region);
-		std::cout << "ROM region specified as '" << m_region << "\n";
-	}
-
-	m_config.load_config_data(appc::CONFIG_XML);
-
+	auto rom_data{ load_rom_and_determine_region(p_nes_filename) };
 	fm::MScriptLoader loader(m_config, rom_data);
-	fm::MMLSongCollection coll(3600);
+	fm::MMLSongCollection coll(static_cast<int>(m_config.constant(fm::c::ID_CLOCKS_PER_MINUTE)),
+		get_global_transpose(rom_data));
 	coll.extract_bytecode_collection(loader);
-	klib::file::write_string_to_file(coll.to_string(), "c:/temp/faxanadu.mml");
+	save_midi_files(coll, p_out_file_prefix);
+}
 
-	auto bc{ coll.to_bytecode(m_config) };
-	auto xom{ rom_data };
-	auto ptr{ m_config.pointer("music_ptr") };
-	for (std::size_t i{ 0 }; i < bc.size(); ++i)
-		xom.at(i + ptr.first) = bc[i];
-	klib::file::write_bytes_to_file(xom, "c:/temp/mml.nes");
+void fi::Cli::mml_to_midi(const std::string& p_mml_filename,
+	const std::string& p_out_file_prefix) {
+	auto coll{ load_mml_file(p_mml_filename) };
+	save_midi_files(coll, p_out_file_prefix);
+}
 
-	fm::MScriptLoader loader2(m_config, xom);
-	fm::MMLSongCollection coll2(3600);
-	coll2.extract_bytecode_collection(loader2);
-	klib::file::write_string_to_file(coll2.to_string(), "c:/temp/xom.mml");
-	
-	for (std::size_t i{ 0 }; i < loader.get_song_count(); ++i) {
-		auto midi = coll.songs.at(i).to_midi(3600);
-		midi.write(std::format("c:/temp/faxanadu{:02}.mid", i + 1));
+void fi::Cli::save_midi_files(fm::MMLSongCollection& coll,
+	const std::string& p_out_file_prefix) const {
+	std::cout << "Attempting to write midi files...\n";
+
+	auto midis{ coll.to_midi() };
+
+	for (std::size_t i{ 0 }; i < midis.size(); ++i) {
+		std::string l_filename{ std::format("{}-{:02}.mid", p_out_file_prefix, i + 1) };
+		midis[i].write(l_filename);
+		std::cout << "Wrote " << l_filename << "!\n";
 	}
-	/*
-	std::string mml;
-	{
-		const auto strs{klib::file::read_file_as_strings("c:/temp/faxanadu.mml")};
-
-		for (const auto& str : strs)
-			mml += " " + str;
-	}
-
-	fm::Tokenizer tokenizer(mml);
-	const auto tokens{ tokenizer.tokenize() };
-
-	fm::Parser parser(tokens);
-
-	auto coll2{ parser.parse(3600) };
-	for (std::size_t i{ 0 }; i < coll2.songs.size(); ++i) {
-		// auto midi = coll2.songs.at(i).to_midi(3600);
-		// midi.write(std::format("c:/temp/faxanadu-out{:02}.mid", i + 1));
-	}
-	klib::file::write_string_to_file(coll2.to_string(), "c:/temp/faxanadu-out.mml");
-	*/
 }
 
 void fi::Cli::parse_arguments(int arg_start, int argc, char** argv) {
@@ -384,24 +408,102 @@ void fi::Cli::parse_arguments(int arg_start, int argc, char** argv) {
 	}
 }
 
+std::vector<byte> fi::Cli::load_rom_and_determine_region(
+	const std::string& p_nes_filename) {
+
+	std::cout << "Attempting to read " << p_nes_filename << "\n";
+	const auto rom_data{ klib::file::read_file_as_bytes(p_nes_filename) };
+
+	if (m_region.empty()) {
+		m_config.determine_region(rom_data);
+		std::cout << "ROM region resolved to '" << m_config.get_region() << "'\n";
+	}
+	else {
+		m_config.set_region(m_region);
+		std::cout << "ROM region specified as '" << m_region << "\n";
+	}
+
+	m_config.load_config_data(appc::CONFIG_XML);
+
+	return rom_data;
+}
+
+fm::MMLSongCollection fi::Cli::load_mml_file(const std::string& p_mml_file) const {
+	std::cout << "Attempting to parse mml file " << p_mml_file << "\n";
+
+	std::string mml_string;
+	{
+		const auto strs{ klib::file::read_file_as_strings(p_mml_file) };
+
+		for (const auto& str : strs)
+			mml_string += std::format("{}\n", klib::str::strip_comment(str));
+	}
+
+	fm::Tokenizer tokenizer(mml_string);
+	const auto tokens{ tokenizer.tokenize() };
+
+	fm::Parser parser(tokens);
+
+	int clocks_per_minute{ 3600 };
+
+	// if config is not populated fall back to 3600
+	try {
+		clocks_per_minute = static_cast<int>(m_config.constant(fm::c::ID_CLOCKS_PER_MINUTE));
+	}
+	catch (const std::runtime_error&) {
+	}
+
+	std::cout << "Clocks per minute: " << clocks_per_minute << "\n";
+
+	auto coll{ parser.parse(clocks_per_minute) };
+	coll.sort();
+
+	return coll;
+}
+
 void fi::Cli::set_mode(const std::string& p_mode) {
-	if (p_mode == appc::CMD_BUILD.first || p_mode == appc::CMD_BUILD.second) {
+	if (check_mode(p_mode, appc::CMD_BUILD)) {
 		m_script_mode = fi::ScriptMode::IScriptBuild;
 	}
-	else if (p_mode == appc::CMD_EXTRACT.first || p_mode == appc::CMD_EXTRACT.second) {
+	else if (check_mode(p_mode, appc::CMD_EXTRACT)) {
 		m_script_mode = fi::ScriptMode::IScriptExtract;
 	}
-	else if (p_mode == appc::CMD_BUILD_MUSIC.first || p_mode == appc::CMD_BUILD_MUSIC.second) {
+	else if (check_mode(p_mode, appc::CMD_BUILD_MUSIC)) {
 		m_script_mode = fi::ScriptMode::MScriptBuild;
 	}
-	else if (p_mode == appc::CMD_EXTRACT_MUSIC.first || p_mode == appc::CMD_EXTRACT_MUSIC.second) {
+	else if (check_mode(p_mode, appc::CMD_EXTRACT_MUSIC)) {
 		m_script_mode = fi::ScriptMode::MScriptExtract;
 	}
-	else if (p_mode == appc::CMD_EXTRACT_MIDI.first || p_mode == appc::CMD_EXTRACT_MIDI.second) {
-		m_script_mode = fi::ScriptMode::MidiExtract;
+	else if (check_mode(p_mode, appc::CMD_BUILD_MML)) {
+		m_script_mode = fi::ScriptMode::MmlBuild;
+	}
+	else if (check_mode(p_mode, appc::CMD_EXTRACT_MML)) {
+		m_script_mode = fi::ScriptMode::MmlExtract;
+	}
+	else if (check_mode(p_mode, appc::CMD_MML_TO_MIDI)) {
+		m_script_mode = fi::ScriptMode::MmlToMidi;
+	}
+	else if (check_mode(p_mode, appc::CMD_ROM_TO_MIDI)) {
+		m_script_mode = fi::ScriptMode::RomToMidi;
 	}
 	// can't really happen
 	else throw std::runtime_error("Unknown commad " + p_mode);
+}
+
+bool fi::Cli::check_mode(const std::string& p_mode,
+	const std::pair<std::string, std::string>& p_cmds) {
+	return (p_mode == p_cmds.first || p_mode == p_cmds.second);
+}
+
+std::vector<int> fi::Cli::get_global_transpose(const std::vector<byte>& p_rom) const {
+	std::vector<int> result;
+
+	auto transp{ m_config.constant(fm::c::ID_CHAN_PITCH_OFFSET) };
+
+	for (std::size_t i{ 0 }; i < 4; ++i)
+		result.push_back(static_cast<int>(static_cast<char>(p_rom.at(i + transp))));
+
+	return result;
 }
 
 // TODO: Streamline flag lookup with const map

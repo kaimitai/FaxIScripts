@@ -19,7 +19,9 @@ namespace fm {
 	public:
 		MMLSong(void) = default;
 		std::string to_string(void) const;
-		smf::MidiFile to_midi(int p_bpm);
+		smf::MidiFile to_midi(int p_bpm, const std::vector<int>& p_global_transpose);
+		void sort(void);
+		fm::MMLChannel get_channel_of_type(fm::ChannelType p_chan_type) const;
 	};
 
 }

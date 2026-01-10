@@ -1,13 +1,24 @@
 #include "MMLSongCollection.h"
 #include "./../fm_constants.h"
+#include "./../../fi/cli/application_constants.h"
 #include "mml_constants.h"
 #include "Fraction.h"
+#include <format>
+
+fm::MMLSongCollection::MMLSongCollection(void) :
+	fm::MMLSongCollection(3600) {
+}
 
 fm::MMLSongCollection::MMLSongCollection(int p_bpm) :
-	bpm{ p_bpm }
+	fm::MMLSongCollection(p_bpm, { -12, -12, 12, 127 })
 {
 }
 
+fm::MMLSongCollection::MMLSongCollection(int p_bpm, const std::vector<int>& p_global_transpose) :
+	bpm{ p_bpm },
+	global_transpose{ p_global_transpose }
+{
+}
 
 void fm::MMLSongCollection::extract_bytecode_collection(MScriptLoader& p_loader) {
 
@@ -60,8 +71,8 @@ fm::Fraction fm::MMLSongCollection::determine_tempo(
 	}
 
 	// Allowed tempo range
-	const int T_min = 30 / 4;
-	const int T_max = 300 / 4;
+	const double T_min = 30.0 / 4.0;
+	const double T_max = 300.0 / 4.0;
 
 	// 2. Generate candidate tempos
 	std::map<fm::Fraction, int> scores;
@@ -70,7 +81,7 @@ fm::Fraction fm::MMLSongCollection::determine_tempo(
 		for (const fm::Fraction& f : fm::c::ALLOWED_FRACTIONS) {
 
 			// T = (3600 * f) / D
-			fm::Fraction T = fm::Fraction(3600 * 4, 1) * f / fm::Fraction(D, 1);
+			fm::Fraction T = fm::Fraction(bpm * 4, 1) * f / fm::Fraction(D, 1);
 
 			// Filter tempo range
 			double Td = T.to_double();
@@ -88,7 +99,7 @@ fm::Fraction fm::MMLSongCollection::determine_tempo(
 			for (const fm::Fraction& f : fm::c::ALLOWED_FRACTIONS) {
 
 				// expected ticks = (3600/T) * f
-				fm::Fraction expected = fm::Fraction(3600 * 4, 1) * f / T;
+				fm::Fraction expected = fm::Fraction(bpm * 4, 1) * f / T;
 
 				if (expected.is_integer() && expected.extract_whole() == D)
 					score += count;
@@ -164,7 +175,14 @@ std::vector<fm::BytecodeChannel> fm::MMLSongCollection::extract_bytecode_song(MS
 }
 
 std::string fm::MMLSongCollection::to_string(void) const {
-	std::string result;
+	std::string result{
+		std::format(" ; Faxanadu mml (music macro language) file extracted by FaxIScripts v{}\n ; https://github.com/kaimitai/FaxIScripts\n\n", fi::appc::APP_VERSION)
+	};
+
+	for (std::size_t i{ 0 }; i < global_transpose.size(); ++i)
+		result += std::format(" ; global transpose for channel {}: {} semitones\n",
+			c::CHANNEL_LABELS[i], global_transpose[i]);
+	result += "\n";
 
 	for (const auto& song : songs) {
 		result += song.to_string() + "\n";
@@ -235,4 +253,34 @@ std::vector<byte> fm::MMLSongCollection::to_bytecode(const fe::Config& p_config)
 	}
 
 	return result;
+}
+
+std::vector<smf::MidiFile> fm::MMLSongCollection::to_midi(void) {
+	std::vector<smf::MidiFile> result;
+
+	for (auto& song : songs)
+		result.push_back(song.to_midi(bpm, global_transpose));
+
+	return result;
+}
+
+void fm::MMLSongCollection::sort(void) {
+	std::vector<fm::MMLSong> sorted_songs;
+
+	const auto get_song_w_index = [*this](int p_index) -> std::size_t {
+		for (std::size_t i{ 0 }; i < songs.size(); ++i)
+			if (songs[i].index == p_index)
+				return i;
+		throw std::runtime_error(std::format("Missing song with index {}", p_index));
+		};
+
+	int max_song_no{ static_cast<int>(songs.size()) };
+
+	for (int i{ 1 }; i <= max_song_no; ++i) {
+		auto l_song{ songs[get_song_w_index(i)] };
+		l_song.sort();
+		sorted_songs.push_back(l_song);
+	}
+
+	songs = sorted_songs;
 }

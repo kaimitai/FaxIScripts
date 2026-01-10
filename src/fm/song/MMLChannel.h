@@ -126,7 +126,8 @@ namespace fm {
 		std::vector<DefaultLength> calc_tick_lengths(void) const;
 
 		// midi functions
-		void add_midi_track(smf::MidiFile& p_midi, int p_pitch_offset);
+		int add_midi_track(smf::MidiFile& p_midi, int p_pitch_offset,
+			int p_max_ticks = -1);
 
 		// mml to bytecode function
 		fm::ChannelBytecodeExport to_bytecode(void);

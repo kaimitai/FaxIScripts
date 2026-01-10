@@ -96,7 +96,7 @@ fm::Fraction& fm::Fraction::operator*=(const Fraction& rhs) {
 }
 
 fm::Fraction fm::Fraction::operator/(const Fraction& rhs) const {
-	// a/b ÷ c/d = (a*d) / (b*c)
+	// (a/b) / (c/d) = (a*d) / (b*c)
 	Fraction out(num * rhs.den, den * rhs.num);
 	return out;
 }

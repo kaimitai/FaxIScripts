@@ -30,7 +30,7 @@ namespace fm {
 		constexpr char OPCODE_NOP[]{ "nop" };
 		constexpr char OPCODE_JSR[]{ "jsr" };
 		constexpr char OPCODE_RETURN[]{ "return" };
-		constexpr char OPCODE_LOOPIF[]{ "loopif" };
+		constexpr char OPCODE_LOOPIF[]{ "endloopif" };
 		constexpr char OPCODE_ENVELOPE[]{ "envelope" };
 		constexpr char OPCODE_DETUNE[]{ "detune" };
 		constexpr char OPCODE_PULSE[]{ "pulse" };

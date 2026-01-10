@@ -262,7 +262,7 @@ fm::Token fm::Tokenizer::create_note() {
 	tok.line = line;
 	tok.column = column;
 
-	std::string value; // 1. Consume the note letter (a–g)
+	std::string value; // 1. Consume the note letter (a-g)
 
 	char letter = peek();
 	value.push_back(std::tolower(letter));
