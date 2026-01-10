@@ -580,6 +580,25 @@ int fm::MMLChannel::byte_to_volume(byte b) const {
 
 std::string fm::MMLChannel::to_string(void) const {
 	std::string result{ std::format("{} {{\n", channel_type_to_string()) };
+	/*
+	const auto LENSTR = [](const fm::DefaultLength& z) -> std::string {
+		std::string result;
+		if (z.length.has_value())
+			result += std::format(" len={} ", z.length.value());
+		if (z.raw.has_value())
+			result += std::format(" raw={} ", z.raw.value());
+		if (z.dots != 0)
+			result += std::format(" dots={} ", z.dots);
+
+		result += "\n";
+		return result;
+		};
+
+	auto lens{ calc_tick_lengths() };
+	for (std::size_t i{ 0 }; i < lens.size(); ++i) {
+		result += std::format("{}: {}", i, LENSTR(lens[i]));
+	}
+	*/
 	std::optional<int> loopcnt{ std::nullopt };
 
 	for (const auto& ev : events) {
@@ -896,12 +915,12 @@ std::vector<fm::DefaultLength> fm::MMLChannel::calc_tick_lengths(void) const {
 			}
 
 			// Dotted: 3/(2N)
-			if (r.get_num() == 3 && (r.get_den() % 2 == 0)) {
+			else if (r.get_num() == 3 && (r.get_den() % 2 == 0)) {
 				result[i] = fm::DefaultLength(r.get_den() / 2, std::nullopt, 1);
 			}
 
 			// Dotted: 1/(3N)
-			if (r.get_num() == 1 && (r.get_den() % 3 == 0)) {
+			else if (r.get_num() == 1 && (r.get_den() % 3 == 0)) {
 				result[i] = fm::DefaultLength(r.get_den() / 3, std::nullopt, 0);
 			}
 		}

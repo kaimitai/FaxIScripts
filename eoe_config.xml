@@ -116,6 +116,9 @@
 		<!-- pitch offset per channel, needed to convert to actual note values -->
 		<const name="music_channel_pitch_offset" region="us,randum,jp,en-transl" value="0x1457c" />
 		<const name="music_channel_pitch_offset" region="eu" value="0x145cb" />
+		<!-- ticks per minute - used for determining music speed -->
+		<const name="clocks_per_minute" region="eu" value="3000" />
+		<const name="clocks_per_minute" value="3600" />
 		<!-- chr tile offsets -->
 		<const name="world_tileset_count" value="9" />
 		<const name="chr_world_tile_offset" value="0x10010" />

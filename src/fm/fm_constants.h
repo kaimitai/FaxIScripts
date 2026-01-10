@@ -27,6 +27,8 @@ namespace fm {
 
 		constexpr char ID_MSCRIPT_ENTRYPOINT[]{ ".song" };
 
+		constexpr char ID_CLOCKS_PER_MINUTES[]{ "clocks_per_minute" };
+
 		constexpr char XML_OPCODE_PARAM_MNEMONIC[]{ "Mnemonic" };
 		constexpr char XML_OPCODE_PARAM_ARG[]{ "Arg" };
 		constexpr char XML_OPCODE_PARAM_FLOW[]{ "Flow" };
