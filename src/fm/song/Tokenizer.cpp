@@ -1,5 +1,6 @@
 #include <stdexcept>
 #include "Tokenizer.h"
+#include "mml_constants.h"
 
 fm::Tokenizer::Tokenizer(const std::string& p_str) :
 	text{ p_str },
@@ -275,8 +276,8 @@ fm::Token fm::Tokenizer::create_note() {
 		advance();
 	} // 3. Optional duration digits
 
-	if (peek() == '#') {
-		value.push_back('#');
+	if (peek() == c::RAW_DELIM) {
+		value.push_back(c::RAW_DELIM);
 		advance();
 	}
 
@@ -315,12 +316,12 @@ fm::Token fm::Tokenizer::create_rest() {
 	value.push_back(std::tolower(letter));
 	advance();
 
-	// RAW TICK LITERAL: f.ex. r#13
-	if (!at_end() && peek() == '#') {
-		value.push_back('#');
+	// RAW TICK LITERAL: f.ex. r~13
+	if (!at_end() && peek() == c::RAW_DELIM) {
+		value.push_back(c::RAW_DELIM);
 		advance();
 
-		// digits after '#'
+		// digits after '~'
 		while (!at_end() && std::isdigit((unsigned char)peek())) {
 			value.push_back(peek());
 			advance();
@@ -366,12 +367,12 @@ fm::Token fm::Tokenizer::create_length() {
 
 	char letter = peek();
 
-	// RAW TICK LITERAL: f.ex. r#13
-	if (letter == '#') {
-		value.push_back('#');
+	// RAW TICK LITERAL: f.ex. r~13
+	if (letter == c::RAW_DELIM) {
+		value.push_back(c::RAW_DELIM);
 		advance();
 
-		// digits after '#'
+		// digits after '~'
 		while (!at_end() && std::isdigit((unsigned char)peek())) {
 			value.push_back(peek());
 			advance();

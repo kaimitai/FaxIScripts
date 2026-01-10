@@ -608,7 +608,7 @@ std::string fm::MMLChannel::to_string(void) const {
 
 			result += note_no_to_str(note.pitch);
 			if (note.raw.has_value())
-				result += std::format("#{}", note.raw.value());
+				result += std::format("{}{}", c::RAW_DELIM, note.raw.value());
 			else {
 				if (note.length.has_value()) {
 					result += std::format("{}", note.length.value());
@@ -634,7 +634,7 @@ std::string fm::MMLChannel::to_string(void) const {
 			result.push_back('r');
 
 			if (r.raw.has_value())
-				result += std::format("#{}", r.raw.value());
+				result += std::format("{}{}", c::RAW_DELIM, r.raw.value());
 			else {
 				if (r.length.has_value()) {
 					result += std::format("{}", r.length.value());
@@ -660,7 +660,7 @@ std::string fm::MMLChannel::to_string(void) const {
 			auto& le = std::get<LengthEvent>(ev);
 
 			if (le.raw.has_value()) {
-				result += std::format("l#{}", le.raw.value());
+				result += std::format("l{}{}", c::RAW_DELIM, le.raw.value());
 			}
 			else if (le.length.has_value()) {
 				result += std::format("l{}", le.length.value());

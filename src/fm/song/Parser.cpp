@@ -424,15 +424,15 @@ fm::MmlEvent fm::Parser::parse_percussion_event(void) {
 }
 
 fm::MmlEvent fm::Parser::parse_rest_event() {
-	Token t = advance(); // e.g. "r4." or "r16.." or "r#13"
+	Token t = advance(); // e.g. "r4." or "r16.." or "r~13"
 	RestEvent ev{};
 
 	const std::string& s = t.text;
 	int i = 1; // skip 'r'
 
-	// --- RAW TICKS: r#13 ---
-	if (i < (int)s.size() && s[i] == '#') {
-		i++; // skip '#'
+	// --- RAW TICKS: r~13 ---
+	if (i < (int)s.size() && s[i] == c::RAW_DELIM) {
+		i++; // skip '~'
 
 		int ticks = 0;
 		while (i < (int)s.size() && std::isdigit((unsigned char)s[i])) {
@@ -580,8 +580,8 @@ fm::MmlEvent fm::Parser::parse_note_event() {
 		i++;
 
 	// --- NEW: raw tick literal ---
-	if (i < s.size() && s[i] == '#') {
-		i++; // skip '#'
+	if (i < s.size() && s[i] == c::RAW_DELIM) {
+		i++; // skip '~'
 
 		int ticks = 0;
 		while (i < s.size() && std::isdigit((unsigned char)s[i])) {

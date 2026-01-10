@@ -11,7 +11,7 @@ namespace fm {
 	namespace c {
 		constexpr char DIRECTIVE_SONG[]{ "#song" };
 		// delimiter for raw tick lengths
-		constexpr char RAW_DELIM{ '#' };
+		constexpr char RAW_DELIM{ '~' };
 
 		inline const std::vector<std::string> CHANNEL_NAMES
 		{ "#sq1", "#sq2", "#tri", "#noise" };
