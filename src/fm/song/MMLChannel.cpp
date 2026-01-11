@@ -498,25 +498,34 @@ int fm::MMLChannel::byte_to_volume(byte b) const {
 
 std::string fm::MMLChannel::to_string(void) const {
 	std::string result{ std::format("{} {{\n", channel_type_to_string()) };
-	/*
-	const auto LENSTR = [](const fm::DefaultLength& z) -> std::string {
-		std::string result;
-		if (z.length.has_value())
-			result += std::format(" len={} ", z.length.value());
-		if (z.raw.has_value())
-			result += std::format(" raw={} ", z.raw.value());
-		if (z.dots != 0)
-			result += std::format(" dots={} ", z.dots);
 
-		result += "\n";
-		return result;
+	// pretty-printing helper
+	bool last_was_newline{ true };
+	auto emit = [&](const std::string& s) {
+		if (s.empty())
+			return;
+
+		std::size_t i{ 0 };
+
+		// Handle a *leading* newline specially (to avoid duplicates)
+		if (s[0] == '\n') {
+			if (!last_was_newline) {
+				result.push_back('\n');
+				last_was_newline = true;
+			}
+			// Skip this leading newline in the rest of the processing
+			i = 1;
+		}
+
+		// Emit the remainder (if any)
+		if (i < s.size()) {
+			result.append(s.substr(i));
+			// Now update the flag based on the *last emitted character*
+			last_was_newline = (s.back() == '\n');
+		}
 		};
 
-	auto lens{ calc_tick_lengths() };
-	for (std::size_t i{ 0 }; i < lens.size(); ++i) {
-		result += std::format("{}: {}", i, LENSTR(lens[i]));
-	}
-	*/
+
 	std::optional<int> loopcnt{ std::nullopt };
 
 	for (const auto& ev : events) {
@@ -524,147 +533,148 @@ std::string fm::MMLChannel::to_string(void) const {
 		if (std::holds_alternative<NoteEvent>(ev)) {
 			auto& note = std::get<NoteEvent>(ev);
 
-			result += note_no_to_str(note.pitch);
+			emit(note_no_to_str(note.pitch));
 			if (note.raw.has_value())
-				result += std::format("{}{}", c::RAW_DELIM, note.raw.value());
+				emit(std::format("{}{}", c::RAW_DELIM, note.raw.value()));
 			else {
 				if (note.length.has_value()) {
-					result += std::format("{}", note.length.value());
+					emit(std::format("{}", note.length.value()));
 				}
 
 				for (int i{ 0 }; i < note.dots; ++i)
-					result.push_back('.');
+					emit(".");
 			}
-			result.push_back(note.tie_to_next ? '&' : ' ');
+			emit(note.tie_to_next ? "&" : " ");
 		}
 		else if (std::holds_alternative<PercussionEvent>(ev)) {
 			auto& pee = std::get<PercussionEvent>(ev);
 
-			result += std::format("p{}", pee.perc_no);
+			emit(std::format("p{}", pee.perc_no));
 			if (pee.repeat != 1)
-				result += std::format("*{}", pee.repeat);
+				emit(std::format("*{}", pee.repeat));
 
-			result.push_back(' ');
+			emit(" ");
 		}
 		else if (std::holds_alternative<RestEvent>(ev)) {
 			auto& r = std::get<RestEvent>(ev);
 
-			result.push_back('r');
+			emit("r");
 
 			if (r.raw.has_value())
-				result += std::format("{}{}", c::RAW_DELIM, r.raw.value());
+				emit(std::format("{}{}", c::RAW_DELIM, r.raw.value()));
 			else {
 				if (r.length.has_value()) {
-					result += std::format("{}", r.length.value());
+					emit(std::format("{}", r.length.value()));
 				}
 
 				for (int i{ 0 }; i < r.dots; ++i)
-					result.push_back('.');
+					emit(".");
 			}
-			result.push_back(' ');
+			emit(" ");
 		}
 		else if (std::holds_alternative<OctaveShiftEvent>(ev)) {
 			auto& os = std::get<OctaveShiftEvent>(ev);
 			if (os.amount > 0)
-				result += "> ";
+				emit("> ");
 			else
-				result += "< ";
+				emit("< ");
 		}
 		else if (std::holds_alternative<OctaveSetEvent>(ev)) {
 			auto& os = std::get<OctaveSetEvent>(ev);
-			result += std::format("o{} ", os.octave);
+			emit(std::format("o{} ", os.octave));
 		}
 		else if (std::holds_alternative<LengthEvent>(ev)) {
 			auto& le = std::get<LengthEvent>(ev);
 
 			if (le.raw.has_value()) {
-				result += std::format("l{}{}", c::RAW_DELIM, le.raw.value());
+				emit(std::format("l{}{}", c::RAW_DELIM, le.raw.value()));
 			}
 			else if (le.length.has_value()) {
-				result += std::format("l{}", le.length.value());
+				emit(std::format("l{}", le.length.value()));
 				for (int i{ 0 }; i < le.dots; ++i)
-					result += ".";
+					emit(".");
 			}
 
-			result.push_back(' ');
+			emit(" ");
 		}
 		else if (std::holds_alternative<PushAddrEvent>(ev)) {
-			result.push_back('[');
+			emit("[");
 		}
 		else if (std::holds_alternative<PopAddrEvent>(ev)) {
-			result.push_back(']');
+			emit("]");
 		}
 		else if (std::holds_alternative<BeginLoopEvent>(ev)) {
 			auto& bl = std::get<BeginLoopEvent>(ev);
 			if (loopcnt.has_value())
 				throw std::runtime_error("Begin-Loop event starts before the previous loop has ended");
 			loopcnt = bl.iterations;
-			result.push_back('[');
+			emit("[");
 		}
 		else if (std::holds_alternative<EndLoopEvent>(ev)) {
 			if (!loopcnt.has_value())
 				throw std::runtime_error("End-Loop event does not have a matching Begin-Loop event");
 
-			result += std::format("]{} ", loopcnt.value());
+			emit(std::format("]{} ", loopcnt.value()));
 			loopcnt.reset();
 		}
 		else if (std::holds_alternative<StartEvent>(ev))
-			result += std::format("\n!{}\n", c::OPCODE_START);
+			emit(std::format("\n!{}\n", c::OPCODE_START));
 		else if (std::holds_alternative<EndEvent>(ev))
-			result += std::format("\n!{}\n", c::OPCODE_END);
+			emit(std::format("\n!{}\n", c::OPCODE_END));
 		else if (std::holds_alternative<RestartEvent>(ev))
-			result += std::format("\n!{}\n", c::OPCODE_RESTART);
+			emit(std::format("\n!{}\n", c::OPCODE_RESTART));
 		else if (std::holds_alternative<SongTransposeEvent>(ev)) {
 			auto& ste = std::get<SongTransposeEvent>(ev);
-			result += std::format("S_{} ", ste.semitones);
+			emit(std::format("S_{} ", ste.semitones));
 		}
 		else if (std::holds_alternative<VolumeSetEvent>(ev)) {
 			auto& vse = std::get<VolumeSetEvent>(ev);
-			result += std::format("v{} ", vse.volume);
+			emit(std::format("v{} ", vse.volume));
 		}
 		else if (std::holds_alternative<PulseEvent>(ev)) {
 			auto& pe = std::get<PulseEvent>(ev);
-			result += std::format("\n!{} {} {} {} {}\n", c::OPCODE_PULSE,
+			emit(std::format("\n!{} {} {} {} {}\n", c::OPCODE_PULSE,
 				fm::util::mml_arg_to_string(fm::MmlArgDomain::PulseDuty, pe.duty_cycle),
 				fm::util::mml_arg_to_string(fm::MmlArgDomain::PulseLen, pe.length_counter),
 				fm::util::mml_arg_to_string(fm::MmlArgDomain::PulseConstVol, pe.constant_volume),
 				pe.volume_period
-			);
+			));
 		}
 		else if (std::holds_alternative<EnvelopeEvent>(ev)) {
 			auto& enve = std::get<EnvelopeEvent>(ev);
-			result += std::format("\n!{} {}\n", c::OPCODE_ENVELOPE,
-				fm::util::mml_arg_to_string(fm::MmlArgDomain::SQEnvMode, enve.value));
+			emit(std::format("\n!{} {}\n", c::OPCODE_ENVELOPE,
+				fm::util::mml_arg_to_string(fm::MmlArgDomain::SQEnvMode, enve.value))
+			);
 		}
 		else if (std::holds_alternative<ChannelTransposeEvent>(ev)) {
 			auto& cte = std::get<ChannelTransposeEvent>(ev);
-			result += std::format("_{} ", cte.semitones);
+			emit(std::format("_{} ", cte.semitones));
 		}
 		else if (std::holds_alternative<DetuneEvent>(ev)) {
 			auto& dte = std::get<DetuneEvent>(ev);
-			result += std::format("\n!{} {}\n", c::OPCODE_DETUNE, dte.value);
+			emit(std::format("\n!{} {}\n", c::OPCODE_DETUNE, dte.value));
 		}
 		else if (std::holds_alternative<LoopIfEvent>(ev)) {
 			auto& lie = std::get<LoopIfEvent>(ev);
-			result += std::format("\n!{} {}\n", c::OPCODE_LOOPIF,
-				lie.iterations);
+			emit(std::format("\n!{} {}\n", c::OPCODE_LOOPIF,
+				lie.iterations));
 		}
 		else if (std::holds_alternative<EffectEvent>(ev)) {
 			auto& effe = std::get<EffectEvent>(ev);
-			result += std::format("\n!{} {}\n", c::OPCODE_EFFECT,
-				effe.value);
+			emit(std::format("\n!{} {}\n", c::OPCODE_EFFECT,
+				effe.value));
 		}
 		else if (std::holds_alternative<JSREvent>(ev)) {
 			auto& jsre = std::get<JSREvent>(ev);
-			result += std::format("\n!{} {}\n", c::OPCODE_JSR,
-				jsre.label_name);
+			emit(std::format("\n!{} {}\n", c::OPCODE_JSR,
+				jsre.label_name));
 		}
 		else if (std::holds_alternative<LabelEvent>(ev)) {
 			auto& labe = std::get<LabelEvent>(ev);
-			result += std::format("\n{}:\n", labe.name);
+			emit(std::format("\n{}:\n", labe.name));
 		}
 		else if (std::holds_alternative<ReturnEvent>(ev)) {
-			result += std::format("\n!{}\n", c::OPCODE_RETURN);
+			emit(std::format("\n!{}\n", c::OPCODE_RETURN));
 		}
 		else {
 			std::visit([&](auto&& arg) {
@@ -675,7 +685,7 @@ std::string fm::MMLChannel::to_string(void) const {
 		}
 	}
 
-	result += "\n}\n";
+	emit("\n}");
 
 	return result;
 }
