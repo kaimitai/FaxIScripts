@@ -10,9 +10,8 @@
 
 using byte = unsigned char;
 
-fm::MMLChannel::MMLChannel(fm::Fraction p_song_tempo, int* p_bpm) :
-	song_tempo{ p_song_tempo },
-	bpm{ p_bpm }
+fm::MMLChannel::MMLChannel(fm::Fraction p_song_tempo) :
+	song_tempo{ p_song_tempo }
 {
 	reset_vm();
 }
@@ -349,7 +348,7 @@ fm::TickResult fm::MMLChannel::tick_length(const fm::Duration& dur) const {
 	}
 
 	// MUSICAL DURATION
-	Fraction qnote = Fraction(*bpm * vm.tempo.get_den(), vm.tempo.get_num());
+	Fraction qnote = Fraction(c::TICK_PER_MIN * vm.tempo.get_den(), vm.tempo.get_num());
 	Fraction total = qnote * (dur.musical * Fraction(4, 1));
 
 	int whole = total.extract_whole();
@@ -837,7 +836,7 @@ std::vector<fm::DefaultLength> fm::MMLChannel::calc_tick_lengths(void) const {
 	for (int i{ 0 }; i < 256; ++i)
 		result.push_back(fm::DefaultLength(std::nullopt, i, 0));
 
-	int qnote_ticks = (*bpm * song_tempo.get_den()) / song_tempo.get_num();
+	int qnote_ticks = (c::TICK_PER_MIN * song_tempo.get_den()) / song_tempo.get_num();
 	int whole_note_ticks = 4 * qnote_ticks;
 
 	for (int i{ 0 }; i < 256; ++i) {

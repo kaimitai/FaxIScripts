@@ -325,8 +325,7 @@ void fi::Cli::nes_to_mml(const std::string& p_nes_filename,
 	auto rom_data{ load_rom_and_determine_region(p_nes_filename) };
 	fm::MScriptLoader loader(m_config, rom_data);
 
-	fm::MMLSongCollection coll(static_cast<int>(m_config.constant(fm::c::ID_CLOCKS_PER_MINUTE)),
-		get_global_transpose(rom_data));
+	fm::MMLSongCollection coll(get_global_transpose(rom_data));
 	coll.extract_bytecode_collection(loader);
 
 	klib::file::write_string_to_file(coll.to_string(), p_mml_filename);
@@ -361,8 +360,7 @@ void fi::Cli::rom_to_midi(const std::string& p_nes_filename,
 
 	auto rom_data{ load_rom_and_determine_region(p_nes_filename) };
 	fm::MScriptLoader loader(m_config, rom_data);
-	fm::MMLSongCollection coll(static_cast<int>(m_config.constant(fm::c::ID_CLOCKS_PER_MINUTE)),
-		get_global_transpose(rom_data));
+	fm::MMLSongCollection coll(get_global_transpose(rom_data));
 	coll.extract_bytecode_collection(loader);
 	save_midi_files(coll, p_out_file_prefix);
 }
@@ -444,18 +442,7 @@ fm::MMLSongCollection fi::Cli::load_mml_file(const std::string& p_mml_file) cons
 
 	fm::Parser parser(tokens);
 
-	int clocks_per_minute{ 3600 };
-
-	// if config is not populated fall back to 3600
-	try {
-		clocks_per_minute = static_cast<int>(m_config.constant(fm::c::ID_CLOCKS_PER_MINUTE));
-	}
-	catch (const std::runtime_error&) {
-	}
-
-	std::cout << "Clocks per minute: " << clocks_per_minute << "\n";
-
-	auto coll{ parser.parse(clocks_per_minute) };
+	auto coll{ parser.parse() };
 	coll.sort();
 
 	return coll;

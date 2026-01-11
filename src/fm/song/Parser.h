@@ -30,10 +30,10 @@ namespace fm {
 		bool is_channel_name(const std::string& s) const;
 
 		// --- parsing ---
-		fm::MMLSongCollection parse_all_songs(int p_bpm);
-		fm::MMLSong parse_single_song(int* p_bpm);
+		fm::MMLSongCollection parse_all_songs(void);
+		fm::MMLSong parse_single_song(void);
 		fm::MMLChannel parse_channel(const std::string& name,
-			fm::Fraction p_song_tempo, int* p_bpm);
+			fm::Fraction p_song_tempo);
 
 		// --- event parsers ---
 		std::vector<MmlEvent> parse_note_event(void);
@@ -61,7 +61,7 @@ namespace fm {
 
 	public:
 		Parser(const std::vector<Token>& toks);
-		fm::MMLSongCollection parse(int bpm);
+		fm::MMLSongCollection parse(void);
 	};
 
 }

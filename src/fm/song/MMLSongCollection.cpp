@@ -6,16 +6,11 @@
 #include <format>
 
 fm::MMLSongCollection::MMLSongCollection(void) :
-	fm::MMLSongCollection(3600) {
-}
-
-fm::MMLSongCollection::MMLSongCollection(int p_bpm) :
-	fm::MMLSongCollection(p_bpm, { -12, -12, 12, 127 })
+	fm::MMLSongCollection({ -12, -12, 12, 127 })
 {
 }
 
-fm::MMLSongCollection::MMLSongCollection(int p_bpm, const std::vector<int>& p_global_transpose) :
-	bpm{ p_bpm },
+fm::MMLSongCollection::MMLSongCollection(const std::vector<int>& p_global_transpose) :
 	global_transpose{ p_global_transpose }
 {
 }
@@ -31,7 +26,7 @@ void fm::MMLSongCollection::extract_bytecode_collection(MScriptLoader& p_loader)
 		bytesong.index = static_cast<int>(i + 1);
 
 		for (std::size_t i{ 0 }; i < 4; ++i) {
-			fm::MMLChannel bytechannel(tempo, &bpm);
+			fm::MMLChannel bytechannel(tempo);
 
 			bytechannel.channel_type = c::CHANNEL_TYPES[i];
 
@@ -81,7 +76,7 @@ fm::Fraction fm::MMLSongCollection::determine_tempo(
 		for (const fm::Fraction& f : fm::c::ALLOWED_FRACTIONS) {
 
 			// T = (3600 * f) / D
-			fm::Fraction T = fm::Fraction(bpm * 4, 1) * f / fm::Fraction(D, 1);
+			fm::Fraction T = fm::Fraction(c::TICK_PER_MIN * 4, 1) * f / fm::Fraction(D, 1);
 
 			// Filter tempo range
 			double Td = T.to_double();
@@ -99,7 +94,7 @@ fm::Fraction fm::MMLSongCollection::determine_tempo(
 			for (const fm::Fraction& f : fm::c::ALLOWED_FRACTIONS) {
 
 				// expected ticks = (3600/T) * f
-				fm::Fraction expected = fm::Fraction(bpm * 4, 1) * f / T;
+				fm::Fraction expected = fm::Fraction(c::TICK_PER_MIN * 4, 1) * f / T;
 
 				if (expected.is_integer() && expected.extract_whole() == D)
 					score += count;
@@ -259,7 +254,7 @@ std::vector<smf::MidiFile> fm::MMLSongCollection::to_midi(void) {
 	std::vector<smf::MidiFile> result;
 
 	for (auto& song : songs)
-		result.push_back(song.to_midi(bpm, global_transpose));
+		result.push_back(song.to_midi(global_transpose));
 
 	return result;
 }

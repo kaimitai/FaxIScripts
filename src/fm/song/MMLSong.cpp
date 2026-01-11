@@ -14,10 +14,11 @@ std::string fm::MMLSong::to_string(void) const {
 	return result;
 }
 
-smf::MidiFile fm::MMLSong::to_midi(int p_bpm, const std::vector<int>& p_global_transpose) {
+smf::MidiFile fm::MMLSong::to_midi(const std::vector<int>& p_global_transpose) {
 	smf::MidiFile l_midi;
+
 	l_midi.setTicksPerQuarterNote(60);
-	l_midi.addTempo(0, 0, static_cast<double>(p_bpm) / static_cast<double>(60));
+	l_midi.addTempo(0, 0, static_cast<double>(c::TICK_PER_MIN) / static_cast<double>(60));
 
 	int songtransp{ channels.at(0).get_song_transpose() };
 

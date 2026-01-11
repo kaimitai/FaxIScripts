@@ -83,9 +83,8 @@ namespace fm {
 		fm::ChannelType channel_type;
 		std::vector<fm::MmlEvent> events;
 		fm::Fraction song_tempo;
-		int* bpm;
 
-		MMLChannel(fm::Fraction p_song_tempo, int* p_bpm);
+		MMLChannel(fm::Fraction p_song_tempo);
 		std::size_t get_start_index(void) const;
 		std::size_t get_label_addr(const std::string& label);
 		int get_song_transpose(void) const;

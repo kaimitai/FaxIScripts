@@ -28,7 +28,6 @@ namespace fm {
 	};
 
 	struct MMLSongCollection {
-		int bpm; // ticks per minute - 3600 NTSC, 3000 PAL
 		std::vector<int> global_transpose;
 
 		std::vector<fm::MMLSong> songs;
@@ -36,8 +35,7 @@ namespace fm {
 		void extract_bytecode_collection(MScriptLoader& p_loader);
 
 		MMLSongCollection(void);
-		MMLSongCollection(int p_bpm);
-		MMLSongCollection(int p_bpm, const std::vector<int>& p_global_transpose);
+		MMLSongCollection(const std::vector<int>& p_global_transpose);
 		std::string to_string(void) const;
 
 		std::vector<byte> to_bytecode(const fe::Config& p_config);

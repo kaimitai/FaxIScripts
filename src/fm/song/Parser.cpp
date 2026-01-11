@@ -9,18 +9,18 @@ fm::Parser::Parser(const std::vector<fm::Token>& toks) :
 {
 }
 
-fm::MMLSongCollection fm::Parser::parse(int p_bpm) {
-	return parse_all_songs(p_bpm);
+fm::MMLSongCollection fm::Parser::parse(void) {
+	return parse_all_songs();
 }
 
 // --- parse all songs in the file ---
-fm::MMLSongCollection fm::Parser::parse_all_songs(int p_bpm) {
-	fm::MMLSongCollection coll(p_bpm);
+fm::MMLSongCollection fm::Parser::parse_all_songs(void) {
+	fm::MMLSongCollection coll;
 
 	while (!at_end()) {
 		// Look for "#song"
 		if (check_song_header()) {
-			coll.songs.push_back(parse_single_song(&coll.bpm));
+			coll.songs.push_back(parse_single_song());
 			continue;
 		}
 		// Ignore anything outside songs
@@ -67,7 +67,7 @@ bool fm::Parser::match(TokenType type) {
 	return false;
 }
 
-fm::MMLSong fm::Parser::parse_single_song(int* p_bpm) {
+fm::MMLSong fm::Parser::parse_single_song(void) {
 	fm::MMLSong song;
 
 	// consume "#song"
@@ -97,7 +97,7 @@ fm::MMLSong fm::Parser::parse_single_song(int* p_bpm) {
 				advance();
 
 				song.channels.push_back(parse_channel(d.text,
-					song.tempo, p_bpm));
+					song.tempo));
 				continue;
 			}
 
@@ -121,8 +121,8 @@ bool fm::Parser::is_channel_name(const std::string& s) const {
 }
 
 fm::MMLChannel fm::Parser::parse_channel(const std::string& name,
-	fm::Fraction p_song_tempo, int* p_bpm) {
-	fm::MMLChannel ch(p_song_tempo, p_bpm);
+	fm::Fraction p_song_tempo) {
+	fm::MMLChannel ch(p_song_tempo);
 	ch.channel_type = string_to_channel_type(name);
 
 	// expect '{'

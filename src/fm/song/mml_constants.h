@@ -11,6 +11,11 @@ namespace fm {
 	enum class MmlArgDomain { PulseDuty, PulseLen, PulseConstVol, SQEnvMode };
 
 	namespace c {
+		// number of hardware ticks per minute
+		// used for tempo and note length calculations
+		// yes, PAL is 3000 - but let's not worry about that for now
+		constexpr int TICK_PER_MIN{ 3600 };
+
 		constexpr char DIRECTIVE_SONG[]{ "#song" };
 		// delimiter for raw tick lengths
 		constexpr char RAW_DELIM{ '~' };
