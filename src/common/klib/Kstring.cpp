@@ -124,6 +124,15 @@ std::string klib::str::to_lower(const std::string& str) {
 	return result;
 }
 
+std::string klib::str::to_upper(const std::string& str) {
+	std::string result;
+
+	for (char c : str)
+		result.push_back(std::toupper(c));
+
+	return result;
+}
+
 std::vector<std::string> klib::str::split_string(const std::string& input, char delim) {
 	std::vector<std::string> result;
 

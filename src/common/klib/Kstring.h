@@ -19,6 +19,7 @@ namespace klib {
 
 		std::string trim(const std::string& str);
 		std::string to_lower(const std::string& str);
+		std::string to_upper(const std::string& str);
 
 		std::pair<std::string, std::string> parse_define(const std::string& str);
 

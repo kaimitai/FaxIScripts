@@ -22,10 +22,10 @@ smf::MidiFile fm::MMLSong::to_midi(int p_bpm, const std::vector<int>& p_global_t
 	int songtransp{ channels.at(0).get_song_transpose() };
 
 	int max_ticks{ 0 };
-	max_ticks = std::max(max_ticks, channels.at(0).add_midi_track(l_midi, p_global_transpose.at(0) + songtransp));
-	max_ticks = std::max(max_ticks, channels.at(1).add_midi_track(l_midi, p_global_transpose.at(1) + + songtransp));
-	max_ticks = std::max(max_ticks, channels.at(2).add_midi_track(l_midi, p_global_transpose.at(2) + songtransp));
-	channels.at(3).add_midi_track(l_midi, 0, max_ticks);
+	max_ticks = std::max(max_ticks, channels.at(0).add_midi_track(l_midi, 0, p_global_transpose.at(0) + songtransp));
+	max_ticks = std::max(max_ticks, channels.at(1).add_midi_track(l_midi, 1, p_global_transpose.at(1) + + songtransp));
+	max_ticks = std::max(max_ticks, channels.at(2).add_midi_track(l_midi, 2, p_global_transpose.at(2) + songtransp));
+	channels.at(3).add_midi_track(l_midi, 9, 0, max_ticks);
 
 	return l_midi;
 }

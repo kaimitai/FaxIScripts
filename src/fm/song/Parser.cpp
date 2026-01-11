@@ -144,7 +144,9 @@ fm::MMLChannel fm::Parser::parse_channel(const std::string& name,
 
 		// --- event dispatch ---
 		if (check(TokenType::Note)) {
-			ch.events.push_back(parse_note_event());
+			const auto note_evs{ parse_note_event() };
+			for (const auto& ev : note_evs)
+				ch.events.push_back(ev);
 			continue;
 		}
 
@@ -264,7 +266,7 @@ fm::MmlEvent fm::Parser::parse_identifier_event() {
 	}
 	else if (idname == c::OPCODE_ENVELOPE) {
 		EnvelopeEvent ev{};
-		ev.value = consume_number(c::OPCODE_ENVELOPE, 0, 2);
+		ev.value = consume_number(c::OPCODE_ENVELOPE, 0, 255);
 		return ev;
 	}
 	else if (idname == c::OPCODE_DETUNE) {
@@ -564,14 +566,17 @@ fm::MmlEvent fm::Parser::parse_end_loop_or_pop_addr_event(void) {
 		return PopAddrEvent{};
 }
 
-fm::MmlEvent fm::Parser::parse_note_event() {
+std::vector<fm::MmlEvent> fm::Parser::parse_note_event() {
 	Token t = advance();
 	const std::string& s = t.text;
+	std::vector<fm::MmlEvent> result;
 
 	NoteEvent ev{};
 
+	auto resolved_note{ fm::util::note_string_to_pitch(s) };
+
 	// --- pitch letter ---
-	ev.pitch = fm::util::note_string_to_pitch(s);
+	ev.pitch = resolved_note.first;
 
 	int i = 1;
 
@@ -590,36 +595,43 @@ fm::MmlEvent fm::Parser::parse_note_event() {
 		}
 
 		ev.raw = ticks;
-		return ev;
+	}
+	else {
+
+		// --- musical duration digits ---
+		int start = i;
+		while (i < s.size() && std::isdigit((unsigned char)s[i]))
+			i++;
+
+		int length = -1;
+		if (i > start)
+			length = std::stoi(s.substr(start, i - start));
+
+		// --- dots ---
+		int dots = 0;
+		while (i < s.size() && s[i] == '.') {
+			dots++;
+			i++;
+		}
+
+		ev.dots = dots;
+
+		if (length > 0) {
+			ev.length = length;
+		}
+
+		// parser does NOT fold ties; VM will handle it
+		if (match(TokenType::Tie))
+			ev.tie_to_next = true;
 	}
 
-	// --- musical duration digits ---
-	int start = i;
-	while (i < s.size() && std::isdigit((unsigned char)s[i]))
-		i++;
+	if (resolved_note.second != 0)
+		result.push_back(OctaveShiftEvent{ resolved_note.second });
+	result.push_back(ev);
+	if (resolved_note.second != 0)
+		result.push_back(OctaveShiftEvent{ resolved_note.second * (-1) });
 
-	int length = -1;
-	if (i > start)
-		length = std::stoi(s.substr(start, i - start));
-
-	// --- dots ---
-	int dots = 0;
-	while (i < s.size() && s[i] == '.') {
-		dots++;
-		i++;
-	}
-
-	ev.dots = dots;
-
-	if (length > 0) {
-		ev.length = length;
-	}
-
-	// parser does NOT fold ties; VM will handle it
-	if (match(TokenType::Tie))
-		ev.tie_to_next = true;
-
-	return ev;
+	return result;
 }
 
 fm::MmlEvent fm::Parser::parse_song_transpose_event(void) {

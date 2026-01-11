@@ -90,8 +90,6 @@ namespace fm {
 		std::size_t get_label_addr(const std::string& label);
 		int get_song_transpose(void) const;
 
-		std::string get_asm(void);
-
 		fm::TickResult tick_length(const fm::Duration& dur) const;
 		void emit_set_length_bytecode_if_necessary(
 			std::vector<fm::MusicInstruction>& instrs,
@@ -99,12 +97,17 @@ namespace fm {
 			int dots = 0,
 			std::optional<int> raw = std::nullopt,
 			bool force = false);
+		void emit_set_length_bytecode_if_necessary(
+			std::vector<fm::MusicInstruction>& instrs,
+			const fm::Duration& p_duration,
+			bool force = false);
+		int advance_vm_ticks(const fm::Duration& dur);
 		fm::Duration resolve_duration(std::optional<int> length = std::nullopt,
 			int dots = 0,
 			std::optional<int> raw = std::nullopt) const;
 		int note_index(int octave, int pitch) const;
 		std::pair<int, int> split_note(byte p_note_no) const;
-		fm::TieResult resolve_tie_chain(const NoteEvent& start);
+		fm::TieResult resolve_tie_chain(void);
 		bool current_event_is_note_with_tie_next(void) const;
 		byte ints_to_sq_control(int duty, int envLoop, int constVol, int volume) const;
 		byte int_to_volume_byte(int p_volume) const;
@@ -126,8 +129,8 @@ namespace fm {
 		std::vector<DefaultLength> calc_tick_lengths(void) const;
 
 		// midi functions
-		int add_midi_track(smf::MidiFile& p_midi, int p_pitch_offset,
-			int p_max_ticks = -1);
+		int add_midi_track(smf::MidiFile& p_midi, int p_channel_no,
+			int p_pitch_offset, int p_max_ticks = -1);
 
 		// mml to bytecode function
 		fm::ChannelBytecodeExport to_bytecode(void);

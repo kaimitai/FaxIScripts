@@ -205,10 +205,17 @@ int fi::AsmReader::parse_numeric(const std::string& token) const {
 
 	int base = 10;
 	std::string digits;
-
+	if (token[0] == '%') {
+		base = 2;
+		digits = token.substr(1);
+	}
 	if (token[0] == '$') {
 		base = 16;
 		digits = token.substr(1);
+	}
+	else if (token.starts_with("0b") || token.starts_with("0B")) {
+		base = 2;
+		digits = token.substr(2);
 	}
 	else if (token.starts_with("0x") || token.starts_with("0X")) {
 		base = 16;

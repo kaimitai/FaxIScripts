@@ -5,6 +5,8 @@
 #include <string>
 #include "./../fe/Config.h"
 #include "MusicOpcode.h"
+#include "./../common/klib/Kstring.h"
+#include "./song/mml_constants.h"
 
 using byte = unsigned char;
 
@@ -22,8 +24,10 @@ namespace fm {
 		bool is_note(const std::string& token);
 		byte note_to_byte(const std::string& token, int8_t offset);
 
-		int note_string_to_pitch(const std::string& s);
-
+		std::pair<int, int> note_string_to_pitch(const std::string& s);
+		int mml_constant_to_int(const std::string& name);
+		std::string mml_arg_to_string(fm::MmlArgDomain p_domain,
+			int p_value);
 	}
 
 }

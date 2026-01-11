@@ -36,7 +36,7 @@ namespace fm {
 			fm::Fraction p_song_tempo, int* p_bpm);
 
 		// --- event parsers ---
-		MmlEvent parse_note_event(void);
+		std::vector<MmlEvent> parse_note_event(void);
 		MmlEvent parse_percussion_event(void);
 		MmlEvent parse_rest_event();
 		MmlEvent parse_length_event(void);

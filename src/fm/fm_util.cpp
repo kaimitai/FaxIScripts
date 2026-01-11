@@ -1,5 +1,6 @@
 #include <format>
 #include "fm_constants.h"
+#include "./song/mml_constants.h"
 #include "fm_util.h"
 
 std::map<byte, std::string> fm::util::generate_note_meta_consts(void) {
@@ -26,7 +27,7 @@ fm::MusicOpcode fm::util::decode_opcode_byte(byte b,
 
 std::string fm::util::pitch_offset_to_string(int8_t val) {
 	int total = static_cast<int>(val);
-	
+
 	bool neg{ total < 0 };
 	if (neg)
 		total *= -1;
@@ -176,7 +177,7 @@ byte fm::util::note_to_byte(const std::string& token, int8_t offset) {
 	return static_cast<uint8_t>(finalByte);
 }
 
-int fm::util::note_string_to_pitch(const std::string& s) {
+std::pair<int, int> fm::util::note_string_to_pitch(const std::string& s) {
 	// s is something like "c", "c+", "f-", "g+8.", etc.
 	// We only care about the first 1-2 chars.
 
@@ -199,9 +200,40 @@ int fm::util::note_string_to_pitch(const std::string& s) {
 		else if (s[1] == '-') base -= 1;
 	}
 
-	if (base < 0)
-		base += 12;
-	base %= 12;
+	int octave_delta{ 0 };
+	if (base < 0) {
+		base = 11;
+		octave_delta = -1;
+	}
+	else if (base >= 12) {
+		base = 0;
+		octave_delta = 1;
+	}
 
-	return base; // 0..11, but may be -1 or 12 before wrap
+	return std::make_pair(base, octave_delta);
+}
+
+int fm::util::mml_constant_to_int(const std::string& name) {
+	std::string upper_const{ klib::str::to_upper(name) };
+
+	if (c::OPERAND_CONSTANTS.contains(upper_const))
+		return c::OPERAND_CONSTANTS.at(upper_const);
+	else
+		throw std::runtime_error(std::format("Constant ${} undefined", name));
+}
+
+std::string fm::util::mml_arg_to_string(fm::MmlArgDomain p_domain,
+	int p_value) {
+
+	const auto iter{ c::OPERAND_CONSTANT_BY_ARG_DOMAIN.find(p_domain) };
+	if (iter == end(c::OPERAND_CONSTANT_BY_ARG_DOMAIN))
+		return std::to_string(p_value);
+	else {
+		const auto jter{ iter->second.find(p_value) };
+		if (jter == end(iter->second))
+			return std::to_string(p_value);
+		else
+			return std::format("${}", jter->second);
+	}
+
 }

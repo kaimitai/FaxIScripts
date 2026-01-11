@@ -63,6 +63,7 @@ namespace fm {
         fm::Token create_volume_set();
         fm::Token create_tie();
         fm::Token create_number();
+        fm::Token create_number_from_constant();
         fm::Token create_rest();
         fm::Token create_note();
         fm::Token create_percussion();

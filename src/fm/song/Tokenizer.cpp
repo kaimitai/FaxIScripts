@@ -1,6 +1,7 @@
 #include <stdexcept>
 #include "Tokenizer.h"
 #include "mml_constants.h"
+#include "./../fm_util.h"
 
 fm::Tokenizer::Tokenizer(const std::string& p_str) :
 	text{ p_str },
@@ -27,6 +28,8 @@ std::vector<fm::Token> fm::Tokenizer::tokenize(void) {
 			tokens.push_back(create_label_or_ref());
 		else if (c == '!')
 			tokens.push_back(create_identifier());
+		else if (c == '$')
+			tokens.push_back(create_number_from_constant());
 		else if (c == '{' || c == '}')
 			tokens.push_back(create_brace());
 		else if (c == '[' || c == ']')
@@ -256,6 +259,34 @@ fm::Token fm::Tokenizer::create_number() {
 	return tok;
 }
 
+fm::Token fm::Tokenizer::create_number_from_constant() {
+	Token tok;
+	tok.type = TokenType::Number;
+
+	tok.line = line;
+	tok.column = column;
+
+	std::string value;
+
+	char c = advance(); // consume '$'
+
+	while (!at_end()) {
+		char d = peek();
+		if (std::isalnum((unsigned char)d) || d == '_') {
+			value.push_back(d);
+			advance();
+		}
+		else {
+			break;
+		}
+	}
+
+	tok.text = value;
+	tok.number = fm::util::mml_constant_to_int(tok.text);
+
+	return tok;
+}
+
 fm::Token fm::Tokenizer::create_note() {
 	Token tok;
 	tok.type = TokenType::Note;
@@ -268,8 +299,12 @@ fm::Token fm::Tokenizer::create_note() {
 	char letter = peek();
 	value.push_back(std::tolower(letter));
 
-	advance(); // 2. Optional accidental (+ or -)
+	advance(); // 2. Optional accidental (+ or - or #)
 	char c = peek();
+
+	// turn # into + for sharp notes
+	if (c == '#')
+		c = '+';
 
 	if (c == '+' || c == '-') {
 		value.push_back(c);

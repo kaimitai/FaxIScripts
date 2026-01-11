@@ -45,7 +45,7 @@ void fm::MMLWriter::generate_mml_file(const std::string& p_filename,
 			);
 
 	std::string af{
-		" ; MScript asm file extracted by FaxIScripts v0.4\n ; https://github.com/kaimitai/FaxIScripts\n\n"
+		" ; MScript asm file extracted by FaxIScripts v0.5\n ; https://github.com/kaimitai/FaxIScripts\n\n"
 	};
 
 	// inform about channel pitch offsets

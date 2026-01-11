@@ -1,5 +1,6 @@
 #include "MMLChannel.h"
 #include "./../fm_constants.h"
+#include "./../fm_util.h"
 #include "mml_constants.h"
 #include <format>
 #include <numeric>
@@ -107,17 +108,11 @@ byte fm::MMLChannel::encode_percussion(int p_perc, int p_repeat) const {
 		return result;
 }
 
-// add set-length instructions if the input tick length differs from the previous
 void fm::MMLChannel::emit_set_length_bytecode_if_necessary(
 	std::vector<fm::MusicInstruction>& instrs,
-	std::optional<int> length, int dots, std::optional<int> raw,
+	const fm::Duration& p_duration,
 	bool force) {
-	auto dur{ resolve_duration(length, dots, raw) };
-	auto ticks{ tick_length(dur) };
-
-	vm.st.fraq += ticks.fraq;
-	int carry = vm.st.fraq.extract_whole();
-	int final_ticks = ticks.whole + carry;
+	int final_ticks = advance_vm_ticks(p_duration);
 
 	if (final_ticks > 255)
 		throw std::runtime_error("Tick-length exceeds 255");
@@ -140,6 +135,25 @@ void fm::MMLChannel::emit_set_length_bytecode_if_necessary(
 
 }
 
+int fm::MMLChannel::advance_vm_ticks(const fm::Duration& p_duration) {
+	auto ticks{ tick_length(p_duration) };
+
+	vm.st.fraq += ticks.fraq;
+	int carry = vm.st.fraq.extract_whole();
+	int final_ticks = ticks.whole + carry;
+
+	return final_ticks;
+}
+
+// add set-length instructions if the input tick length differs from the previous
+void fm::MMLChannel::emit_set_length_bytecode_if_necessary(
+	std::vector<fm::MusicInstruction>& instrs,
+	std::optional<int> length, int dots, std::optional<int> raw,
+	bool force) {
+	auto dur{ resolve_duration(length, dots, raw) };
+	emit_set_length_bytecode_if_necessary(instrs, dur, force);
+}
+
 fm::ChannelBytecodeExport fm::MMLChannel::to_bytecode(void) {
 	std::vector<fm::MusicInstruction> instrs;
 
@@ -150,15 +164,17 @@ fm::ChannelBytecodeExport fm::MMLChannel::to_bytecode(void) {
 
 	reset_vm();
 
-	for (std::size_t i{ 0 }; i < events.size(); ++i) {
-		const auto& ev{ events[i] };
+	for (; vm.pc < events.size(); ++vm.pc) {
+		const auto& ev{ events[vm.pc] };
 
 		// musical note
 		if (std::holds_alternative<NoteEvent>(ev)) {
-			auto& note = std::get<NoteEvent>(ev);
+			auto tickresult{ resolve_tie_chain() };
 
-			emit_set_length_bytecode_if_necessary(instrs, note.length, note.dots, note.raw);
-			byte note_byte{ static_cast<byte>(note_index(vm.st.octave, note.pitch)) };
+			emit_set_length_bytecode_if_necessary(instrs,
+				tickresult.total);
+			byte note_byte{ static_cast<byte>(note_index(vm.st.octave,
+				tickresult.pitch)) };
 
 			fm::MusicInstruction notei(note_byte);
 			instrs.push_back(notei);
@@ -317,110 +333,6 @@ fm::ChannelBytecodeExport fm::MMLChannel::to_bytecode(void) {
 	return fm::ChannelBytecodeExport{ instrs, get_start_index() };
 }
 
-std::string fm::MMLChannel::get_asm(void) {
-	std::string result;
-	reset_vm();
-
-	while (step()) {
-
-		const fm::MmlEvent* ev{ current_event() };
-
-		if (auto* n = std::get_if<NoteEvent>(ev)) {
-			auto noteresult{ resolve_tie_chain(*n) };
-
-			auto ticks{ tick_length(noteresult.total) };
-			int pitch{ noteresult.pitch };
-
-			vm.st.fraq += ticks.fraq;
-			int carry = vm.st.fraq.extract_whole();
-			int final_ticks = ticks.whole + carry;
-
-			if (final_ticks != vm.st.ticklength) {
-				vm.st.ticklength = final_ticks;
-
-				if (final_ticks > 109)
-					result += std::format("NoteLength {} ", final_ticks);
-				else
-					result += std::format("l{} ", final_ticks);
-			}
-
-			result += std::format("{} ", note_index_to_str(
-				note_index(vm.st.octave, pitch)
-			));
-
-		}
-		else if (auto* r = std::get_if<LengthEvent>(ev)) {
-			if (r->raw.has_value()) {
-				vm.st.default_length = { std::nullopt, r->raw.value(), 0 };
-			}
-			else if (r->length.has_value()) {
-				vm.st.default_length = { r->length.value(), std::nullopt, r->dots };
-			}
-			else
-				throw std::runtime_error("Malformed length event");
-		}
-		else if (auto* r = std::get_if<TempoSetEvent>(ev)) {
-			vm.tempo = r->tempo;
-		}
-		else if (auto* r = std::get_if<RestEvent>(ev)) {
-			auto dur{ resolve_duration(r->length, r->dots, r->raw) };
-			auto ticks{ tick_length(dur) };
-
-			vm.st.fraq += ticks.fraq;
-			int carry = vm.st.fraq.extract_whole();
-			int final_ticks = ticks.whole + carry;
-
-			if (final_ticks != vm.st.ticklength) {
-				vm.st.ticklength = final_ticks;
-
-				if (final_ticks > 109)
-					result += std::format("NoteLength {} ", final_ticks);
-				else
-					result += std::format("l{} ", final_ticks);
-			}
-
-			result += std::format("r ");
-
-		}
-		else if (auto* o = std::get_if<OctaveSetEvent>(ev)) {
-			vm.st.octave = o->octave;
-		}
-		else if (auto* v = std::get_if<VolumeSetEvent>(ev)) {
-			result += std::format("Volume {} \n", v->volume);
-		}
-		else if (auto* os = std::get_if<OctaveShiftEvent>(ev)) {
-			vm.st.octave += os->amount;
-		}
-		else if (auto* pusha = std::get_if<PushAddrEvent>(ev)) {
-			result += "\nPushAddr\n";
-		}
-		else if (auto* popa = std::get_if<PopAddrEvent>(ev)) {
-			result += "\nPopAddr\n";
-		}
-		else if (auto* begl = std::get_if<BeginLoopEvent>(ev)) {
-			result += std::format("\nBeginLoop {}\n", begl->iterations);
-		}
-		else if (auto* endl = std::get_if<EndLoopEvent>(ev)) {
-			result += "\nEndLoop\n";
-		}
-		else if (auto* ldef = std::get_if<LabelEvent>(ev)) {
-			result += std::format("\n{}:\n", ldef->name);
-		}
-		else if (auto* jsr = std::get_if<JSREvent>(ev)) {
-			result += std::format("\njsr {}\n", jsr->label_name);
-		}
-		else if (auto* ct = std::get_if<ChannelTransposeEvent>(ev)) {
-			result += std::format("\nChanneltranspose {}\n", ct->semitones);
-		}
-		else if (auto* st = std::get_if<SongTransposeEvent>(ev)) {
-			result += std::format("\nGlobalTranspose {}\n", st->semitones);
-		}
-
-	}
-
-	return result;
-}
-
 fm::TickResult fm::MMLChannel::tick_length(const fm::Duration& dur) const {
 	// RAW TICKS: bypass musical math entirely
 	if (dur.is_raw()) {
@@ -500,7 +412,7 @@ fm::Duration fm::MMLChannel::resolve_duration(std::optional<int> length,
 		return fm::Duration::from_raw_ticks(raw.value());
 	else if (length.has_value() || vm.st.default_length.length.has_value()) {
 		// add the default length-dots if the note did not have an explicit musical length
-		int base = length.value_or(vm.st.default_length.length.value());
+		int base = length.has_value() ? length.value() : vm.st.default_length.length.value();
 		int final_dots{ length ? dots : dots + vm.st.default_length.dots };
 		return Duration::from_length_and_dots(base, final_dots);
 	}
@@ -510,25 +422,31 @@ fm::Duration fm::MMLChannel::resolve_duration(std::optional<int> length,
 		throw std::runtime_error("No note-length available");
 }
 
-fm::TieResult fm::MMLChannel::resolve_tie_chain(const NoteEvent& start) {
-	int pitch = start.pitch;
-	Duration total{ resolve_duration(start.length, start.dots, start.raw) };
+fm::TieResult fm::MMLChannel::resolve_tie_chain(void) {
+	NoteEvent neve{ std::get<NoteEvent>(events.at(vm.pc)) };
+
+	int pitch = neve.pitch;
+	Duration total{ resolve_duration(neve.length, neve.dots, neve.raw) };
 
 	// single note - allow raw ticks
-	if (start.tie_to_next == false)
+	if (!neve.tie_to_next)
 		return fm::TieResult(pitch, total);
 
-	// We assume the VM is currently positioned at 'start'
-	while (current_event_is_note_with_tie_next()) {
-		step(); // advance VM one event
-		const NoteEvent* n = std::get_if<NoteEvent>(current_event());
-		if (!n)
-			throw std::runtime_error("Tied note not followed by note");
-		if (n->raw)
-			throw std::runtime_error("Tied note has raw length");
-		if (n->pitch != pitch)
+	while (neve.tie_to_next) {
+		++vm.pc;
+
+		if (vm.pc >= events.size() ||
+			!std::holds_alternative<NoteEvent>(events.at(vm.pc)))
+			throw std::runtime_error("Note tied to non-note");
+
+		neve = std::get<NoteEvent>(events.at(vm.pc));
+
+		if (pitch != neve.pitch)
 			throw std::runtime_error("Tied notes have different pitches");
-		total = total + resolve_duration(n->length, n->dots, n->raw);
+		else if (neve.raw.has_value())
+			throw std::runtime_error("Tied note has raw length - not allowed");
+
+		total = total + resolve_duration(neve.length, neve.dots, neve.raw);
 	}
 
 	return { pitch, total };
@@ -707,12 +625,16 @@ std::string fm::MMLChannel::to_string(void) const {
 		else if (std::holds_alternative<PulseEvent>(ev)) {
 			auto& pe = std::get<PulseEvent>(ev);
 			result += std::format("\n!{} {} {} {} {}\n", c::OPCODE_PULSE,
-				pe.duty_cycle, pe.length_counter, pe.constant_volume, pe.volume_period);
+				fm::util::mml_arg_to_string(fm::MmlArgDomain::PulseDuty, pe.duty_cycle),
+				fm::util::mml_arg_to_string(fm::MmlArgDomain::PulseLen, pe.length_counter),
+				fm::util::mml_arg_to_string(fm::MmlArgDomain::PulseConstVol, pe.constant_volume),
+				pe.volume_period
+			);
 		}
 		else if (std::holds_alternative<EnvelopeEvent>(ev)) {
 			auto& enve = std::get<EnvelopeEvent>(ev);
 			result += std::format("\n!{} {}\n", c::OPCODE_ENVELOPE,
-				enve.value);
+				fm::util::mml_arg_to_string(fm::MmlArgDomain::SQEnvMode, enve.value));
 		}
 		else if (std::holds_alternative<ChannelTransposeEvent>(ev)) {
 			auto& cte = std::get<ChannelTransposeEvent>(ev);
@@ -831,10 +753,12 @@ void fm::MMLChannel::parse_bytecode(const std::vector<fm::MusicInstruction>& ins
 		// begin loop
 		else if (ob == c::MSCRIPT_OPCODE_BEGIN_LOOP) {
 			events.push_back(BeginLoopEvent{ static_cast<int>(instr.operand.value()) });
+			reset();
 		}
 		// end loop
 		else if (ob == c::MSCRIPT_OPCODE_END_LOOP) {
 			events.push_back(EndLoopEvent{});
+			reset();
 		} // song transpose
 		else if (ob == c::MSCRIPT_OPCODE_GLOBAL_TRANSPOSE) {
 			events.push_back(SongTransposeEvent{ byte_to_int(instr.operand.value()) });
@@ -877,6 +801,7 @@ void fm::MMLChannel::parse_bytecode(const std::vector<fm::MusicInstruction>& ins
 		}
 		else if (ob == c::MSCRIPT_OPCODE_PUSHADDR) {
 			events.push_back(PushAddrEvent{});
+			reset();
 		}
 		else if (ob == c::MSCRIPT_OPCODE_POPADDR) {
 			events.push_back(PopAddrEvent{});
@@ -886,6 +811,7 @@ void fm::MMLChannel::parse_bytecode(const std::vector<fm::MusicInstruction>& ins
 		}
 		else if (ob == c::MSCRIPT_OPCODE_JSR) {
 			events.push_back(JSREvent{ std::format("@label_{}", instr.jump_target.value()) });
+			reset();
 		}
 		else
 			throw std::runtime_error(std::format("Unhandled opcode {:02x}", ob));
@@ -929,29 +855,29 @@ std::vector<fm::DefaultLength> fm::MMLChannel::calc_tick_lengths(void) const {
 	return result;
 }
 
-int fm::MMLChannel::add_midi_track(smf::MidiFile& p_midi, int p_pitch_offset,
-	int p_max_ticks) {
+int fm::MMLChannel::add_midi_track(smf::MidiFile& p_midi, int p_channel_no,
+	int p_pitch_offset, int p_max_ticks) {
 	const std::vector<int> duty_cycle_to_instr{ 80, 80, 81, 62, 64, 64, 64, 64 };
 	const std::vector<int> perc_note_no{ 0, 36, 38, 42, 0, 70, 70, 0 };
 	bool is_perc{ channel_type == fm::ChannelType::noise };
 
 	p_midi.addTrack();
 	int l_track_no{ p_midi.getTrackCount() - 1 };
-	int l_channel_no{ is_perc ? 9 : 0 };
+	// int l_channel_no{ is_perc ? 9 : 0 };
 
 	std::set<VMState> vmstates;
 
 	int default_midi_volume{ 100 };
 	if (channel_type == fm::ChannelType::tri)
-		default_midi_volume = 70;
+		default_midi_volume = 85;
 	else if (channel_type == fm::ChannelType::noise)
-		default_midi_volume = 75;
+		default_midi_volume = 90;
 
-	p_midi.addController(l_track_no, 0, l_channel_no, 7,
+	p_midi.addController(l_track_no, 0, p_channel_no, 7,
 		default_midi_volume
 	);
 
-	p_midi.addTimbre(l_track_no, 0, l_channel_no,
+	p_midi.addTimbre(l_track_no, 0, p_channel_no,
 		channel_type == fm::ChannelType::tri ? 33 :
 		duty_cycle_to_instr.at(vm.st.duty_cycle)
 	);
@@ -979,29 +905,32 @@ int fm::MMLChannel::add_midi_track(smf::MidiFile& p_midi, int p_pitch_offset,
 		const auto& ev{ events[vm.pc] };
 
 		if (std::holds_alternative<NoteEvent>(ev)) {
-			auto& note = std::get<NoteEvent>(ev);
-			auto tickdur = tick_length(resolve_duration(note.length, note.dots, note.raw));
+			auto tickresult{ resolve_tie_chain() };
+			int int_ticks{ advance_vm_ticks(tickresult.total) };
 
-			p_midi.addNoteOn(l_track_no, ticks, l_channel_no,
-				12 * (vm.st.octave + 1) + note.pitch + p_pitch_offset + vm.st.pitchoffset, (default_midi_volume * vm.st.volume) / 15);
-			ticks += tickdur.whole;
-			p_midi.addNoteOff(l_track_no, ticks, l_channel_no,
-				12 * (vm.st.octave + 1) + note.pitch + p_pitch_offset + vm.st.pitchoffset, 0);
+			p_midi.addNoteOn(l_track_no, ticks, p_channel_no,
+				12 * (vm.st.octave + 1) + tickresult.pitch + p_pitch_offset + vm.st.pitchoffset, (default_midi_volume * vm.st.volume) / 15);
+			ticks += int_ticks;
+			p_midi.addNoteOff(l_track_no, ticks, p_channel_no,
+				12 * (vm.st.octave + 1) + tickresult.pitch + p_pitch_offset + vm.st.pitchoffset, 0);
 		}
 		else if (std::holds_alternative<PercussionEvent>(ev)) {
 			auto& perce = std::get<PercussionEvent>(ev);
-			auto tickdur = tick_length(resolve_duration(vm.st.default_length.length,
-				vm.st.default_length.dots, vm.st.default_length.raw));
+			int int_ticks{ advance_vm_ticks(
+				resolve_duration(vm.st.default_length.length,
+				vm.st.default_length.dots, vm.st.default_length.raw))
+			};
 
-			int reps{ perce.repeat == 0 ? 255 : perce.repeat };
+			int reps{ perce.repeat == 0 ? 256 : perce.repeat };
 			bool l_end_channel{ false };
 
 			for (int rep{ 0 }; rep < reps; ++rep) {
-				p_midi.addNoteOn(l_track_no, ticks, l_channel_no,
+				p_midi.addNoteOn(l_track_no, ticks, p_channel_no,
 					perc_note_no.at(perce.perc_no), default_midi_volume);
-				ticks += tickdur.whole;
 
-				p_midi.addNoteOff(l_track_no, ticks, l_channel_no,
+				ticks += int_ticks;
+
+				p_midi.addNoteOff(l_track_no, ticks, p_channel_no,
 					perc_note_no.at(perce.perc_no), 0);
 
 				if (ticks > p_max_ticks) {
@@ -1027,9 +956,8 @@ int fm::MMLChannel::add_midi_track(smf::MidiFile& p_midi, int p_pitch_offset,
 		}
 		else if (std::holds_alternative<RestEvent>(ev)) {
 			auto& re = std::get<RestEvent>(ev);
-
-			auto tickdur = tick_length(resolve_duration(re.length, re.dots, re.raw));
-			ticks += tickdur.whole;
+			int int_ticks{ advance_vm_ticks(resolve_duration(re.length, re.dots, re.raw)) };
+			ticks += int_ticks;
 		}
 		else if (std::holds_alternative<OctaveSetEvent>(ev)) {
 			auto& se = std::get<OctaveSetEvent>(ev);
