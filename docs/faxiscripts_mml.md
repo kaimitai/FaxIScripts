@@ -474,7 +474,7 @@ This sets length = quarter note, then plays p1, p2, p3, a rest, and p2 four time
   ```mml
   #sq1 {
     S_-12
-    o4 c d e f
+    l4 o4 c d e f
     !end
   }
   ```
@@ -520,7 +520,7 @@ This is a global transpose for the song, separate from the ROM’s built-in glob
   ```mml
   #sq1 {
     v12
-    o4 c d e f
+    o4 l4 c d e f
   }
   ```
 
@@ -586,7 +586,7 @@ These special commands control the flow of music in a channel:
 ```mml
 #sq1 {
   !start
-  o4
+  o4 l4
   c d e f
   !jsr @intro    ; jump to subroutine
   g a b
@@ -613,7 +613,7 @@ When execution reaches this opcode, it **checks how many iterations have already
 #### Correct Usage Example
 ```mml
 #sq1 {
-  o4
+  o4 l4
   ; Repeat the pattern 4 times, but skip the remainder of the last pass:
   [ 
     c d e f
