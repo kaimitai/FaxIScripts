@@ -6,8 +6,10 @@
 #include "./../MusicOpcode.h"
 #include "./../../fe/Config.h"
 #include "./../../common/midifile/MidiFile.h"
+#include "Fraction.h"
 #include <map>
 #include <set>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -41,6 +43,9 @@ namespace fm {
 		std::vector<byte> to_bytecode(const fe::Config& p_config);
 		std::vector<smf::MidiFile> to_midi(void);
 		void sort(void);
+
+		// calcs
+		std::string integral_notes(void) const;
 
 	private:
 		// turn bytecode into mml via an MML loader

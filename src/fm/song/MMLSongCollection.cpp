@@ -279,3 +279,98 @@ void fm::MMLSongCollection::sort(void) {
 
 	songs = sorted_songs;
 }
+
+std::string fm::MMLSongCollection::integral_notes(void) const {
+	std::vector<std::map<fm::Fraction, int>> int_tix;
+
+	for (int qnote_ticks{ 1 }; qnote_ticks <= 255; ++qnote_ticks) {
+		// 0-OK, 1-fractional ticks, 2-out of bounds
+		std::map<fm::Fraction, int> legals;
+
+		fm::Fraction wnote(qnote_ticks * 4, 1);
+
+		for (const auto& frac : c::ALLOWED_FRACTIONS) {
+			fm::Fraction chk{ wnote * frac };
+
+			int fres{ 0 };
+			if (!chk.is_integer())
+				fres = 1;
+			else {
+				int ww{ chk.extract_whole() };
+				if (ww <= 0 || ww >= 256)
+					fres = 2;
+			}
+
+			legals.insert(std::make_pair(frac, fres));
+		}
+
+		int_tix.push_back(legals);
+	}
+
+	std::string result{
+		"| tempo (q/min) | T (ticks/q) | coverage | 1 | 2 | 4 | 8 | 16 | 32 | 1. | 2. | 4. | 8. | 16. | 3 | 6 | 12 | 24 |\n"
+		"| :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |\n"
+	};
+
+	const auto f2r = [&int_tix](std::size_t p_idx, int p_num, int p_dem) -> int {
+		return int_tix[p_idx].at(fm::Fraction(p_num, p_dem));
+		};
+
+		const auto f2s = [&int_tix](std::size_t p_idx, int p_num, int p_dem) -> std::string {
+		std::string result;
+
+		int status{ int_tix[p_idx].at(fm::Fraction(p_num, p_dem)) };
+
+		if (status == 0)
+			result = " Y ";
+		else if (status == 1)
+			result = " N ";
+		else
+			result = " X ";
+
+		return result;
+		};
+
+	for (std::size_t i{ 0 }; i < int_tix.size(); ++i) {
+
+		int qtix{ static_cast<int>(i + 1) };
+		const auto& mp{ int_tix[i] };
+
+		fm::Fraction bpm{ fm::Fraction(3600,1) / fm::Fraction(qtix,1) };
+		int coverage{ 0 };
+
+		for (const auto& kv : mp)
+			if (kv.second == 0)
+				++coverage;
+
+		if (coverage < 11 || f2r(i, 1, 1) != 0)
+			continue;
+
+		result += "| ";
+		result += bpm.to_tempo_string() + " | ";
+		result += std::to_string(i + 1) + " | ";
+		result += std::to_string(coverage) + " | ";
+
+		result += f2s(i, 1, 1) + " | ";
+		result += f2s(i, 1, 2) + " | ";
+		result += f2s(i, 1, 4) + " | ";
+		result += f2s(i, 1, 8) + " | ";
+		result += f2s(i, 1, 16) + " | ";
+		result += f2s(i, 1, 32) + " | ";
+
+		result += f2s(i, 3, 2) + " | ";
+		result += f2s(i, 3, 4) + " | ";
+		result += f2s(i, 3, 8) + " | ";
+		result += f2s(i, 3, 16) + " | ";
+		result += f2s(i, 3, 32) + " | ";
+
+		result += f2s(i, 1, 3) + " | ";
+		result += f2s(i, 1, 6) + " | ";
+		result += f2s(i, 1, 12) + " | ";
+		result += f2s(i, 1, 24) + " | ";
+
+		result += "\n";
+	}
+
+	return result;
+}

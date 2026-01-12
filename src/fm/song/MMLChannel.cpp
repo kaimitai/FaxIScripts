@@ -100,7 +100,9 @@ bool fm::MMLChannel::step(void) {
 }
 
 byte fm::MMLChannel::encode_percussion(int p_perc, int p_repeat) const {
-	byte result{ static_cast<byte>(p_perc * 16 + p_repeat) };
+	int l_repeat{ p_repeat == 256 ? 0 : p_repeat };
+
+	byte result{ static_cast<byte>(p_perc * 16 + l_repeat) };
 	if (result == c::HEX_REST || result >= c::HEX_NOTELENGTH_MIN)
 		throw std::runtime_error("Percussion byte out of range");
 	else
@@ -756,6 +758,9 @@ void fm::MMLChannel::parse_bytecode(const std::vector<fm::MusicInstruction>& ins
 				int ptype{ static_cast<int>(ob / 16) };
 				int prep{ static_cast<int>(ob % 16) };
 
+				if (prep == 0)
+					prep = 256;
+
 				events.push_back(PercussionEvent{ ptype, prep });
 			}
 		}
@@ -930,10 +935,9 @@ int fm::MMLChannel::add_midi_track(smf::MidiFile& p_midi, int p_channel_no,
 				vm.st.default_length.dots, vm.st.default_length.raw))
 			};
 
-			int reps{ perce.repeat == 0 ? 256 : perce.repeat };
 			bool l_end_channel{ false };
 
-			for (int rep{ 0 }; rep < reps; ++rep) {
+			for (int rep{ 0 }; rep < perce.repeat; ++rep) {
 				p_midi.addNoteOn(l_track_no, ticks, p_channel_no,
 					perc_note_no.at(perce.perc_no), default_midi_volume);
 

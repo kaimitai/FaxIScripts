@@ -1,3 +1,4 @@
+#include <format>
 #include <stdexcept>
 #include "Tokenizer.h"
 #include "mml_constants.h"
@@ -214,7 +215,7 @@ fm::Token fm::Tokenizer::create_volume_set() {
 	tok.number = std::stoi(value.substr(1));
 
 	if (tok.number < 0 || tok.number > 15)
-		throw std::runtime_error("Volume must be in the range 0-15");
+		throw std::runtime_error(std::format("Volume must be in the range 0-15 (line {} col {})", tok.line, tok.column));
 
 	return tok;
 }
@@ -453,7 +454,7 @@ fm::Token fm::Tokenizer::create_song_transpose() {
 	// 2. verify that the next is _
 	char c = peek();
 	if (c != '_')
-		throw std::runtime_error("Song transpose command must start with s_");
+		throw std::runtime_error(std::format("Song transpose command must start with s_ (line {} col {})", tok.line, tok.column));
 
 	advance(); // consume _
 

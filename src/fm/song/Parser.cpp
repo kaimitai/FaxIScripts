@@ -186,7 +186,8 @@ fm::MMLChannel fm::Parser::parse_channel(const std::string& name,
 		}
 
 		if (check(TokenType::Tie)) {
-			throw std::runtime_error("Tie '&' cannot appear without a preceding note");
+			const auto& tietoken{ peek() };
+			throw std::runtime_error(std::format("Tie '&' cannot appear without a preceding note (line {} col {})", tietoken.line, tietoken.column));
 		}
 
 		if (check(TokenType::LabelDef)) {
@@ -237,7 +238,7 @@ fm::MmlEvent fm::Parser::parse_identifier_event() {
 	if (idname == c::OPCODE_JSR) {
 		Token reflabel = advance();
 		if (reflabel.type != TokenType::LabelRef)
-			throw std::runtime_error("JSR not followed by label name");
+			throw std::runtime_error(std::format("JSR not followed by label name (line {}, col {})", reflabel.line, reflabel.column));
 
 		JSREvent ev;
 		ev.label_name = reflabel.text;
@@ -288,7 +289,7 @@ fm::MmlEvent fm::Parser::parse_identifier_event() {
 		return ev;
 	}
 
-	throw std::runtime_error(std::format("Unknown identifier {}", idname));
+	throw std::runtime_error(std::format("Unknown identifier {} (line {} col {})", idname, t.line, t.column));
 }
 
 int fm::Parser::consume_number(const std::string& p_label, int p_min, int p_max) {
@@ -296,8 +297,8 @@ int fm::Parser::consume_number(const std::string& p_label, int p_min, int p_max)
 
 	if (tok.type != TokenType::Number || tok.number < p_min || tok.number > p_max)
 		throw std::runtime_error(
-			std::format("Argument for {} must be a number between {} and {}",
-				p_label, p_min, p_max)
+			std::format("Argument for {} must be a number between {} and {} (line {} col {})",
+				p_label, p_min, p_max, tok.line, tok.column)
 		);
 
 	return tok.number;
@@ -419,6 +420,9 @@ fm::MmlEvent fm::Parser::parse_percussion_event(void) {
 	else
 		rep = 1;
 
+	if (rep == 0)
+		rep = 256;
+
 	ev.perc_no = p;
 	ev.repeat = rep;
 
@@ -491,11 +495,11 @@ fm::MmlEvent fm::Parser::parse_length_event(void) {
 		i++;
 
 	if (i == start)
-		throw std::runtime_error("Missing length after 'l'");
+		throw std::runtime_error(std::format("Missing length after 'l' (line {} col {})", t.line, t.column));
 
 	int length = std::stoi(s.substr(start, i - start));
 	if (length <= 0)
-		throw std::runtime_error("Default length must be > 0");
+		throw std::runtime_error(std::format("Default length must be > 0 (line {} col {})", t.line, t.column));
 
 	if (raw)
 		ev.raw = length;
@@ -556,7 +560,8 @@ std::size_t fm::Parser::find_loop_end_token(std::size_t p_index) const {
 
 	}
 
-	throw std::runtime_error("Matching end-loop token not found");
+	const auto& tok{ tokens.at(p_index) };
+	throw std::runtime_error(std::format("Matching end-loop token not found (line {} col {})", tok.line, tok.column));
 }
 
 fm::MmlEvent fm::Parser::parse_end_loop_or_pop_addr_event(void) {
