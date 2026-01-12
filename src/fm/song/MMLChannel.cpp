@@ -677,6 +677,9 @@ std::string fm::MMLChannel::to_string(void) const {
 		else if (std::holds_alternative<ReturnEvent>(ev)) {
 			emit(std::format("\n!{}\n", c::OPCODE_RETURN));
 		}
+		else if (std::holds_alternative<NOPEvent>(ev)) {
+			emit(std::format("\n!{}\n", c::OPCODE_NOP));
+			}
 		else {
 			std::visit([&](auto&& arg) {
 				using T = std::decay_t<decltype(arg)>;
