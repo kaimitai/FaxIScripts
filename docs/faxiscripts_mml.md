@@ -497,7 +497,7 @@ This is a global transpose for the song, separate from the ROM’s built-in glob
 - Example:
   ```mml
   #sq2 {
-    [o4 c d _-12 e f _0]5
+    l2 [o4 c d _-12 e f _0]5
     !end
   }
 
