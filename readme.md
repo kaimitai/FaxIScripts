@@ -8,9 +8,11 @@ The scripting layer contains strings, shop data and actual code. The strings are
 
 There are two ROM sections we can use when patching, and the users can choose between different patching modes.
 
-We also support extracting and patching the music layer of Faxanadu at the assembly level. This is functional, but it is tedious to make music by editing music asm-files. It is good for experimentation, however, and is necessary scaffolding once we raise the level of abstraction.
+We also support extracting and patching the music layer of Faxanadu - both at the assembly level, and at a higher level of abstraction - as MML (music macro language) files.
 
 Make sure to read the [documentation](./docs/faxiscripts_doc.md) for a detailed overview of the syntax and structure of the assembly files we will be editing, as well as a list of all available opcodes.
+
+For MML editing there is a separate [documentation](./docs/faxiscripts_mml.md) for a detailed overview of the syntax and structure of the file format - as well as the necessary technical information needed to compose music effectively.
 
 This application has a natural companion in [Echoes of Eolis](https://github.com/kaimitai/faxedit/), which is a graphical editor that can patch the other dynamically sized data portions in Faxanadu. To see, or change, which NPCs in Faxanadu are connected to a given script (script entrypoint) this editor can be used.
 
@@ -53,11 +55,13 @@ The asm-files may look a little daunting at first, but I am sure it will be very
 
 There is little static code analysis available for the time being, but before actually patching the ROM we ensure the code is good by trying to traverse all code paths from all entry points to verify that the code the game can potentially use can actually be parsed.
 
-The command `faxiscripts xm "Faxanadu (U).nes" faxanadu.masm` will extract the music layer from file "Faxanadu (U).nes" and write it to file faxanadu.masm.
+The command `faxiscripts xmml "Faxanadu (U).nes" faxanadu.mml` will extract the music layer from file "Faxanadu (U).nes" and write it to file faxanadu.mml.
 
 Another instruction will pack your music, and patch it back to ROM.
 
-The command `faxiscripts bm faxanadu.masm "Faxanadu (U).nes"` will patch "Faxanadu (U).nes" with the music from faxanadu.masm.
+The command `faxiscripts bmml faxanadu.mml "Faxanadu (U).nes"` will patch "Faxanadu (U).nes" with the music from faxanadu.mml.
+
+We also have commands for rendering Faxanadu music as midi files, both directly from ROM or from an MML file.
 
 <hr>
 
@@ -73,6 +77,10 @@ We prioritize fixing bugs if any are discovered, but here are some ideas for fut
 <hr>
 
 ### Version History
+
+* 2026-01-12: version 0.5
+    * Added support for extracting Faxanadu's music layer as MML files, which raises the level of abstraction and makes music editing easier for composers.
+    * Added support for using binary constants in iScripts. Prefix binary constants with 0b or % - for example 0b00100110.
 
 * 2025-12-20: version 0.4
     * Added support for extracting the music layer as an assembly file in the context of Faxanadu's music engine (mScripts). 
@@ -98,4 +106,4 @@ We prioritize fixing bugs if any are discovered, but here are some ideas for fut
 
 Special thanks to the following contributors and fellow digital archaeologists:
 
-[ChipX86/Christian Hammond](http://chipx86.com/) - For entirely mapping out the IScript language in his [Faxanadu disassembly](https://chipx86.com/faxanadu/) - and for coining the term IScript (Interaction Script) itself. He also single-handedly mapped out the music format, an incredibly impressive feat. This project would not have existed without his resources.
+[ChipX86/Christian Hammond](http://chipx86.com/) - For entirely mapping out both the iScript language and the music engine in his [Faxanadu disassembly](https://chipx86.com/faxanadu/) - and for coining the term IScript (Interaction Script) itself. This project would not have existed without his resources.
