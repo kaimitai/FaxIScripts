@@ -119,6 +119,7 @@ namespace fm {
 		std::string note_no_to_str(int p_note_no) const;
 		std::string to_string(void) const;
 		std::string channel_type_to_string(void) const;
+		bool is_square_channel(void) const;
 
 		// bytecode to mml function
 		void parse_bytecode(const std::vector<fm::MusicInstruction>& instrs,

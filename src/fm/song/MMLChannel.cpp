@@ -702,6 +702,11 @@ std::string fm::MMLChannel::channel_type_to_string(void) const {
 		return fm::c::CHANNEL_NAMES[3];
 }
 
+bool fm::MMLChannel::is_square_channel(void) const {
+	return channel_type == fm::ChannelType::sq1 ||
+		channel_type == fm::ChannelType::sq2;
+}
+
 // ROM bytecode to MML
 void fm::MMLChannel::parse_bytecode(const std::vector<fm::MusicInstruction>& instrs,
 	std::size_t entrypoint_idx, std::set<std::size_t> jump_targets) {
@@ -984,11 +989,13 @@ int fm::MMLChannel::add_midi_track(smf::MidiFile& p_midi, int p_channel_no,
 			auto& cte = std::get<ChannelTransposeEvent>(ev);
 			vm.st.pitchoffset = cte.semitones;
 		}
-		else if (std::holds_alternative<VolumeSetEvent>(ev)) {
+		else if (std::holds_alternative<VolumeSetEvent>(ev) &&
+			is_square_channel()) {
 			auto& vse = std::get<VolumeSetEvent>(ev);
 			vm.st.volume = vse.volume;
 		}
-		else if (std::holds_alternative<PulseEvent>(ev)) {
+		else if (std::holds_alternative<PulseEvent>(ev) &&
+			is_square_channel()) {
 			auto& pe = std::get<PulseEvent>(ev);
 			vm.st.sq_duty_cycle = pe.duty_cycle;
 			p_midi.addTimbre(l_track_no, ticks, 0, duty_cycle_to_instr.at(vm.st.sq_duty_cycle));
@@ -1151,15 +1158,13 @@ int fm::MMLChannel::add_lilypond_staff(std::string& p_lp, int p_pitch_offset,
 			vm.st.pitchoffset = cte.semitones;
 		}
 		else if (std::holds_alternative<VolumeSetEvent>(ev) &&
-			(channel_type == fm::ChannelType::sq1 ||
-				channel_type == fm::ChannelType::sq2)) {
+			is_square_channel()) {
 			auto& vse = std::get<VolumeSetEvent>(ev);
 			vm.st.volume = vse.volume;
 			state.volume = vm.st.volume;
 		}
 		else if (std::holds_alternative<PulseEvent>(ev) &&
-			(channel_type == fm::ChannelType::sq1 ||
-				channel_type == fm::ChannelType::sq2)) {
+			is_square_channel()) {
 			auto& pe = std::get<PulseEvent>(ev);
 
 			if (vm.st.sq_duty_cycle != pe.duty_cycle) {
