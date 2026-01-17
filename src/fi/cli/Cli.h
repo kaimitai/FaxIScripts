@@ -10,6 +10,7 @@ namespace fi {
 
 	enum ScriptMode { IScriptBuild, IScriptExtract,
 		MmlExtract, MmlBuild, MmlToMidi, RomToMidi,
+		MmlToLilyPond, RomToLilyPond,
 		MScriptBuild, MScriptExtract };
 
 	class Cli {
@@ -17,7 +18,8 @@ namespace fi {
 		fi::ScriptMode m_script_mode;
 
 		std::string m_in_file, m_out_file, m_source_rom, m_region;
-		bool m_strict, m_shop_comments, m_overwrite, m_notes;
+		bool m_strict, m_shop_comments, m_overwrite, m_notes,
+			m_lilypond_percussion;
 		fe::Config m_config;
 
 		void set_mode(const std::string& p_mode);
@@ -60,10 +62,18 @@ namespace fi {
 		void mml_to_midi(const std::string& p_mml_filename,
 			const std::string& p_out_file_prefix);
 
+		// to-lilypond
+		void rom_to_lilypond(const std::string& p_nes_filename,
+			const std::string& p_out_file_prefix);
+		void mml_to_lilypond(const std::string& p_mml_filename,
+			const std::string& p_out_file_prefix);
+
 		// common
 		std::vector<byte> load_rom_and_determine_region(const std::string& p_nes_filename);
 		fm::MMLSongCollection load_mml_file(const std::string& p_mml_file) const;
 		void save_midi_files(fm::MMLSongCollection& coll,
+			const std::string& p_out_file_prefix) const;
+		void save_lilypond_files(fm::MMLSongCollection& coll,
 			const std::string& p_out_file_prefix) const;
 		bool check_mode(const std::string& p_mode,
 			const std::pair<std::string, std::string>& p_cmds);

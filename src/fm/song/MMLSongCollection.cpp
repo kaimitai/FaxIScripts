@@ -194,16 +194,27 @@ std::vector<byte> fm::MMLSongCollection::to_bytecode(const fe::Config& p_config)
 
 	for (std::size_t i{ 0 }; i < songs.size(); ++i)
 		for (std::size_t c{ 0 }; c < songs[i].channels.size(); ++c) {
-			auto c_instrs{ songs[i].channels[c].to_bytecode() };
-			ptr_table.push_back(c_instrs.entrypt_idx + instr_offset);
+			try {
+				auto c_instrs{ songs[i].channels[c].to_bytecode() };
+				ptr_table.push_back(c_instrs.entrypt_idx + instr_offset);
 
-			for (auto& instr : c_instrs.instrs) {
-				if (instr.jump_target.has_value())
-					instr.jump_target = instr.jump_target.value() + instr_offset;
-				instrs.push_back(instr);
+				for (auto& instr : c_instrs.instrs) {
+					if (instr.jump_target.has_value())
+						instr.jump_target = instr.jump_target.value() + instr_offset;
+					instrs.push_back(instr);
+				}
+
+				instr_offset += c_instrs.instrs.size();
 			}
-
-			instr_offset += c_instrs.instrs.size();
+			catch (const std::runtime_error& ex) {
+				throw std::runtime_error(std::format("Error when encoding song {} channel {}: {}", i + 1, c + 1, ex.what()));
+			}
+			catch (const std::exception& ex) {
+				throw std::runtime_error(std::format("Error when encoding song {} channel {}: {}", i + 1, c + 1, ex.what()));
+			}
+			catch (...) {
+				throw std::runtime_error(std::format("Unknown error when encoding song {} channel {}", i + 1, c + 1));
+			}
 		}
 
 	// set byte offsets for all instructions
@@ -255,6 +266,16 @@ std::vector<smf::MidiFile> fm::MMLSongCollection::to_midi(void) {
 
 	for (auto& song : songs)
 		result.push_back(song.to_midi(global_transpose));
+
+	return result;
+}
+
+std::vector<std::string> fm::MMLSongCollection::to_lilypond(bool p_incl_percussion) {
+	std::vector<std::string> result;
+
+	for (auto& song : songs)
+		result.push_back(song.to_lilypond(global_transpose,
+			p_incl_percussion));
 
 	return result;
 }
@@ -316,7 +337,7 @@ std::string fm::MMLSongCollection::integral_notes(void) const {
 		return int_tix[p_idx].at(fm::Fraction(p_num, p_dem));
 		};
 
-		const auto f2s = [&int_tix](std::size_t p_idx, int p_num, int p_dem) -> std::string {
+	const auto f2s = [&int_tix](std::size_t p_idx, int p_num, int p_dem) -> std::string {
 		std::string result;
 
 		int status{ int_tix[p_idx].at(fm::Fraction(p_num, p_dem)) };

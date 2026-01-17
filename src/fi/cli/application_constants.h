@@ -10,7 +10,8 @@ namespace fi {
 	namespace appc {
 
 		constexpr char APP_NAME[]{ "FaxIScripts" };
-		constexpr char APP_VERSION[]{ "0.5" };
+		constexpr char APP_VERSION[]{ "0.51" };
+		constexpr char APP_URL[]{ "https://github.com/kaimitai/FaxIScripts" };
 		constexpr char CONFIG_XML[]{ "eoe_config.xml" };
 
 		inline const std::pair<std::string, std::string> CMD_EXTRACT{ "extract" , "x" };
@@ -19,6 +20,8 @@ namespace fi {
 		inline const std::pair<std::string, std::string> CMD_BUILD_MML{ "build-mml" , "bmml" };
 		inline const std::pair<std::string, std::string> CMD_MML_TO_MIDI{ "mml-to-midi" , "m2m" };
 		inline const std::pair<std::string, std::string> CMD_ROM_TO_MIDI{ "rom-to-midi" , "r2m" };
+		inline const std::pair<std::string, std::string> CMD_MML_TO_LILYPOND{ "mml-to-ly" , "m2l" };
+		inline const std::pair<std::string, std::string> CMD_ROM_TO_LILYPOND{ "rom-to-ly" , "r2l" };
 		inline const std::pair<std::string, std::string> CMD_EXTRACT_MUSIC{ "extract-music" , "xm" };
 		inline const std::pair<std::string, std::string> CMD_BUILD_MUSIC{ "build-music" , "bm" };
 
@@ -26,7 +29,8 @@ namespace fi {
 			{"--no-shop-comments", "-p"},
 			{"--original-size", "-o"},
 			{"--force", "-f"},
-			{"--no-notes", "-n"}
+			{"--no-notes", "-n"},
+			{"--lilypond-percussion", "-lp"}
 		};
 
 		inline const std::pair<std::string, std::string> CLI_SOURCE_ROM

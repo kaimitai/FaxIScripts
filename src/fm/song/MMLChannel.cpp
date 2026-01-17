@@ -2,6 +2,8 @@
 #include "./../fm_constants.h"
 #include "./../fm_util.h"
 #include "mml_constants.h"
+#include "LilyPond.h"
+#include <cmath>
 #include <format>
 #include <numeric>
 #include <stack>
@@ -54,8 +56,6 @@ std::size_t fm::MMLChannel::get_label_addr(const std::string& label) {
 }
 
 void fm::MMLChannel::reset_vm(bool point_at_start) {
-	vm.current_index = -1;
-	vm.index = 0;
 	vm.loop_count = 0;
 	vm.loop_iters = 0;
 	vm.jsr_addr.reset();
@@ -63,11 +63,11 @@ void fm::MMLChannel::reset_vm(bool point_at_start) {
 	vm.loop_addr.reset();
 	vm.loop_end_addr.reset();
 	vm.st.octave = 4;
-	vm.st.ticklength = 0;
-	vm.st.default_length = { std::nullopt, 0, 0 };
+	vm.st.ticklength = 1;
+	vm.st.default_length = { std::nullopt, 1, 0 };
 	vm.st.pitchoffset = 0;
 	vm.st.volume = 15;
-	vm.st.duty_cycle = 0;
+	vm.st.sq_duty_cycle = 2;
 	vm.tempo = song_tempo;
 
 	if (point_at_start) {
@@ -75,28 +75,6 @@ void fm::MMLChannel::reset_vm(bool point_at_start) {
 	}
 	else
 		vm.pc = 0;
-}
-
-const fm::MmlEvent* fm::MMLChannel::current_event(void) const {
-	int i = vm.current_index;
-
-	if (i < 0 || i >= events.size())
-		return nullptr;
-
-	return &events[i];
-}
-
-bool fm::MMLChannel::step(void) {
-	if (vm.index >= events.size())
-		return false;
-
-	vm.current_index = vm.index;
-
-	const MmlEvent& ev = events[vm.index];
-
-	++vm.index;
-
-	return true;
 }
 
 byte fm::MMLChannel::encode_percussion(int p_perc, int p_repeat) const {
@@ -112,13 +90,13 @@ byte fm::MMLChannel::encode_percussion(int p_perc, int p_repeat) const {
 void fm::MMLChannel::emit_set_length_bytecode_if_necessary(
 	std::vector<fm::MusicInstruction>& instrs,
 	const fm::Duration& p_duration,
-	bool force) {
-	int final_ticks = advance_vm_ticks(p_duration);
+	bool no_vm_advance) {
+	int final_ticks = advance_vm_ticks(p_duration, no_vm_advance);
 
 	if (final_ticks > 255)
 		throw std::runtime_error("Tick-length exceeds 255");
 
-	if (force || (final_ticks != vm.st.ticklength)) {
+	if (no_vm_advance || (final_ticks != vm.st.ticklength)) {
 		vm.st.ticklength = final_ticks;
 
 		constexpr byte HEX_NOTELENGTH_MAX{ c::HEX_NOTELENGTH_END - c::HEX_NOTELENGTH_MIN };
@@ -136,8 +114,20 @@ void fm::MMLChannel::emit_set_length_bytecode_if_necessary(
 
 }
 
-int fm::MMLChannel::advance_vm_ticks(const fm::Duration& p_duration) {
+int fm::MMLChannel::advance_vm_ticks(const fm::Duration& p_duration,
+	bool no_vm_advance) {
 	auto ticks{ tick_length(p_duration) };
+
+	// we must avoid changing vm state here, but let us predict the actual length
+	// of the next note or rest by making a copy of the accumulator and return
+	// the expected length the next note/rest will get
+	// to not waste one opcode
+	if (no_vm_advance) {
+		auto vm_ticks_copy{ vm.st.fraq };
+		vm_ticks_copy += ticks.fraq;
+		int carry = vm_ticks_copy.extract_whole();
+		return ticks.whole + carry;
+	}
 
 	vm.st.fraq += ticks.fraq;
 	int carry = vm.st.fraq.extract_whole();
@@ -150,9 +140,25 @@ int fm::MMLChannel::advance_vm_ticks(const fm::Duration& p_duration) {
 void fm::MMLChannel::emit_set_length_bytecode_if_necessary(
 	std::vector<fm::MusicInstruction>& instrs,
 	std::optional<int> length, int dots, std::optional<int> raw,
-	bool force) {
+	bool no_vm_advance) {
 	auto dur{ resolve_duration(length, dots, raw) };
-	emit_set_length_bytecode_if_necessary(instrs, dur, force);
+	emit_set_length_bytecode_if_necessary(instrs, dur, no_vm_advance);
+}
+
+std::string fm::MMLChannel::volume_to_marker(int v) const {
+	if (v >= 14) return "\\fff";
+	if (v >= 12) return "\\ff";
+	if (v >= 10) return "\\f";
+	if (v >= 8)  return "\\mf";
+	if (v >= 6)  return "\\mp";
+	if (v >= 4)  return "\\p";
+	if (v >= 2)  return "\\pp";
+	return "\\ppp";
+}
+
+bool fm::MMLChannel::is_empty(void) const {
+	// start and end
+	return events.size() <= 2;
 }
 
 fm::ChannelBytecodeExport fm::MMLChannel::to_bytecode(void) {
@@ -453,19 +459,6 @@ fm::TieResult fm::MMLChannel::resolve_tie_chain(void) {
 	return { pitch, total };
 }
 
-bool fm::MMLChannel::current_event_is_note_with_tie_next(void) const {
-	// Current must be a note
-	const NoteEvent* cur = std::get_if<NoteEvent>(current_event());
-
-	if (!cur)
-		return false; // Must have tie_next set
-
-	if (!cur->tie_to_next)
-		return false; // Peek next event in *execution order*
-
-	return true;
-}
-
 byte fm::MMLChannel::ints_to_sq_control(int duty, int envLoop,
 	int constVol, int volume) const {
 	return static_cast<byte>((duty << 6) | (envLoop << 5) | (constVol << 4) | (volume & 0x0F));
@@ -679,7 +672,11 @@ std::string fm::MMLChannel::to_string(void) const {
 		}
 		else if (std::holds_alternative<NOPEvent>(ev)) {
 			emit(std::format("\n!{}\n", c::OPCODE_NOP));
-			}
+		}
+		else if (std::holds_alternative<TempoSetEvent>(ev)) {
+			const auto& tse = std::get<TempoSetEvent>(ev);
+			emit(std::format("t{} ", tse.tempo.to_tempo_string()));
+		}
 		else {
 			std::visit([&](auto&& arg) {
 				using T = std::decay_t<decltype(arg)>;
@@ -896,7 +893,7 @@ int fm::MMLChannel::add_midi_track(smf::MidiFile& p_midi, int p_channel_no,
 
 	p_midi.addTimbre(l_track_no, 0, p_channel_no,
 		channel_type == fm::ChannelType::tri ? 33 :
-		duty_cycle_to_instr.at(vm.st.duty_cycle)
+		duty_cycle_to_instr.at(vm.st.sq_duty_cycle)
 	);
 
 	int ticks{ 1 };
@@ -911,7 +908,7 @@ int fm::MMLChannel::add_midi_track(smf::MidiFile& p_midi, int p_channel_no,
 			break;
 
 		VMState state{ vm.pc,
-		vm.loop_count, vm.loop_iters, vm.st.pitchoffset, vm.st.volume, vm.st.duty_cycle,
+		vm.loop_count, vm.loop_iters, vm.st.pitchoffset, vm.st.volume, vm.st.sq_duty_cycle,
 		vm.push_addr, vm.jsr_addr, vm.loop_addr, vm.loop_end_addr };
 
 		if (vmstates.contains(state))
@@ -993,10 +990,15 @@ int fm::MMLChannel::add_midi_track(smf::MidiFile& p_midi, int p_channel_no,
 		}
 		else if (std::holds_alternative<PulseEvent>(ev)) {
 			auto& pe = std::get<PulseEvent>(ev);
-			vm.st.duty_cycle = pe.duty_cycle;
-			p_midi.addTimbre(l_track_no, ticks, 0, duty_cycle_to_instr.at(vm.st.duty_cycle));
+			vm.st.sq_duty_cycle = pe.duty_cycle;
+			p_midi.addTimbre(l_track_no, ticks, 0, duty_cycle_to_instr.at(vm.st.sq_duty_cycle));
+		}
+		else if (std::holds_alternative<TempoSetEvent>(ev)) {
+			const auto& tse = std::get<TempoSetEvent>(ev);
+			vm.tempo = tse.tempo;
 		}
 
+		// advance the VM depending on opcode
 		if (std::holds_alternative<EndEvent>(ev) ||
 			std::holds_alternative<RestartEvent>(ev))
 			break;
@@ -1046,6 +1048,241 @@ int fm::MMLChannel::add_midi_track(smf::MidiFile& p_midi, int p_channel_no,
 	}
 
 	return ticks;
+}
+
+int fm::MMLChannel::add_lilypond_staff(std::string& p_lp, int p_pitch_offset,
+	const std::string& p_time_sig) {
+	std::string l_stafftype{ channel_type == fm::ChannelType::noise ?
+	"DrumStaff \\drummode" : "Staff" };
+
+	p_lp += std::format("\\new {} {{\n\\tempo 4 = {}\n\\time {}\n",
+		l_stafftype,
+		// channel_type_to_string(),
+		std::round(song_tempo.to_double()),
+		p_time_sig);
+
+	if (channel_type == fm::ChannelType::tri) {
+		p_lp += "\\set Staff.midiMinimumVolume  = #0.10\n"
+			"\\set Staff.midiMaximumVolume = #0.80\n"
+			"\\set Staff.midiInstrument = \"synth bass 1\"\n";
+	}
+	else if (channel_type == fm::ChannelType::noise) {
+		p_lp += "\\set Staff.midiMinimumVolume  = #0.10\n"
+			"\\set Staff.midiMaximumVolume = #0.80\n";
+	}
+	else {
+		p_lp += "\\set Staff.midiMinimumVolume  = #0.20\n"
+			"\\set Staff.midiMaximumVolume = #0.90";
+		p_lp += fm::lp::emit_midi_instrument(vm.st.sq_duty_cycle);
+	};
+
+	if (channel_type != fm::ChannelType::noise) {
+		p_lp += get_lilypond_clef();
+	}
+
+	std::set<VMState> vmstates;
+	fm::Fraction bar_accum{ 0,1 };
+
+	reset_vm(true);
+
+	// TODO: Find a better solution
+	int guard_count{ 0 };
+
+	while (vm.pc < events.size()) {
+		++guard_count;
+		if (guard_count > 20000)
+			break;
+
+		VMState state{ vm.pc,
+		vm.loop_count, vm.loop_iters, vm.st.pitchoffset, vm.st.volume, vm.st.sq_duty_cycle,
+		vm.push_addr, vm.jsr_addr, vm.loop_addr, vm.loop_end_addr };
+
+		if (vmstates.contains(state))
+			break;
+		else
+			vmstates.insert(state);
+
+		const auto& ev{ events[vm.pc] };
+
+		if (std::holds_alternative<NoteEvent>(ev)) {
+			const auto& notee = std::get<NoteEvent>(ev);
+
+			p_lp += " " + fm::lp::emit_note(notee.pitch + p_pitch_offset + vm.st.pitchoffset, vm.st.octave,
+				to_lilypond_length(notee.length, notee.dots, notee.raw, bar_accum));
+
+			if (notee.tie_to_next)
+				p_lp += " ~ ";
+		}
+		else if (std::holds_alternative<PercussionEvent>(ev)) {
+			auto& perce = std::get<PercussionEvent>(ev);
+
+			for (int rep{ 0 }; rep < perce.repeat; ++rep)
+				p_lp += " " + fm::lp::emit_percussion(perce.perc_no,
+					to_lilypond_length(vm.st.default_length.length,
+						vm.st.default_length.dots,
+						vm.st.default_length.raw, bar_accum));
+		}
+		else if (std::holds_alternative<LengthEvent>(ev)) {
+			auto& le = std::get<LengthEvent>(ev);
+
+			if (le.raw.has_value()) {
+				vm.st.default_length = { std::nullopt, le.raw.value(), 0 };
+			}
+			else if (le.length.has_value()) {
+				vm.st.default_length = { le.length.value(), std::nullopt, le.dots };
+			}
+			else
+				throw std::runtime_error("Malformed length event");
+		}
+		else if (std::holds_alternative<RestEvent>(ev)) {
+			auto& re = std::get<RestEvent>(ev);
+			p_lp += " " + fm::lp::emit_rest(to_lilypond_length(re.length, re.dots, re.raw, bar_accum));
+		}
+		else if (std::holds_alternative<OctaveSetEvent>(ev)) {
+			auto& se = std::get<OctaveSetEvent>(ev);
+			vm.st.octave = se.octave;
+		}
+		else if (std::holds_alternative<OctaveShiftEvent>(ev)) {
+			auto& ssh = std::get<OctaveShiftEvent>(ev);
+			vm.st.octave += ssh.amount;
+		}
+		else if (std::holds_alternative<ChannelTransposeEvent>(ev)) {
+			auto& cte = std::get<ChannelTransposeEvent>(ev);
+			vm.st.pitchoffset = cte.semitones;
+		}
+		else if (std::holds_alternative<VolumeSetEvent>(ev) &&
+			(channel_type == fm::ChannelType::sq1 ||
+				channel_type == fm::ChannelType::sq2)) {
+			auto& vse = std::get<VolumeSetEvent>(ev);
+			vm.st.volume = vse.volume;
+			state.volume = vm.st.volume;
+		}
+		else if (std::holds_alternative<PulseEvent>(ev) &&
+			(channel_type == fm::ChannelType::sq1 ||
+				channel_type == fm::ChannelType::sq2)) {
+			auto& pe = std::get<PulseEvent>(ev);
+
+			if (vm.st.sq_duty_cycle != pe.duty_cycle) {
+				vm.st.sq_duty_cycle = pe.duty_cycle;
+				p_lp += fm::lp::emit_midi_instrument(vm.st.sq_duty_cycle);
+			}
+		}
+		else if (std::holds_alternative<TempoSetEvent>(ev)) {
+			const auto& tse = std::get<TempoSetEvent>(ev);
+			vm.tempo = tse.tempo;
+			p_lp += std::format("\n\\tempo 4 = {}\n",
+				std::round(vm.tempo.to_double()));
+		}
+
+		// advance the VM depending on opcode
+		if (std::holds_alternative<EndEvent>(ev) ||
+			std::holds_alternative<RestartEvent>(ev))
+			break;
+		else if (std::holds_alternative<JSREvent>(ev)) {
+			auto& labe = std::get<JSREvent>(ev);
+			if (!vm.jsr_addr.has_value())
+				vm.jsr_addr = vm.pc;
+			else
+				throw std::runtime_error("Invoking JSR with JSR-address already on the stack");
+			vm.pc = get_label_addr(labe.label_name);
+		}
+		else if (std::holds_alternative<ReturnEvent>(ev)) {
+			vm.pc = vm.jsr_addr.value() + 1;
+			vm.jsr_addr.reset();
+		}
+		else if (std::holds_alternative<PushAddrEvent>(ev)) {
+			vm.push_addr = vm.pc++;
+		}
+		else if (std::holds_alternative<PopAddrEvent>(ev)) {
+			vm.pc = vm.push_addr.value() + 1;
+			//vm.push_addr.reset();
+		}
+		else if (std::holds_alternative<BeginLoopEvent>(ev)) {
+			auto& ble = std::get<BeginLoopEvent>(ev);
+			vm.loop_addr = vm.pc++;
+			vm.loop_iters = ble.iterations;
+			vm.loop_count = 0;
+		}
+		else if (std::holds_alternative<EndLoopEvent>(ev)) {
+			auto& ele = std::get<EndLoopEvent>(ev);
+			vm.loop_end_addr = vm.pc;
+			vm.loop_count++;
+			if (vm.loop_count < vm.loop_iters)
+				vm.pc = vm.loop_addr.value() + 1;
+			else
+				++vm.pc;
+		}
+		else if (std::holds_alternative<LoopIfEvent>(ev)) {
+			auto& lie = std::get<LoopIfEvent>(ev);
+			if (vm.loop_count >= lie.iterations)
+				vm.pc = vm.loop_end_addr.value() + 1;
+			else
+				++vm.pc;
+		}
+		else
+			++vm.pc;
+
+
+		int dummy{ bar_accum.extract_whole() };
+		if (dummy > 0)
+			p_lp += "\n\\allowBreak\n";
+	}
+
+	p_lp += "\n}\n";
+	return 0;
+}
+
+std::string fm::MMLChannel::get_lilypond_clef(void) const {
+	return std::format("\\clef \"{}\"\n", m_clef.empty() ? "treble" : m_clef);
+}
+
+std::string fm::MMLChannel::to_lilypond_length(std::optional<int> p_length,
+	int p_dots, std::optional<int> p_raw, fm::Fraction& p_accumulator) const {
+	fm::Fraction l_lp_frac{ 0,1 };
+
+	if (p_raw) {
+		auto wnote_ticks{ fm::Fraction(4 * c::TICK_PER_MIN,1) / vm.tempo };
+		l_lp_frac = fm::Fraction(p_raw.value(), 1) / wnote_ticks;
+
+		p_accumulator += l_lp_frac;
+	}
+	else if (p_length.has_value() || vm.st.default_length.length.has_value()) {
+		// add the default length-dots if the note did not have an explicit musical length
+		int base = p_length.has_value() ? p_length.value() : vm.st.default_length.length.value();
+		int final_dots{ p_length ? p_dots : p_dots + vm.st.default_length.dots };
+
+		// numerator = 2^(dots+1) - 1
+		int num = (1 << (final_dots + 1)) - 1;
+		// denominator = base_len * 2^dots
+		int den = base * (1 << final_dots);
+
+		l_lp_frac = fm::Fraction(num, den);
+
+		p_accumulator += fm::Fraction(num, den);
+
+		// check if den is pow2, if so return string with len and dots
+		auto is_pow2 = [](int x) {
+			return x > 0 && (x & (x - 1)) == 0;
+			};
+
+		if (is_pow2(base)) {
+			// Emit normal LilyPond duration: "8", "16.", "32.."
+			std::string out = std::to_string(base);
+			out.append(final_dots, '.');
+			return out;
+		}
+	}
+	else if (vm.st.default_length.raw.has_value()) {
+		auto wnote_ticks{ fm::Fraction(4 * c::TICK_PER_MIN,1) / vm.tempo };
+		l_lp_frac = fm::Fraction(vm.st.default_length.raw.value(), 1) / wnote_ticks;
+
+		p_accumulator += l_lp_frac;
+	}
+	else
+		throw std::runtime_error("Note length could not be determined");
+
+	// base not a power of 2, return raw fraction
+	return std::format("1*{}/{}", l_lp_frac.get_num(), l_lp_frac.get_den());
 }
 
 bool fm::VMState::operator<(const fm::VMState& rhs) const {

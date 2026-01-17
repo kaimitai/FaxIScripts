@@ -31,6 +31,13 @@ namespace fm {
 		constexpr char DIRECTIVE_TRIANGLE[]{ "#tri" };
 		constexpr char DIRECTIVE_NOISE[]{ "#noise" };
 
+		// in-song directives
+		constexpr char DIRECTIVE_S_TITLE[]{ "#title" };
+		constexpr char DIRECTIVE_S_TIMESIG[]{ "#time" };
+
+		// in-channel directives
+		constexpr char DIRECTIVE_CH_CLEF[]{ "#clef" };
+
 		constexpr char OPCODE_START[]{ "start" };
 		constexpr char OPCODE_END[]{ "end" };
 		constexpr char OPCODE_RESTART[]{ "restart" };

@@ -154,6 +154,7 @@
     <ClCompile Include="src\fm\MScriptLoader.cpp" />
     <ClCompile Include="src\fm\MusicOpcode.cpp" />
     <ClCompile Include="src\fm\song\Fraction.cpp" />
+    <ClCompile Include="src\fm\song\LilyPond.cpp" />
     <ClCompile Include="src\fm\song\MMLChannel.cpp" />
     <ClCompile Include="src\fm\song\MMLSong.cpp" />
     <ClCompile Include="src\fm\song\MMLSongCollection.cpp" />
@@ -192,6 +193,7 @@
     <ClInclude Include="src\fm\MusicOpcode.h" />
     <ClInclude Include="src\fm\song\ChannelWalker.h" />
     <ClInclude Include="src\fm\song\Fraction.h" />
+    <ClInclude Include="src\fm\song\LilyPond.h" />
     <ClInclude Include="src\fm\song\MMLChannel.h" />
     <ClInclude Include="src\fm\song\MMLEvent.h" />
     <ClInclude Include="src\fm\song\MMLSong.h" />

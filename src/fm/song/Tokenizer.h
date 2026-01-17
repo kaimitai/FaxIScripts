@@ -25,6 +25,7 @@ namespace fm {
         Identifier,         // Labels and label references
         ChannelTranspose,
         SongTranspose,
+        String,
         EndOfFile           // sentinel
 	};
 
@@ -72,6 +73,7 @@ namespace fm {
         fm::Token create_identifier();
         fm::Token create_song_transpose();
         fm::Token create_channel_transpose();
+        fm::Token create_string();
 
         // token creator helpers
         bool is_note_start(void) const;

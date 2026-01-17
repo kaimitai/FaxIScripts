@@ -1,6 +1,7 @@
 #include "Parser.h"
 #include "./mml_constants.h"
 #include "./../fm_util.h"
+#include "./../../common/klib/Kstring.h"
 #include <format>
 #include <stdexcept>
 
@@ -90,19 +91,29 @@ fm::MMLSong fm::Parser::parse_single_song(void) {
 
 		// song-level directive?
 		if (check(TokenType::Directive)) {
-			const Token& d{ peek() };
+			const Token d{ advance() };
 
 			// channel directive?
 			if (is_channel_name(d.text)) {
-				advance();
-
 				song.channels.push_back(parse_channel(d.text,
 					song.tempo));
 				continue;
 			}
+			// title directive
+			else if (klib::str::to_lower(d.text) == c::DIRECTIVE_S_TITLE) {
+				const Token str = advance();
+				validate_type(str, fm::TokenType::String);
+				song.m_title = str.text;
+			}
+			// time signature directive
+			else if (klib::str::to_lower(d.text) == c::DIRECTIVE_S_TIMESIG) {
+				const Token str = advance();
+				validate_type(str, fm::TokenType::String);
+				song.m_time_sig = str.text;
+			}
 
 			// unknown directive at song level -> skip
-			advance();
+			// advance();
 			continue;
 		}
 
@@ -142,6 +153,27 @@ fm::MMLChannel fm::Parser::parse_channel(const std::string& name,
 			break;
 		}
 
+		// in-channel --- directive dispatch ---
+		if (check(TokenType::Directive)) {
+			Token t = advance();
+			Token str = advance();
+
+			if (str.type != TokenType::String) {
+				throw std::runtime_error(
+					std::format("Invalid argument to directive {}: {} (line {} col {}",
+						t.text, str.text, t.line, t.column)
+				);
+
+
+			}
+			else {
+				std::string directive{ klib::str::to_lower(t.text) };
+				std::string dir_value{ klib::str::to_lower(str.text) };
+
+				if (directive == c::DIRECTIVE_CH_CLEF)
+					ch.m_clef = dir_value;
+			}
+		}
 		// --- event dispatch ---
 		if (check(TokenType::Note)) {
 			const auto note_evs{ parse_note_event() };
@@ -664,4 +696,13 @@ fm::ChannelType fm::Parser::string_to_channel_type(const std::string& str) const
 		return fm::ChannelType::noise;
 	else
 		throw std::runtime_error(std::format("Invalid channel name directive: {}", str));
+}
+
+void fm::Parser::validate_type(const Token& token,
+	fm::TokenType p_type) const {
+	if (token.type != p_type)
+		throw std::runtime_error(
+			std::format("Unexpected token at line {} col {}",
+				token.line, token.column)
+		);
 }

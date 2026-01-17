@@ -23,41 +23,58 @@
 #endif
 
 void fi::Cli::print_header(void) const {
-	std::cout << fi::appc::APP_NAME << " v" << fi::appc::APP_VERSION << " - Faxanadu IScript Assembler and Disassembler\n";
+	std::cout << fi::appc::APP_NAME << " v" << fi::appc::APP_VERSION << " - Faxanadu Script Assembler and Disassembler\n";
 	std::cout << "Author: Kai E. Fr";
 	output_oe_on_windows();
-	std::cout << "land (https://github.com/kaimitai/FaxIScripts)\n";
+	std::cout << "land (" << fi::appc::APP_URL << ")\n";
 	std::cout << "Build date: " << __DATE__ << " " << __TIME__ << " CET\n\n";
 }
 
 void fi::Cli::print_help(void) const {
-	std::cout << "Usage:\n";
-	std::cout << "  faxiscripts <command> <input file> <output file> [options]\n\n" <<
-
-		"  x,  extract                Disassemble IScripts from ROM\n" <<
-		"  b,  build                  Assemble IScripts into ROM\n" <<
-		"  xmml, extract-mml          Extract music as MML file from ROM\n" <<
-		"  bmml, build-mml            Compile MML file and patch ROM\n" <<
-		"  m2m, mml-to-midi           Convert MML file to midi-files\n" <<
-		"  r2m, rom-to-midi           Extract music from ROM to midi-files directly\n" <<
-		"  xm, extract-music          Disassemble MScripts from ROM\n" <<
-		"  bm, build-music            Assemble MScripts and patch ROM\n\n";
-
+	std::cout <<
+		"Usage:\n"
+		"  faxiscripts <command> <input> <output> [options]\n\n"
+		"Commands:\n"
+		"  IScripts:\n"
+		"    x,   extract        - Disassemble IScripts from ROM\n"
+		"    b,   build          - Assemble IScripts into ROM\n"
+		"\n"
+		"  MScripts (low level music format):\n"
+		"    xm,  extract-music  - Disassemble MScripts from ROM\n"
+		"    bm,  build-music    - Assemble MScripts and patch ROM\n"
+		"\n"
+		"  MML (high level music format):\n"
+		"    xmml, extract-mml   - Extract music as MML from ROM\n"
+		"    bmml, build-mml     - Compile MML and patch ROM\n"
+		"\n"
+		"  MIDI:\n"
+		"    m2m, mml-to-midi    - Convert MML to MIDI files\n"
+		"    r2m, rom-to-midi    - Extract music from ROM as MIDI\n"
+		"\n"
+		"  LilyPond:\n"
+		"    m2l, mml-to-ly      - Convert MML to LilyPond files\n"
+		"    r2l, rom-to-ly      - Extract music from ROM as LilyPond files\n\n";
 
 	std::cout << "Options:\n";
-	std::cout << "  -p, --no-shop-comments       Disable shop comment extraction (enabled by default)\n";
-	std::cout << "  -o, --original-size          Only patch original ROM location (disabled by default)\n";
-	std::cout << "  -f, --force                  Force file overwrite when extracting data (disabled by default)\n";
-	std::cout << "  -n, --no-notes               Do not emit notes in music disassembly (notes enabled by default)\n";
-	std::cout << "  -s, --source-rom             The ROM file to be used as a source when assembling (by default the output file itself)\n";
-	std::cout << "  -r, --region                 ROM region which must be defined in the configuration xml (auto-detected by default)\n";
+	std::cout << "  Common options:\n";
+	std::cout << "    -r, --region                 ROM region which must be defined in the configuration xml (auto-detected by default)\n";
+	std::cout << "    -f, --force                  Force file overwrite when extracting data (disabled by default)\n";
+	std::cout << "    -s, --source-rom             Source ROM when assembling (by default the output file itself)\n";
+	std::cout << "  IScript options:\n";
+	std::cout << "    -p, --no-shop-comments       Disable shop comment extraction (enabled by default)\n";
+	std::cout << "    -o, --original-size          Only patch original ROM location (disabled by default)\n";
+	std::cout << "  MScript options:\n";
+	std::cout << "    -n, --no-notes               Do not emit notes in music disassembly (notes enabled by default)\n";
+	std::cout << "  MML options:\n";
+	std::cout << "    -lp, --lilypond-percussion   Add percussion staff to the LilyPond output (disabled by default)\n";
 }
 
 fi::Cli::Cli(int argc, char** argv) :
 	m_strict{ false },
 	m_shop_comments{ true },
 	m_overwrite{ false },
-	m_notes{ true }
+	m_notes{ true },
+	m_lilypond_percussion{ false }
 {
 	print_header();
 
@@ -97,6 +114,12 @@ fi::Cli::Cli(int argc, char** argv) :
 		mml_to_midi(m_in_file, m_out_file);
 	else if (m_script_mode == fi::ScriptMode::RomToMidi)
 		rom_to_midi(m_in_file, m_out_file);
+
+	else if (m_script_mode == fi::ScriptMode::MmlToLilyPond)
+		mml_to_lilypond(m_in_file, m_out_file);
+	else if (m_script_mode == fi::ScriptMode::RomToLilyPond)
+		rom_to_lilypond(m_in_file, m_out_file);
+
 	else
 		throw(std::runtime_error("Invalid script mode"));
 }
@@ -371,6 +394,22 @@ void fi::Cli::mml_to_midi(const std::string& p_mml_filename,
 	save_midi_files(coll, p_out_file_prefix);
 }
 
+void fi::Cli::rom_to_lilypond(const std::string& p_nes_filename,
+	const std::string& p_out_file_prefix) {
+
+	auto rom_data{ load_rom_and_determine_region(p_nes_filename) };
+	fm::MScriptLoader loader(m_config, rom_data);
+	fm::MMLSongCollection coll(get_global_transpose(rom_data));
+	coll.extract_bytecode_collection(loader);
+	save_lilypond_files(coll, p_out_file_prefix);
+}
+
+void fi::Cli::mml_to_lilypond(const std::string& p_mml_filename,
+	const std::string& p_out_file_prefix) {
+	auto coll{ load_mml_file(p_mml_filename) };
+	save_lilypond_files(coll, p_out_file_prefix);
+}
+
 void fi::Cli::save_midi_files(fm::MMLSongCollection& coll,
 	const std::string& p_out_file_prefix) const {
 	std::cout << "Attempting to write midi files...\n";
@@ -380,6 +419,22 @@ void fi::Cli::save_midi_files(fm::MMLSongCollection& coll,
 	for (std::size_t i{ 0 }; i < midis.size(); ++i) {
 		std::string l_filename{ std::format("{}-{:02}.mid", p_out_file_prefix, i + 1) };
 		midis[i].write(l_filename);
+		std::cout << "Wrote " << l_filename << "!\n";
+	}
+}
+
+void fi::Cli::save_lilypond_files(fm::MMLSongCollection& coll,
+	const std::string& p_out_file_prefix) const {
+	std::cout << std::format("LilyPond percussion staff {}\n\n",
+		m_lilypond_percussion ? "enabled" : "disabled");
+
+	std::cout << "Attempting to write LilyPond files...\n";
+
+	auto lps{ coll.to_lilypond(m_lilypond_percussion) };
+
+	for (std::size_t i{ 0 }; i < lps.size(); ++i) {
+		std::string l_filename{ std::format("{}-{:02}.ly", p_out_file_prefix, i + 1) };
+		klib::file::write_string_to_file(lps[i], l_filename);
 		std::cout << "Wrote " << l_filename << "!\n";
 	}
 }
@@ -473,7 +528,12 @@ void fi::Cli::set_mode(const std::string& p_mode) {
 	else if (check_mode(p_mode, appc::CMD_ROM_TO_MIDI)) {
 		m_script_mode = fi::ScriptMode::RomToMidi;
 	}
-	// can't really happen
+	else if (check_mode(p_mode, appc::CMD_MML_TO_LILYPOND)) {
+		m_script_mode = fi::ScriptMode::MmlToLilyPond;
+	}
+	else if (check_mode(p_mode, appc::CMD_ROM_TO_LILYPOND)) {
+		m_script_mode = fi::ScriptMode::RomToLilyPond;
+	}
 	else throw std::runtime_error("Unknown commad " + p_mode);
 }
 
@@ -514,9 +574,11 @@ void fi::Cli::toggle_flag(std::size_t p_flag_idx) {
 		m_overwrite = !m_overwrite;
 	else if (p_flag_idx == 3)
 		m_notes = !m_notes;
+	else if (p_flag_idx == 4)
+		m_lilypond_percussion = !m_lilypond_percussion;
 }
 
-// sad that this is needed in 2025
+// sad that this is needed in 2026
 void fi::Cli::output_oe_on_windows(void) const {
 
 #ifdef _WIN32

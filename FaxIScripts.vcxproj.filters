@@ -168,6 +168,9 @@
     <ClCompile Include="src\common\midifile\Options.cpp">
       <Filter>Source Files\common\midifile</Filter>
     </ClCompile>
+    <ClCompile Include="src\fm\song\LilyPond.cpp">
+      <Filter>Source Files\fm\song</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\fi\Opcode.h">
@@ -280,6 +283,9 @@
     </ClInclude>
     <ClInclude Include="src\common\midifile\Options.h">
       <Filter>Header Files\common\midifile</Filter>
+    </ClInclude>
+    <ClInclude Include="src\fm\song\LilyPond.h">
+      <Filter>Header Files\fm\song</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

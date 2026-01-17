@@ -42,6 +42,7 @@ namespace fm {
 
 		std::vector<byte> to_bytecode(const fe::Config& p_config);
 		std::vector<smf::MidiFile> to_midi(void);
+		std::vector<std::string> to_lilypond(bool p_incl_percussion);
 		void sort(void);
 
 		// calcs

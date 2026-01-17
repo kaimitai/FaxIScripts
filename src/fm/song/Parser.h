@@ -58,6 +58,7 @@ namespace fm {
 		int consume_number(const std::string& p_label, int p_min, int p_max);
 
 		fm::ChannelType string_to_channel_type(const std::string& str) const;
+		void validate_type(const Token& token, fm::TokenType p_type) const;
 
 	public:
 		Parser(const std::vector<Token>& toks);

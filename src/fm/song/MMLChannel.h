@@ -35,7 +35,9 @@ namespace fm {
 	};
 
 	struct ChannelState {
-		int duty_cycle = 0;
+		int sq_duty_cycle = 0;
+		int sq_vol = 0;
+
 		int octave = 4;
 		int ticklength = 1;
 		int pitchoffset = 0;
@@ -45,10 +47,6 @@ namespace fm {
 	};
 
 	struct VM {
-		// TODO: Remove these ints
-		int index = 0; // next event to execute
-		int current_index = -1; // event just executed
-
 		std::size_t pc{ 0 };
 		fm::Fraction tempo = fm::Fraction(0, 1);
 		ChannelState st;
@@ -75,14 +73,14 @@ namespace fm {
 
 		// VM variables
 		VM vm;
-
-		bool step(void);
 		void reset_vm(bool point_at_start = false);
-		const MmlEvent* current_event(void) const;
 
 		fm::ChannelType channel_type;
 		std::vector<fm::MmlEvent> events;
 		fm::Fraction song_tempo;
+
+		// lilypond
+		std::string m_clef;
 
 		MMLChannel(fm::Fraction p_song_tempo);
 		std::size_t get_start_index(void) const;
@@ -95,19 +93,19 @@ namespace fm {
 			std::optional<int> length = std::nullopt,
 			int dots = 0,
 			std::optional<int> raw = std::nullopt,
-			bool force = false);
+			bool no_vm_advance = false);
 		void emit_set_length_bytecode_if_necessary(
 			std::vector<fm::MusicInstruction>& instrs,
 			const fm::Duration& p_duration,
-			bool force = false);
-		int advance_vm_ticks(const fm::Duration& dur);
+			bool no_vm_advance = false);
+		int advance_vm_ticks(const fm::Duration& dur,
+			bool no_vm_advance = false);
 		fm::Duration resolve_duration(std::optional<int> length = std::nullopt,
 			int dots = 0,
 			std::optional<int> raw = std::nullopt) const;
 		int note_index(int octave, int pitch) const;
 		std::pair<int, int> split_note(byte p_note_no) const;
 		fm::TieResult resolve_tie_chain(void);
-		bool current_event_is_note_with_tie_next(void) const;
 		byte ints_to_sq_control(int duty, int envLoop, int constVol, int volume) const;
 		byte int_to_volume_byte(int p_volume) const;
 		byte int_to_byte(int n) const;
@@ -130,6 +128,15 @@ namespace fm {
 		// midi functions
 		int add_midi_track(smf::MidiFile& p_midi, int p_channel_no,
 			int p_pitch_offset, int p_max_ticks = -1);
+
+		// lilypond export
+		int add_lilypond_staff(std::string& p_lp, int p_pitch_offset, const std::string& p_time_sig);
+		std::string to_lilypond_length(std::optional<int> p_length,
+			int p_dots, std::optional<int> p_raw, fm::Fraction& p_bar_accum) const;
+		std::string get_lilypond_clef(void) const;
+
+		std::string volume_to_marker(int p_vol) const;
+		bool is_empty(void) const;
 
 		// mml to bytecode function
 		fm::ChannelBytecodeExport to_bytecode(void);

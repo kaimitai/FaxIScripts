@@ -53,6 +53,8 @@ std::vector<fm::Token> fm::Tokenizer::tokenize(void) {
 			tokens.push_back(create_tie());
 		else if (std::isdigit(static_cast<unsigned char>(c)))
 			tokens.push_back(create_number());
+		else if (c == '\"')
+			tokens.push_back(create_string());
 		else if (is_rest_start())
 			tokens.push_back(create_rest());
 		else if (is_note_start())
@@ -586,6 +588,34 @@ fm::Token fm::Tokenizer::create_label_or_ref(void) {
 
 	// 4. Normal identifier
 	tok.type = TokenType::LabelRef;
+	tok.text = value;
+
+	return tok;
+}
+
+fm::Token fm::Tokenizer::create_string(void) {
+	Token tok;
+
+	tok.line = line;
+	tok.column = column;
+
+	std::string value;
+
+	// 1. consume First character: "
+	advance();
+
+	while (!at_end()) {
+		char d = advance();
+		if (d=='\"') {
+			break;
+		}
+		else {
+			value.push_back(d);
+		}
+	}
+
+	// 4. Normal identifier
+	tok.type = TokenType::String;
 	tok.text = value;
 
 	return tok;
