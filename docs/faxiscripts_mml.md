@@ -1,5 +1,5 @@
 
-# Introduction to MML (Music Macro Language)
+# MML (Music Macro Language)
 
 Creating music for **Faxanadu (NES)** presents a unique challenge: the original game uses raw bytecode tailored to a custom music engine to define music sequences, which is difficult and unintuitive for composers. Our goal is to **provide a layer of abstraction** that allows composers to write music using **MML** - a notation-based format familiar to many chiptune composers. This approach makes music creation more accessible and expressive while preserving full compatibility with the NES sound hardware.
 
@@ -61,7 +61,10 @@ This tool would not exist without **Christian Hammond’s reverse engineering of
 - [Tempo Coverage Table](#tempo-coverage-table)
 - [ROM to MML](#mml-extracted-from-rom)
 - [🎧 MIDI Output and How the Playback VM Works](#midi-output-and-how-the-playback-vm-works)
+- [LilyPond export](#lilypond-export)
 - [Example mml music](#example-mml-song)
+- [Troubleshooting](#troubleshooting)
+- [Orgiginal Songs](#original-songs)
 <!--/TOC-->
 
 ---
@@ -165,7 +168,7 @@ The compiler does its best:
 - It uses an **error accumulator** to spread rounding differences evenly (e.g., alternating 12 and 13 ticks for eighth notes).
 - This keeps measures aligned **most of the time**.
 
-But if you loop a section hundreds of times, even small rounding errors can accumulate.  
+But if you loop a section hundreds of times, even small rounding errors can accumulate.
 The engine itself doesn’t know about measures or beats—it just plays ticks.
 
 ---
@@ -186,9 +189,7 @@ We’ll provide a **recommended tempo chart** later in this documentation so you
 
 - Loops and subroutines repeat set patterns many times, so rounding errors can accumulate.
 - Stick to recommended tempos for best results.
-- If you use unusual tempos, expect tiny timing differences after long loops—but usually nothing audible unless the loop runs for a very long time.
-
-
+- If you use unusual tempos, expect tiny timing differences after long loops—but it might not necessarily be audible unless the loop runs for a very long time.
 
 ---
 
@@ -238,7 +239,6 @@ Translates all songs in `faxanadu.mml` into MIDI files named:
 This command is **independent of any ROM file** and can be used as a general MML renderer.
 
 ---
-
 
 ## MML Syntax Basics
 
@@ -310,7 +310,7 @@ t120
 
 **Notes:**
 - The tempo in `t<tempo>` applies to the entire song unless overridden inside a channel.
-
+- Tempo can be fractional, for example ```t112+1/2``` means a tempo of 112.5 quarter notes per minute.
 
 ## Musical Notation in MML
 
@@ -334,13 +334,15 @@ t120
     l4. c       ; dotted quarter note
     ```
 
+    The mml parser will accept any length you give it and convert it to ticks, even if it makes little musical sense. For example is ```c15..``` a double dotted 15th note.
+
 - **Raw lengths**:  
   - Use `l~<ticks>` to set the length in **raw ticks**, bypassing tempo calculations.  
     Example:
     ```mml
     l~4 c       ; note lasts exactly 4 ticks
     ```
-  - This is useful for precise timing or effects that don’t depend on BPM. Since Faxanadu allows 254 different note lengths, we can't fit them all on a musical grid necessarily. When extracting ROM to MML for example, the decompiler does its best to infer a tempo that puts as many tick lengths as possible on a musical grid, but for some cases it will not be possible - and in these cases we use ~ for raw tick-lengths. They are best avoided by composers in most cases, since they bypass tempo calculations.
+  - This is only useful for precise timing or effects that don’t depend on BPM. Since Faxanadu allows 254 different note lengths, we can't fit them all on a musical grid necessarily. When extracting ROM to MML for example, the decompiler does its best to infer a tempo that puts as many tick lengths as possible on a musical grid, but for some cases it will not be possible - and in these cases we use ~ for raw tick-lengths. They are best avoided by composers in most cases, since their length is the same under any tempo.
 
 **Summary:**  
 - `l<n>` → musical length (tempo-based).  
@@ -360,7 +362,7 @@ t120
   ```mml
   a4 & a8
   ```
-  This means the note `A` lasts for the combined length of a **quarter note + eighth note**.
+  This means the note `a` lasts for the combined length of a **quarter note + eighth note**.
 
 - The compiler will **collapse ties** into a single note:
   ```mml
@@ -369,7 +371,7 @@ t120
 
 #### Rules for Ties
 - **Pitch must match** (e.g., `a4 & a8` is valid, but `a4 & b8` is not).
-- **Notes must be consecutive** — nothing can come between them.
+- **Notes must be consecutive** — no other command can come between them.
 - Ties work across **length changes** (e.g., `a8 & a16` combines both lengths).
 
 ---
@@ -403,6 +405,8 @@ t120
 Octaves are **not part of the Faxanadu engine**. The engine uses **absolute note values**, not octaves.  
 We include `o<n>`, `>` and `<` in MML for consistency with standard syntax, but when compiling, these are **collapsed into concrete note numbers**.
 
+This means that the octave commands do not emit any bytecode, and are only used by the compiler to emit the correct notes.
+
 **Implication:**  
 - In loops or subroutines (`jsr`), the octave cannot change dynamically between iterations because the engine only sees absolute notes.
 - **Good practice:** Always set the octave explicitly at the start of each loop or subroutine target:
@@ -434,7 +438,8 @@ Percussion works a little differently from melodic channels:
   Use `r` for rests between percussion hits.
 
 **Example:**
-```mml
+```
+mml
 l4 p1 p2 p3 r p2*4
 ```
 
@@ -882,15 +887,17 @@ If a looped passage drifts over time, composers can insert:
 If composers don't use any loops or subroutines for a channel, the fractional accumulator will have an easy job correcting the output as it goes along.
 
 ## Tempo Coverage Table
-It is best to avoid fractional tick lengths for your notes, both for channels to stay in sync, and for bytecode size reasons.
+It is best to avoid fractional tick lengths for your notes completely, both for channels to stay in sync when using loops and subroutines, but also for bytecode size reasons. If the compiler needs to insert a lot of length-setting commands to keep notes aligned, the byte output can grow significantly.
 
-The table below lists tempos that produce clean musical grids. For each tempo:
+The table below lists all tempos between 30 and 300 with fraction-free whole notes and 8th notes. For each tempo:
 
-- **✔️** means the duration fits perfectly (no fractional remainder)
+- **✅** means the duration fits perfectly (no fractional remainder)
 - **❌** means the duration produces fractional drift
 - **⛔** means the duration is outside the allowed tick range (too short or too long)
 
-Use these tempos to avoid drift and ensure clean MML output.
+The coverage column is just a count of "well behaved notes" for the tempo.
+
+Use these tempos, and the notes marked with ✅ for that tempo, if possible - to avoid drift and ensure clean bytecode output.
 
 | tempo (q/min) | T (ticks/q) | coverage | 1 | 2 | 4 | 8 | 16 | 32 | 1. | 2. | 4. | 8. | 16. | 3 | 6 | 12 | 24 |
 |:-------------:|:-----------:|:--------:|:-:|:-:|:-:|:-:|:--:|:--:|:--:|:--:|:--:|:--:|:---:|:-:|:-:|:--:|:--:|
@@ -905,14 +912,33 @@ Use these tempos to avoid drift and ensure clean MML output.
 | 120           | 30          | 11       | ✅ | ✅ | ✅ | ✅ | ❌  | ❌  | ✅  | ✅  | ✅  | ❌  | ❌   | ✅ | ✅ | ✅  | ✅  |
 | 200           | 18          | 11       | ✅ | ✅ | ✅ | ✅ | ❌  | ❌  | ✅  | ✅  | ✅  | ❌  | ❌   | ✅ | ✅ | ✅  | ✅  |
 | 225           | 16          | 11       | ✅ | ✅ | ✅ | ✅ | ✅  | ✅  | ✅  | ✅  | ✅  | ✅  | ✅   | ❌ | ❌ | ❌  | ❌  |
+| 64+2/7        | 56          | 10       | ✅ | ✅ | ✅ | ✅ | ✅  | ✅  | ⛔  | ✅  | ✅  | ✅  | ✅   | ❌ | ❌ | ❌  | ❌  |
+| 66+2/3        | 54          | 10       | ✅ | ✅ | ✅ | ✅ | ❌  | ❌  | ⛔  | ✅  | ✅  | ❌  | ❌   | ✅ | ✅ | ✅  | ✅  |
+| 128+4/7       | 28          | 9        | ✅ | ✅ | ✅ | ✅ | ✅  | ❌  | ✅  | ✅  | ✅  | ✅  | ❌   | ❌ | ❌ | ❌  | ❌  |
+| 180           | 20          | 9        | ✅ | ✅ | ✅ | ✅ | ✅  | ❌  | ✅  | ✅  | ✅  | ✅  | ❌   | ❌ | ❌ | ❌  | ❌  |
+| 69+3/13       | 52          | 8        | ✅ | ✅ | ✅ | ✅ | ✅  | ❌  | ⛔  | ✅  | ✅  | ✅  | ❌   | ❌ | ❌ | ❌  | ❌  |
+| 81+9/11       | 44          | 8        | ✅ | ✅ | ✅ | ✅ | ✅  | ❌  | ⛔  | ✅  | ✅  | ✅  | ❌   | ❌ | ❌ | ❌  | ❌  |
+| 94+14/19      | 38          | 7        | ✅ | ✅ | ✅ | ✅ | ❌  | ❌  | ✅  | ✅  | ✅  | ❌  | ❌   | ❌ | ❌ | ❌  | ❌  |
+| 105+15/17     | 34          | 7        | ✅ | ✅ | ✅ | ✅ | ❌  | ❌  | ✅  | ✅  | ✅  | ❌  | ❌   | ❌ | ❌ | ❌  | ❌  |
+| 138+6/13      | 26          | 7        | ✅ | ✅ | ✅ | ✅ | ❌  | ❌  | ✅  | ✅  | ✅  | ❌  | ❌   | ❌ | ❌ | ❌  | ❌  |
+| 163+7/11      | 22          | 7        | ✅ | ✅ | ✅ | ✅ | ❌  | ❌  | ✅  | ✅  | ✅  | ❌  | ❌   | ❌ | ❌ | ❌  | ❌  |
+| 257+1/7       | 14          | 7        | ✅ | ✅ | ✅ | ✅ | ❌  | ❌  | ✅  | ✅  | ✅  | ❌  | ❌   | ❌ | ❌ | ❌  | ❌  |
+| 58+2/31       | 62          | 6        | ✅ | ✅ | ✅ | ✅ | ❌  | ❌  | ⛔  | ✅  | ✅  | ❌  | ❌   | ❌ | ❌ | ❌  | ❌  |
+| 62+2/29       | 58          | 6        | ✅ | ✅ | ✅ | ✅ | ❌  | ❌  | ⛔  | ✅  | ✅  | ❌  | ❌   | ❌ | ❌ | ❌  | ❌  |
+| 72            | 50          | 6        | ✅ | ✅ | ✅ | ✅ | ❌  | ❌  | ⛔  | ✅  | ✅  | ❌  | ❌   | ❌ | ❌ | ❌  | ❌  |
+| 78+6/23       | 46          | 6        | ✅ | ✅ | ✅ | ✅ | ❌  | ❌  | ⛔  | ✅  | ✅  | ❌  | ❌   | ❌ | ❌ | ❌  | ❌  |
 
 150 is the golden tempo for which all normal note lengths resolve to integral tick lengths.
 
 If you can forego triplets or 32nd notes, there are other good options.
 
-85+5/7 and 112+1/2 are very strange tempos indeed, but they too fall neatly on the musical grid.
+85+5/7 and 112+1/2 are very strange tempos indeed, but they too fall neatly on the musical grid. While they make little sense to composers, the point is that it produces integer tick lengths.
 
-Note also that you can tie any fraction-free notes together, and the tie will stay fraction-free - but the total length must be at most 255 ticks.
+With a tempo of 85+5/7 for example, the quarter note tick length becomes 3600/(85+5/7) = 42 ticks exactly. So while it looks like a senseless tempo, all normal notes apart from 16th and 32nd notes and their dotted versions will have integer tick lengths - as we can see in the table above. In the world of Faxanadu music this is actually a very nice tempo value.
+
+Note that for any tempo you can tie any number of fraction-free notes together, and the tie will stay fraction-free too - but the total tick length must resolve to at most 255.
+
+Note also that all quarter notes in this table have integer tick lengths. If you choose a tempo like 132, the quarter note will have a tick length of 3600/132 which is 27+3/11. This will cause fractional notes, so it is recommended to at least use a tempo which makes quarter notes integers - even if you don't use a tempo in the table above.
 
 ---
 
@@ -946,7 +972,7 @@ Because of this, the MML produced from a ROM may differ from the original MML us
 
 ---
 
-## 🎧 MIDI Output and How the Playback VM Works
+## MIDI Output and How the Playback VM Works
 
 ### 🧩 Per‑channel virtual machine
 Each channel is rendered by its **own internal virtual machine**, running independently of the others. This VM executes the fully expanded event stream for that channel:
@@ -955,7 +981,7 @@ Each channel is rendered by its **own internal virtual machine**, running indepe
 - **Subroutines (`jsr`) are inlined**
 - **All control flow becomes linear**
 
-Because the VM sees a **finite, linear sequence** of events, it never risks running forever. As soon as the channel reaches the end of its expanded event list, the VM reaches equilibrium and stops.
+Because the VM sees a **finite, linear sequence** of events, it never risks running forever. As soon as the channel reaches a previous state, the VM reaches equilibrium and stops.
 
 This design guarantees that MIDI export is:
 
@@ -972,7 +998,7 @@ Since the MIDI exporter works on the **fully unrolled** event stream, it can app
 - Corrections are applied immediately  
 - No drift can accumulate across loops or subroutines  
 
-This differs from the in‑engine compiler, which cannot predict how many times a loop will run. The MIDI exporter *can*, because it expands everything first. The result is **perfectly stable timing** in the MIDI output, even for passages that would drift inside the NES engine.
+This differs from the in‑engine compiler, which cannot handle fractional drift for more than one loop iteration or a call to subroutine. The MIDI exporter *can*, because it expands everything first. The result is **perfectly stable timing** in the MIDI output, even for passages that would drift inside the NES engine.
 
 ### 🧪 Testing compositions in the real engine
 While MIDI export is ideal for checking musical correctness, the **final authority** is always the real engine running inside the ROM.
@@ -991,12 +1017,77 @@ This makes song #1 the most convenient slot for rapid iteration:
 
 For deeper testing, you can assign your composition to any song index, but the intro slot is the fastest workflow during development.
 
+---
+
+## LilyPond export
+
+[Lilypond](https://lilypond.org/) is a music engraving program, which is free, open-source, and part of the [GNU Project](https://www.gnu.org/).
+
+The application can export an mml file - or music directly from ROM - to LilyPond files.
+
+The command
+
+```
+faxiscripts r2l faxanadu.nes faxanadu
+```
+
+will read music data from faxanadu.nes and output them to faxanadu-01.ly to faxanadu-16.ly.
+
+The command
+
+```
+faxiscripts m2l faxanadu.mml faxanadu -lp
+```
+
+will export all songs in faxanadu.mml to individual LilyPond files, starting with faxanadu-01.ly - and with the ```-lp``` option enabled, the percussion channel will be included as a drum staff in the output. This is optional, and disabled by default.
+
+The LilyPond application can then turn an .ly-file into a pdf with the engraved music. 
+
+After installing LilyPond, and having the lilypond executable reachable from your command line, the command:
+
+```
+lilypond faxanadu-01
+```
+
+will turn faxanadu-01.ly into faxanadu-01.pdf - which engraves the song as a musical score - as well as faxanadu-01.mid, which is a midi version of the music.
+
+This provides an alternative way to turn MML into midi.
+
+Some directives can be provided in the mml file to influence the LilyPond pdf output.
+
+There are song directives for time signature and song title, which are strings enclosed in double quotes. For example, starting a song with:
+
+```
+#song 1
+#title "Tom Lehrer - New Math"
+#time "3/4"
+```
+will make LilyPond show the given title at top of the pdf, and use time signature 3/4 in the engraving. Default time signature for a song, if not given, is 4/4. Default title is just "Song &lt;n&gt;" where n is the song number.
+
+There is also a channel-specific directive for the melodic channel which sets the clef.
+
+For example, starting a triangle channel with:
+
+```
+#tri {
+#clef "bass"
+```
+
+will use the bass clef for this channel in the engraving. By default, if a value is not given, the treble clef will be used.
+
+Other possible clef values can be seen in [LilyPond's documentation](https://lilypond.org/doc/v2.24/Documentation/notation/clef-styles).
+
+As for the midi converter, the LilyPond output will linearize the entire song - it will unroll loops and calls to subroutines.
+
+Note: The Eolis theme in the original game data has an incredibly long percussion channel because it uses a lot of percussions that are repeated 256 times, probably by error. Lilypond exports of this song with the drum staff enabled will emit hundreds of bars.
+
+---
+
 ## Example mml song
 
 ```
-; Athletic Theme
-
 #song 1
+#title "Yoshi's Island - Athletic Theme"
 t150
 
 #sq1 {
@@ -1026,3 +1117,72 @@ L4 [[p2 p1 p2 p1 p2 p1 p2 p1 p2 p3 p2 p3]255]
 !end
 }
 ```
+---
+## Troubleshooting
+
+Some common problems that can occurr when compiling mml.
+
+- A note length becomes 0 or higher than 255 ticks. This is not allowed by the engine. The error message will tell you which song and channel caused the error. Maybe you tied too many notes together, or your tempo was too fast or too slow relative to the note lengths you used. The calculated illegal tick count (0 or &gt;255) will also show in the error message.
+- Opcodes (commands) must start with !, if you write jsr instead of !jsr you will get an error message. Error messages during parsing will tell you which line and column in your mml the problem exists at.
+- Labels must start with @ and end with a colon in the definition, but not with a colon when they are referenced.
+- Loops and subroutines do not emit what you expected? This is probably because they are compiled once, but can be called many times. You cannot call a subroutine with different tempos or octaves for example, although the channel transpose-operator can be used for the latter.
+
+```
+o4
+!jsr @sub
+_12
+!jsr @sub
+!end
+
+@sub:
+c d e
+!return
+```
+
+This will play c d e both times the subroutine is called, but on the second call the channel has been tuned one octave higher - so the octaves will be different although the bytecode inside the subroutine was unchanged.
+
+```
+o4
+!jsr @sub
+o5
+!jsr @sub
+!end
+
+@sub:
+c d e
+!return
+```
+
+This, however, will not do the same thing as above. Octave is just a concept for the compiler, and whatever octave the compiler last saw when the subroutine is compiled will be used. This is why it is good practice to set an explicit octave at the beginning of your subroutines and your loops.
+
+Similarly for tempo, it cannot be changed between calls to jsr or loop iterations. The music engine simply does not support any way to do it.
+
+To play the exact same music with different tempos the music has to be duplicated into separate subroutines, starting with different tempo values. Once the note lengths have been set once, they cannot change.
+
+- Some midi channels or LilyPond staves stop early? Each channel is converted separately, and stops once the internal VM has reached a previous state. If one channel plays twice in the time another channel plays once, for example, this can happen.
+- The midi or lilypond doesn't necessarily behave the way the music does in ROM. They are converted from the mml and not the bytecode, so they support tempo changes between calls to subroutine, unlike the real engine.
+- Compilation happens linearly from the top of the channel's mml until the end, and not necessairly in the order the music is played. This is another good reason to write octaves inside subroutines and loops. (and tempos if you use tempo changes)
+- The notes plays extremely fast? You probably did not set a note length. The default note length in Faxanadu is 1 tick, and will be used until a length is given.
+
+---
+
+## Original Songs
+
+These are the songs in the original game:
+
+1. "Intro"
+2. "Land of Dwarf (Dartmoor Castle)"
+3. "Trunk"
+4. "Branches"
+5. "Mist"
+6. "Towers"
+7. "Eolis"
+8. "Mantra/Death"
+9. "Towns"
+10. "Boss Music"
+11. "Hour Glass"
+12. "Outro"
+13. "King"
+14. "Guru"
+15. "Shops/House"
+16. "Zenis (evil lair)"

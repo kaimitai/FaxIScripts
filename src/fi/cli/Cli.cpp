@@ -49,7 +49,7 @@ void fi::Cli::print_help(void) const {
 		"\n"
 		"  MIDI:\n"
 		"    m2m, mml-to-midi    - Convert MML to MIDI files\n"
-		"    r2m, rom-to-midi    - Extract music from ROM as MIDI\n"
+		"    r2m, rom-to-midi    - Extract music from ROM as MIDI files\n"
 		"\n"
 		"  LilyPond:\n"
 		"    m2l, mml-to-ly      - Convert MML to LilyPond files\n"

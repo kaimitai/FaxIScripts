@@ -2,27 +2,41 @@
 
 Welcome to the FaxIScripts code repository and release page. The code is standard C++20, and the project files were created using Microsoft Visual Studio Community 2022. You can compile the application from source, or get the latest precompiled Windows x64 build under the [repository releases](https://github.com/kaimitai/FaxIScripts/releases/).
 
+This tool is used for extracting data from Faxanadu (NES) ROMs - scripts and music - which can be edited in text editors and injected back into the ROM.
+
+**The interaction script layer:**
+
 IScripts are scripts used inside the Faxanadu (NES) game engine, and are surprisingly expressive. The aim of this assembler is to extract IScript code to a human-readable format reminiscent of assembly code. We aim to stay at the highest possible layer of abstraction without losing any extracted information.
 
 The scripting layer contains strings, shop data and actual code. The strings are stored in a separate section, but the shop data and code live together in one combined section. The shop data gets moved to its own section in our assembly files, and any opcode referencing a shop uses its index - which is only resolved to an actual address during linking. This provides a zero-cost abstraction - no extra bytes, no layout penalties.
 
 There are two ROM sections we can use when patching, and the users can choose between different patching modes.
 
-We also support extracting and patching the music layer of Faxanadu - both at the assembly level, and at a higher level of abstraction - as MML (music macro language) files.
-
 Make sure to read the [documentation](./docs/faxiscripts_doc.md) for a detailed overview of the syntax and structure of the assembly files we will be editing, as well as a list of all available opcodes.
+
+**The music layer:**
+
+We also support extracting and patching the music layer of Faxanadu - both at the assembly level, and at a higher level of abstraction - as MML (music macro language) files.
 
 For MML editing there is a separate [documentation](./docs/faxiscripts_mml.md) for a detailed overview of the syntax and structure of the file format - as well as the necessary technical information needed to compose music effectively.
 
-This application has a natural companion in [Echoes of Eolis](https://github.com/kaimitai/faxedit/), which is a graphical editor that can patch the other dynamically sized data portions in Faxanadu. To see, or change, which NPCs in Faxanadu are connected to a given script (script entrypoint) this editor can be used.
+<hr>
+
+This application has a natural companion in [Echoes of Eolis](https://github.com/kaimitai/faxedit/), which is a graphical editor that can patch the other dynamically sized data portions in Faxanadu. To see, or change, which NPCs in Faxanadu are connected to a given interactions script, for example, Echoes of Eolis can can be used.
 
 <hr>
 
 An example of an extracted script:
 
-![Alt text](./docs/img/script067_full_plate_gift.png)
+![IScript example](./docs/img/script067_full_plate_gift.png)
 
 #### Faxanadu script #67 - Free full plate from a man in the Victim pub, if your rank is Solider or higher
+
+<hr>
+
+An example of the beginning of an extracted tune:
+
+![MML example](./docs/img/lilypond_output_example.png)
 
 <hr>
 
@@ -41,7 +55,7 @@ The assembler has the following features:
 
 ## How it works
 
-The application can disassemble - that is extract - the scripting layer data in one assembly-file - from a Faxanadu NES rom. This file can then be modified by the user via our internal assembly language.
+The application can disassemble - that is extract - the scripting or music layer data into text files - from a Faxanadu NES rom. These files can then be modified by the user via our internal assembly languages.
 
 A command-line instruction will extract and disassemble the scripting layer data from ROM.
 
@@ -61,7 +75,7 @@ Another instruction will pack your music, and patch it back to ROM.
 
 The command `faxiscripts bmml faxanadu.mml "Faxanadu (U).nes"` will patch "Faxanadu (U).nes" with the music from faxanadu.mml.
 
-We also have commands for rendering Faxanadu music as midi files, both directly from ROM or from an MML file.
+We also have commands for rendering Faxanadu music as midi files, both directly from ROM or from an MML file. In addition to that, we can export MML files, or music directly from ROM, to the [LilyPond](https://lilypond.org/) format, which can provide musical scores.
 
 <hr>
 
@@ -69,7 +83,6 @@ We also have commands for rendering Faxanadu music as midi files, both directly 
 
 We prioritize fixing bugs if any are discovered, but here are some ideas for future features:
 
-* Allow music exports and imports at a higher level of abstraction, once we know enough to decide what the abstraction should look like. Most likely a music macro language (mml) of some sort.
 * We might do more static analysis to help users identify problems in their code
 * Add an option to let the linker insert a jump-instruction to bridge the gap between the safe ROM regions. This could potentially save some bytes over the current bridging strategy.
 * Allow Japanese characters directly in strings for the jp region
@@ -77,6 +90,10 @@ We prioritize fixing bugs if any are discovered, but here are some ideas for fut
 <hr>
 
 ### Version History
+
+* 2026-01-18: version 0.51
+    * Added support for exporting music from MML files, or music directly from ROM, to the [LilyPond](https://lilypond.org/) format. This can be used to engrave your music and provides an alternative way to convert music to midi. Some new directives were added to the MML format so that composers can set time signatures for their songs, or set clefs per channel, in the LilyPond output. There is also an option for adding a drum staff for the percussion channel.
+    * Fixed a subtle bug where the MML bytecode generator would emit two set-length commands in a row.
 
 * 2026-01-12: version 0.5
     * Added support for extracting Faxanadu's music layer as MML files, which raises the level of abstraction and makes music editing easier for composers.
