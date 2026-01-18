@@ -64,7 +64,7 @@ This tool would not exist without **Christian Hammond’s reverse engineering of
 - [LilyPond export](#lilypond-export)
 - [Example mml music](#example-mml-song)
 - [Troubleshooting](#troubleshooting)
-- [Orgiginal Songs](#original-songs)
+- [Original Songs](#original-songs)
 <!--/TOC-->
 
 ---
@@ -430,7 +430,7 @@ Percussion works a little differently from melodic channels:
 
 - **Repeats:**  
   You can repeat a percussion note by adding `*<count>` after it:  
-  - `p0*5` → plays `p0` five times  
+  - `p1*5` → plays `p1` five times  
   - Valid repeat counts: `1–15 and 256`
   - If no repeat is given, the note plays once.
 
@@ -1161,8 +1161,13 @@ To play the exact same music with different tempos the music has to be duplicate
 
 - Some midi channels or LilyPond staves stop early? Each channel is converted separately, and stops once the internal VM has reached a previous state. If one channel plays twice in the time another channel plays once, for example, this can happen.
 - The midi or lilypond doesn't necessarily behave the way the music does in ROM. They are converted from the mml and not the bytecode, so they support tempo changes between calls to subroutine, unlike the real engine.
-- Compilation happens linearly from the top of the channel's mml until the end, and not necessairly in the order the music is played. This is another good reason to write octaves inside subroutines and loops. (and tempos if you use tempo changes)
+- Compilation happens linearly from the top of the channel's mml until the end, and not necessarily in the order the music is played. This is another good reason to write octaves inside subroutines and loops. (and tempos if you use tempo changes)
 - The notes plays extremely fast? You probably did not set a note length. The default note length in Faxanadu is 1 tick, and will be used until a length is given.
+- If your song jumps into another song, or starts playing strange noise, one of two problems could be happening:
+  - Your channel doesn't end cleanly. It needs to be in an infinite loop, or end with !restart or !end. Your subroutines must end with a !return somewhere.
+  - Your channel is in an infinite loop but not emitting any notes or rests. This causes the program counter to get corrupted in Faxanadu's music engine. Some examples:
+     - A channel only consisting of !restart
+     - An infinite loop [ ... ] with no notes or rests inside.
 
 ---
 

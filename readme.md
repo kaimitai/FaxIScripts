@@ -30,7 +30,7 @@ An example of an extracted script:
 
 ![IScript example](./docs/img/script067_full_plate_gift.png)
 
-#### Faxanadu script #67 - Free full plate from a man in the Victim pub, if your rank is Solider or higher
+#### Faxanadu script #67 - Free full plate from a man in the Victim pub, if your rank is Soldier or higher
 
 <hr>
 
