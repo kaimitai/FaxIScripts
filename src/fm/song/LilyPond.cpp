@@ -22,13 +22,14 @@ std::string fm::lp::footer(void) {
 }
 
 std::string fm::lp::emit_octave(int p_octave) {
+	constexpr int DEFAULT_OCTAVE{ 3 };
 	std::string result;
 
-	if (p_octave < 4)
-		for (int i{ 4 }; i > p_octave; --i)
+	if (p_octave < DEFAULT_OCTAVE)
+		for (int i{ DEFAULT_OCTAVE }; i > p_octave; --i)
 			result.push_back(',');
-	else if (p_octave > 4)
-		for (int i{ 4 }; i < p_octave; ++i)
+	else if (p_octave > DEFAULT_OCTAVE)
+		for (int i{ DEFAULT_OCTAVE }; i < p_octave; ++i)
 			result.push_back('\'');
 
 	return result;
