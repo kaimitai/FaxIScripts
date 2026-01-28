@@ -124,3 +124,10 @@ We prioritize fixing bugs if any are discovered, but here are some ideas for fut
 Special thanks to the following contributors and fellow digital archaeologists:
 
 [ChipX86/Christian Hammond](http://chipx86.com/) - For entirely mapping out both the iScript language and the music engine in his [Faxanadu disassembly](https://chipx86.com/faxanadu/) - and for coining the term IScript (Interaction Script) itself. This project would not have existed without his resources.
+
+<hr>
+
+You can also find me on the **Faxanadu Randomizer & Romhacking** Discord server, the main hub for all things Faxanadu.
+
+[![Discord](https://img.shields.io/badge/Faxanadu%20Randomizer%20%26%20Romhacking-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/K65uxXhA)
+

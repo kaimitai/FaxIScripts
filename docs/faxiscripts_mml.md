@@ -1123,6 +1123,8 @@ L4 [[p2 p1 p2 p1 p2 p1 p2 p1 p2 p3 p2 p3]255]
 Some common problems that can occurr when compiling mml.
 
 - A note length becomes 0 or higher than 255 ticks. This is not allowed by the engine. The error message will tell you which song and channel caused the error. Maybe you tied too many notes together, or your tempo was too fast or too slow relative to the note lengths you used. The calculated illegal tick count (0 or &gt;255) will also show in the error message.
+- Some notes might not play, if their pitch is too high or too low, depending on the channel. The range of legal note values is bigger than the range of notes that can actually be played.
+- If one of your notes has a pitch that is too low or too high to even be turned into bytecode, compilation will fail. The base range is 127 different semitones, starting from C in octave 2.
 - Opcodes (commands) must start with !, if you write jsr instead of !jsr you will get an error message. Error messages during parsing will tell you which line and column in your mml the problem exists at.
 - Labels must start with @ and end with a colon in the definition, but not with a colon when they are referenced.
 - Loops and subroutines do not emit what you expected? This is probably because they are compiled once, but can be called many times. You cannot call a subroutine with different tempos or octaves for example, although the channel transpose-operator can be used for the latter.
@@ -1139,7 +1141,7 @@ c d e
 !return
 ```
 
-This will play c d e both times the subroutine is called, but on the second call the channel has been tuned one octave higher - so the octaves will be different although the bytecode inside the subroutine was unchanged.
+This will play c d e both times the subroutine is called, but on the second call the channel has been tuned one octave higher - so the pitches will be different although the bytecode inside the subroutine was unchanged.
 
 ```
 o4
