@@ -73,6 +73,12 @@
     <Filter Include="Source Files\common\midifile">
       <UniqueIdentifier>{94e19ae3-6a22-4b07-9aa3-be934924dca2}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\fb">
+      <UniqueIdentifier>{3b704254-0cf1-4797-88fc-0ae2ca9d342f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\fb">
+      <UniqueIdentifier>{84b7666b-c849-40bb-87c5-9119d38ffb85}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp">
@@ -170,6 +176,18 @@
     </ClCompile>
     <ClCompile Include="src\fm\song\LilyPond.cpp">
       <Filter>Source Files\fm\song</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fb\BScriptLoader.cpp">
+      <Filter>Source Files\fb</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fb\BScriptOpcode.cpp">
+      <Filter>Source Files\fb</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fb\BScriptWriter.cpp">
+      <Filter>Source Files\fb</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fb\BScriptReader.cpp">
+      <Filter>Source Files\fb</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -286,6 +304,21 @@
     </ClInclude>
     <ClInclude Include="src\fm\song\LilyPond.h">
       <Filter>Header Files\fm\song</Filter>
+    </ClInclude>
+    <ClInclude Include="src\fb\fb_constants.h">
+      <Filter>Header Files\fb</Filter>
+    </ClInclude>
+    <ClInclude Include="src\fb\BScriptLoader.h">
+      <Filter>Header Files\fb</Filter>
+    </ClInclude>
+    <ClInclude Include="src\fb\BScriptOpcode.h">
+      <Filter>Header Files\fb</Filter>
+    </ClInclude>
+    <ClInclude Include="src\fb\BScriptWriter.h">
+      <Filter>Header Files\fb</Filter>
+    </ClInclude>
+    <ClInclude Include="src\fb\BScriptReader.h">
+      <Filter>Header Files\fb</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

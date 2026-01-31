@@ -10,7 +10,7 @@ namespace fi {
 	namespace appc {
 
 		constexpr char APP_NAME[]{ "FaxIScripts" };
-		constexpr char APP_VERSION[]{ "0.51" };
+		constexpr char APP_VERSION[]{ "0.6" };
 		constexpr char APP_URL[]{ "https://github.com/kaimitai/FaxIScripts" };
 		constexpr char CONFIG_XML[]{ "eoe_config.xml" };
 
@@ -24,6 +24,8 @@ namespace fi {
 		inline const std::pair<std::string, std::string> CMD_ROM_TO_LILYPOND{ "rom-to-ly" , "r2l" };
 		inline const std::pair<std::string, std::string> CMD_EXTRACT_MUSIC{ "extract-music" , "xm" };
 		inline const std::pair<std::string, std::string> CMD_BUILD_MUSIC{ "build-music" , "bm" };
+		inline const std::pair<std::string, std::string> CMD_EXTRACT_BSCRIPTS{ "extract-bscripts" , "xb" };
+		inline const std::pair<std::string, std::string> CMD_BUILD_BSCRIPTS{ "build-bscripts" , "bb" };
 
 		inline const std::vector<std::pair<std::string, std::string>> CLI_FLAGS{
 			{"--no-shop-comments", "-p"},

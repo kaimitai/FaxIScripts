@@ -3,29 +3,41 @@
 #include <stdexcept>
 
 int klib::str::parse_numeric(const std::string& token) {
-	if (token.empty()) throw std::runtime_error("Empty index token");
+	if (token.empty())
+		throw std::runtime_error("Empty index token");
+
+	bool negative = false;
+	std::string work = token;
+
+	// Handle leading minus without breaking existing prefixes
+	if (!work.empty() && work[0] == '-') {
+		negative = true;
+		work = work.substr(1);
+		if (work.empty())
+			throw std::runtime_error("Invalid numeric token: '" + token + "'");
+	}
 
 	int base = 10;
 	std::string digits;
 
-	if (token[0] == '$') {
+	if (work[0] == '$') {
 		base = 16;
-		digits = token.substr(1);
+		digits = work.substr(1);
 	}
-	else if (token[0] == '%') {
+	else if (work[0] == '%') {
 		base = 2;
-		digits = token.substr(1);
+		digits = work.substr(1);
 	}
-	else if (token.starts_with("0x") || token.starts_with("0X")) {
+	else if (work.starts_with("0x") || work.starts_with("0X")) {
 		base = 16;
-		digits = token.substr(2);
+		digits = work.substr(2);
 	}
-	else if (token.starts_with("0b") || token.starts_with("0B")) {
+	else if (work.starts_with("0b") || work.starts_with("0B")) {
 		base = 2;
-		digits = token.substr(2);
+		digits = work.substr(2);
 	}
 	else {
-		digits = token;
+		digits = work;
 	}
 
 	size_t pos;
@@ -45,7 +57,7 @@ int klib::str::parse_numeric(const std::string& token) {
 	if (pos != digits.size()) {
 		throw std::runtime_error("Invalid numeric token: " + token);
 	}
-	return value;
+	return negative ? -value : value;
 }
 
 std::string klib::str::strip_comment(const std::string& line, char p_comment_char) {
@@ -66,6 +78,10 @@ bool klib::str::str_begins_with(const std::string& p_line,
 				return false;
 
 	return true;
+}
+
+bool klib::str::str_equals_icase(const std::string& p_str_a, const std::string& p_str_b) {
+	return to_lower(p_str_a) == to_lower(p_str_b);
 }
 
 std::vector<std::string> klib::str::split_whitespace(const std::string& line) {
@@ -181,6 +197,18 @@ std::map<std::string, std::string> klib::str::extract_keyval_str(const std::stri
 				result.insert(std::make_pair(arg, val));
 		}
 	}
+
+	return result;
+}
+
+std::map<std::string, std::string> klib::str::to_lowercase_string_map(const std::map<std::string,
+	std::string>& p_map) {
+	std::map<std::string, std::string> result;
+
+	for (const auto& kv : p_map)
+		result.insert(std::make_pair(
+			to_lower(kv.first), to_lower(kv.second)
+		));
 
 	return result;
 }

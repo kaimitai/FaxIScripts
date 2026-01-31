@@ -8,10 +8,13 @@
 
 namespace fi {
 
-	enum ScriptMode { IScriptBuild, IScriptExtract,
+	enum ScriptMode {
+		IScriptBuild, IScriptExtract,
 		MmlExtract, MmlBuild, MmlToMidi, RomToMidi,
 		MmlToLilyPond, RomToLilyPond,
-		MScriptBuild, MScriptExtract };
+		MScriptBuild, MScriptExtract,
+		BScriptBuild, BScriptExtract
+	};
 
 	class Cli {
 
@@ -39,6 +42,14 @@ namespace fi {
 		void nes_to_asm(const std::string& p_nes_filename,
 			const std::string& p_asm_filename,
 			bool p_shop_comments, bool p_overwrite);
+
+		// bscripts
+		void basm_to_nes(const std::string& p_basm_filename,
+			const std::string& p_nes_filename,
+			const std::string& p_source_rom_filename,
+			bool p_strict);
+		void nes_to_basm(const std::string& p_nes_filename,
+			const std::string& p_basm_filename, bool p_overwrite);
 
 		// music (asm)
 		void masm_to_nes(const std::string& p_mml_filename,

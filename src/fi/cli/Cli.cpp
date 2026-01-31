@@ -6,8 +6,11 @@
 #include "./../../fm/fm_constants.h"
 #include <stdexcept>
 #include "./../IScriptLoader.h"
+#include "./../../fb/BScriptLoader.h"
+#include "./../../fb/BScriptReader.h"
 #include "./../AsmReader.h"
 #include "./../AsmWriter.h"
+#include "./../../fb/BScriptWriter.h"
 #include "./../../fm/MScriptLoader.h"
 #include "./../../fm/MMLReader.h"
 #include "./../../fm/MMLWriter.h"
@@ -35,25 +38,29 @@ void fi::Cli::print_help(void) const {
 		"Usage:\n"
 		"  faxiscripts <command> <input> <output> [options]\n\n"
 		"Commands:\n"
-		"  IScripts:\n"
-		"    x,   extract        - Disassemble IScripts from ROM\n"
-		"    b,   build          - Assemble IScripts into ROM\n"
+		"  IScripts (interaction scripts):\n"
+		"    x,   extract            - Disassemble IScripts from ROM\n"
+		"    b,   build              - Assemble IScripts into ROM\n"
+		"\n"
+		"  BScripts (behavior scripts):\n"
+		"    xb,  extract-bscripts   - Disassemble BScripts from ROM\n"
+		"    bb,  build-bscripts     - Assemble BScripts and patch ROM\n"
 		"\n"
 		"  MScripts (low level music format):\n"
-		"    xm,  extract-music  - Disassemble MScripts from ROM\n"
-		"    bm,  build-music    - Assemble MScripts and patch ROM\n"
+		"    xm,  extract-music     - Disassemble MScripts from ROM\n"
+		"    bm,  build-music       - Assemble MScripts and patch ROM\n"
 		"\n"
 		"  MML (high level music format):\n"
-		"    xmml, extract-mml   - Extract music as MML from ROM\n"
-		"    bmml, build-mml     - Compile MML and patch ROM\n"
+		"    xmml, extract-mml      - Extract music as MML from ROM\n"
+		"    bmml, build-mml        - Compile MML and patch ROM\n"
 		"\n"
 		"  MIDI:\n"
-		"    m2m, mml-to-midi    - Convert MML to MIDI files\n"
-		"    r2m, rom-to-midi    - Extract music from ROM as MIDI files\n"
+		"    m2m, mml-to-midi       - Convert MML to MIDI files\n"
+		"    r2m, rom-to-midi       - Extract music from ROM as MIDI files\n"
 		"\n"
 		"  LilyPond:\n"
-		"    m2l, mml-to-ly      - Convert MML to LilyPond files\n"
-		"    r2l, rom-to-ly      - Extract music from ROM as LilyPond files\n\n";
+		"    m2l, mml-to-ly         - Convert MML to LilyPond files\n"
+		"    r2l, rom-to-ly         - Extract music from ROM as LilyPond files\n\n";
 
 	std::cout << "Options:\n";
 	std::cout << "  Common options:\n";
@@ -92,6 +99,7 @@ fi::Cli::Cli(int argc, char** argv) :
 	m_config.load_definitions(appc::CONFIG_XML);
 
 	// we have the info we need to execute
+	// IScript dispatch
 	if (m_script_mode == fi::ScriptMode::IScriptBuild) {
 		asm_to_nes(m_in_file, m_out_file,
 			m_source_rom.empty() ? m_out_file : m_source_rom,
@@ -99,27 +107,35 @@ fi::Cli::Cli(int argc, char** argv) :
 	}
 	else if (m_script_mode == fi::ScriptMode::IScriptExtract)
 		nes_to_asm(m_in_file, m_out_file, m_shop_comments, m_overwrite);
-
+	// BScript dispatch
+	else if (m_script_mode == fi::ScriptMode::BScriptBuild) {
+		basm_to_nes(m_in_file, m_out_file,
+			m_source_rom.empty() ? m_out_file : m_source_rom,
+			m_strict);
+	}
+	else if (m_script_mode == fi::ScriptMode::BScriptExtract)
+		nes_to_basm(m_in_file, m_out_file, m_overwrite);
+	// MScript dispatch
 	else if (m_script_mode == fi::ScriptMode::MScriptBuild)
 		masm_to_nes(m_in_file, m_out_file, m_source_rom.empty() ? m_out_file : m_source_rom);
 	else if (m_script_mode == fi::ScriptMode::MScriptExtract)
 		nes_to_masm(m_in_file, m_out_file, m_overwrite);
-
+	// MML dispatch
 	else if (m_script_mode == fi::ScriptMode::MmlBuild)
 		mml_to_nes(m_in_file, m_out_file, m_source_rom.empty() ? m_out_file : m_source_rom);
 	else if (m_script_mode == fi::ScriptMode::MmlExtract)
 		nes_to_mml(m_in_file, m_out_file, m_overwrite);
-
+	// midi dispatch
 	else if (m_script_mode == fi::ScriptMode::MmlToMidi)
 		mml_to_midi(m_in_file, m_out_file);
 	else if (m_script_mode == fi::ScriptMode::RomToMidi)
 		rom_to_midi(m_in_file, m_out_file);
-
+	// Lilypond dispatch
 	else if (m_script_mode == fi::ScriptMode::MmlToLilyPond)
 		mml_to_lilypond(m_in_file, m_out_file);
 	else if (m_script_mode == fi::ScriptMode::RomToLilyPond)
 		rom_to_lilypond(m_in_file, m_out_file);
-
+	// can't really happen
 	else
 		throw(std::runtime_error("Invalid script mode"));
 }
@@ -220,6 +236,41 @@ void fi::Cli::asm_to_nes(const std::string& p_asm_filename,
 	std::cout << "File patched\n";
 }
 
+void fi::Cli::basm_to_nes(const std::string& p_basm_filename,
+	const std::string& p_nes_filename,
+	const std::string& p_source_rom_filename,
+	bool p_strict) {
+	
+	std::cout << "Attempting to read ROM contents from " << p_source_rom_filename << "\n";
+	auto rom{ klib::file::read_file_as_bytes(p_source_rom_filename) };
+
+	if (m_region.empty()) {
+		m_config.determine_region(rom);
+		std::cout << "ROM region resolved to '" << m_config.get_region() << "'\n";
+	}
+	else {
+		m_config.set_region(m_region);
+		std::cout << "ROM region specified as '" << m_region << "'\n";
+	}
+
+	m_config.load_config_data(appc::CONFIG_XML);
+
+	fb::BScriptReader reader(m_config);
+	reader.read_asm_file(p_basm_filename, m_config);
+
+	const auto bytes{ reader.to_bytes() };
+	std::cout << "Total script byte size: " << bytes.size() << "\n";
+
+	auto bscriptptr{ m_config.pointer("bscript_ptr") };
+
+	for (std::size_t i{ 0 }; i < bytes.size(); ++i)
+		rom.at(bscriptptr.first + i) = bytes[i];
+
+	std::cout << "Attempting to patch file " << p_nes_filename << "\n";
+	klib::file::write_bytes_to_file(rom, p_nes_filename);
+	std::cout << "File patched\n";
+}
+
 void fi::Cli::masm_to_nes(const std::string& p_mml_filename,
 	const std::string& p_nes_filename,
 	const std::string& p_source_rom_filename) {
@@ -296,6 +347,44 @@ void fi::Cli::nes_to_asm(const std::string& p_nes_filename,
 	asmw.generate_asm_file(m_config, p_asm_filename,
 		loader.m_instructions, loader.ptr_table, loader.m_jump_targets,
 		loader.m_strings, loader.m_shops, m_shop_comments);
+
+	std::cout << "Extraction complete!\n";
+}
+
+void fi::Cli::nes_to_basm(const std::string& p_nes_filename,
+	const std::string& p_basm_filename, bool p_overwrite) {
+
+	// show params
+	if (p_overwrite)
+		std::cout << "Will overwrite output assembly file if it already exists\n";
+
+	// fail early if asm file already exists and we do not overwrite
+	if (!p_overwrite && klib::file::file_exists(p_basm_filename))
+		throw std::runtime_error(std::format("Assembly file {} exists, and overwrite-flag is not set", p_basm_filename));
+
+	std::cout << "Attempting to read " << p_nes_filename << "\n";
+	const auto rom_data{ klib::file::read_file_as_bytes(p_nes_filename) };
+
+	if (m_region.empty()) {
+		m_config.determine_region(rom_data);
+		std::cout << "ROM region resolved to '" << m_config.get_region() << "'\n";
+	}
+	else {
+		m_config.set_region(m_region);
+		std::cout << "ROM region specified as '" << m_region << "\n";
+	}
+
+	m_config.load_config_data(appc::CONFIG_XML);
+
+	fb::BScriptLoader loader(m_config, rom_data);
+
+	std::cout << "Attempting to parse ROM behavior script layer\n";
+	loader.parse_rom();
+
+	fb::BScriptWriter asmw(m_config);
+
+	std::cout << "Generating output file " << p_basm_filename << "\n";
+	asmw.write_asm(p_basm_filename, loader);
 
 	std::cout << "Extraction complete!\n";
 }
@@ -509,6 +598,12 @@ void fi::Cli::set_mode(const std::string& p_mode) {
 	}
 	else if (check_mode(p_mode, appc::CMD_EXTRACT)) {
 		m_script_mode = fi::ScriptMode::IScriptExtract;
+	}
+	else if (check_mode(p_mode, appc::CMD_BUILD_BSCRIPTS)) {
+		m_script_mode = fi::ScriptMode::BScriptBuild;
+	}
+	else if (check_mode(p_mode, appc::CMD_EXTRACT_BSCRIPTS)) {
+		m_script_mode = fi::ScriptMode::BScriptExtract;
 	}
 	else if (check_mode(p_mode, appc::CMD_BUILD_MUSIC)) {
 		m_script_mode = fi::ScriptMode::MScriptBuild;
