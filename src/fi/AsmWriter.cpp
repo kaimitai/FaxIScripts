@@ -2,6 +2,7 @@
 #include "./../common/klib/Kfile.h"
 #include "Opcode.h"
 #include "fi_constants.h"
+#include "./cli/application_constants.h"
 
 #include <format>
 #include <map>
@@ -44,7 +45,8 @@ void fi::AsmWriter::generate_asm_file(const fe::Config& p_config,
 		l_eps[p_entrypoints[i]].push_back(i);
 
 	std::string af{
-		" ; IScript assembly file extracted by FaxIScripts v0.5\n ; https://github.com/kaimitai/FaxIScripts\n\n"
+	std::format(" ; IScript assembly file extracted by {} v{}\n ; {}\n\n",
+		fi::appc::APP_NAME, fi::appc::APP_VERSION, fi::appc::APP_URL)
 	};
 
 	append_defines_section(af);

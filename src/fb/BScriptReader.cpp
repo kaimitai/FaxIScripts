@@ -142,7 +142,17 @@ void fb::BScriptReader::read_asm_file(const std::string& p_filename,
 
 			byte opcode_byte{ real_opcode ? op_mnemonics.at(mnemonic) : bh_mnemonics.at(mnemonic) };
 			const auto& optmpl{ real_opcode ? opcodes.at(opcode_byte) : behavior_ops.at(opcode_byte) };
-			const auto argmap{ get_argmap(line, args) };
+
+			std::map<fb::ArgDomain, std::string> argmap;
+
+			// opcodes taking exactly 1 argument don't need the argument name necessarily
+			if (args.size() == 2) {
+				if (optmpl.args.size() == 1)
+					argmap.insert(std::make_pair(optmpl.args[0].domain, args[1]));
+				else throw std::runtime_error(std::format("Could not parse line '{}'", line));
+			}
+			else
+				argmap = get_argmap(line, args);
 
 			fb::BScriptInstruction instr(real_opcode ? opcode_byte : 0x00);
 			if (!real_opcode)

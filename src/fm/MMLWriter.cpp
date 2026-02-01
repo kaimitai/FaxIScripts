@@ -3,6 +3,7 @@
 #include <utility>
 #include "./../common/klib/Kfile.h"
 #include "fm_constants.h"
+#include "./../fi/cli/application_constants.h"
 #include "fm_util.h"
 #include "MusicOpcode.h"
 
@@ -45,7 +46,8 @@ void fm::MMLWriter::generate_mml_file(const std::string& p_filename,
 			);
 
 	std::string af{
-		" ; MScript asm file extracted by FaxIScripts v0.5\n ; https://github.com/kaimitai/FaxIScripts\n\n"
+	std::format(" ; MScript asm file extracted by by {} v{}\n ; {}\n\n",
+		fi::appc::APP_NAME, fi::appc::APP_VERSION, fi::appc::APP_URL)
 	};
 
 	// inform about channel pitch offsets
