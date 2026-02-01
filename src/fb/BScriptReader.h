@@ -16,6 +16,7 @@ namespace fb {
 
 		std::pair<std::size_t, std::size_t> bscript_ptr;
 		std::size_t bscript_count;
+		std::size_t rg_1_end, rg_2_start, rg_2_end;
 
 		std::map<byte, fb::BScriptOpcode> opcodes, behavior_ops;
 		std::map<std::string, int> defines;
@@ -36,11 +37,13 @@ namespace fb {
 			fb::ArgDomain domain) const;
 		int get_default_value(const std::string& p_asm, fb::ArgDomain domain) const;
 
+		std::size_t find_split_index(std::size_t region1_capacity_bytes) const;
+
 	public:
 		BScriptReader(const fe::Config& p_config);
 		void read_asm_file(const std::string& p_filename,
 			const fe::Config& p_config);
-		std::vector<byte> to_bytes(void) const;
+		std::pair<std::vector<byte>, std::vector<byte>> to_bytes(void) const;
 	};
 
 }

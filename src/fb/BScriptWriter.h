@@ -15,6 +15,7 @@ namespace fb {
 		std::map<byte, std::string> sprite_labels;
 		std::map<fb::ArgDomain, std::string> arg2str;
 		std::map<fb::ArgDomain, std::map<byte, std::string>> defines;
+		std::map<std::size_t, std::string> ram_defines;
 
 		void add_defines(std::string& p_asm) const;
 		void add_defines(std::string& p_asm, const std::string& p_type,

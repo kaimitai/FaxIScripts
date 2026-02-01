@@ -1,5 +1,6 @@
 #include "BScriptWriter.h"
 #include "./../common/klib/Kfile.h"
+#include "./../common/klib/Kstring.h"
 #include "./../fi/cli/application_constants.h"
 #include "fb_constants.h"
 #include <format>
@@ -15,6 +16,18 @@ fb::BScriptWriter::BScriptWriter(const fe::Config& p_config) {
 	defines.insert(std::make_pair(fb::ArgDomain::Action, p_config.bmap(c::ID_BSCRIPT_DEF_ACTIONS)));
 	defines.insert(std::make_pair(fb::ArgDomain::HopMode, p_config.bmap(c::ID_BSCRIPT_DEF_HOPMODES)));
 	defines.insert(std::make_pair(fb::ArgDomain::Direction, p_config.bmap(c::ID_BSCRIPT_DEF_DIRECTIONS)));
+
+	// special handling for RAM address defines since they are 16bit consts
+	const auto ramdefs{ p_config.bmap(c::ID_BSCRIPT_DEF_RAM) };
+	for (const auto& kv : ramdefs) {
+		const auto valuepair{ klib::str::split_string(kv.second, ':') };
+		if (valuepair.size() == 2) {
+			std::string key{ klib::str::trim(valuepair.at(0)) };
+			std::size_t val{ static_cast<std::size_t>(klib::str::parse_numeric(klib::str::trim(valuepair.at(1)))) };
+
+			ram_defines.insert(std::make_pair(val, key));
+		}
+	}
 }
 
 std::string fb::BScriptWriter::get_label_name(std::size_t p_ptr_table_idx, std::size_t p_address) const {
@@ -97,8 +110,14 @@ void fb::BScriptWriter::emit_operand(std::string& p_asm, std::size_t p_value,
 		p_asm += std::format(" true={}", get_label_name(p_ptr_table_idx, p_value));
 	else if (domain == fb::ArgDomain::FalseAddr)
 		p_asm += std::format(" false={}", get_label_name(p_ptr_table_idx, p_value));
-	else if (domain == fb::ArgDomain::RAM)
-		p_asm += std::format(" ram=0x{:04x}", p_value);
+	else if (domain == fb::ArgDomain::RAM) {
+		if (ram_defines.contains(p_value)) {
+			p_asm += std::format(" ram={}", ram_defines.at(p_value));
+		}
+		else {
+			p_asm += std::format(" ram=0x{:04x}", p_value);
+		}
+	}
 	else if (domain == fb::ArgDomain::Zero) {
 		if (p_value != 0)
 			p_asm += std::format(" zero=${:02x}", p_value);
@@ -131,6 +150,13 @@ void fb::BScriptWriter::add_defines(std::string& p_asm) const {
 	add_defines(p_asm, "direction", fb::ArgDomain::Direction);
 	add_defines(p_asm, "action", fb::ArgDomain::Action);
 	add_defines(p_asm, "hop mode", fb::ArgDomain::HopMode);
+
+	// special handling for RAM defines
+	if (!ram_defines.empty()) {
+		p_asm += " ; RAM address defines\n";
+		for (const auto& kv : ram_defines)
+			p_asm += std::format("define {} ${:04x}\n", kv.second, kv.first);
+	}
 }
 
 void fb::BScriptWriter::add_defines(std::string& p_asm, const std::string& p_type,

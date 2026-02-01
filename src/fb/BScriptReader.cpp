@@ -9,7 +9,10 @@ fb::BScriptReader::BScriptReader(const fe::Config& p_config) :
 	opcodes{ fb::parse_opcodes(p_config.bmap(c::ID_BSCRIPT_OPCODES)) },
 	behavior_ops{ fb::parse_opcodes(p_config.bmap(c::ID_BSCRIPT_BEHAVIORS)) },
 	bscript_ptr{ p_config.pointer(c::ID_BSCRIPT_PTR) },
-	bscript_count{ p_config.constant(c::ID_SPRITE_COUNT) }
+	bscript_count{ p_config.constant(c::ID_SPRITE_COUNT) },
+	rg_1_end{ p_config.constant(c::ID_BSCRIPT_RG1_END) },
+	rg_2_start{ p_config.constant(c::ID_BSCRIPT_RG2_START) },
+	rg_2_end{ p_config.constant(c::ID_BSCRIPT_RG2_END) }
 {
 }
 
@@ -193,8 +196,17 @@ void fb::BScriptReader::read_asm_file(const std::string& p_filename,
 		}
 	}
 
-	// TODO: Inser overflow-bridge if needed
+	// Insert overflow-bridge if needed
+	std::size_t split_index{ find_split_index(rg_1_end - (bscript_ptr.first + 2 * bscript_count)) };
+	if (split_index < instructions.size()) {
+		std::size_t rg1_data_start_rom = bscript_ptr.first + 2 * bscript_count;
+		std::size_t rg2_ptr_table_relative{ rg_2_start - rg1_data_start_rom };
 
+		std::size_t delta{ rg2_ptr_table_relative - instructions[split_index].byte_offset.value() };
+
+		for (std::size_t i{ split_index }; i < instructions.size(); ++i)
+			instructions[i].byte_offset = instructions[i].byte_offset.value() + delta;
+	}
 
 	// all entry points and jump targets point to the correct instruct idx
 	// and all instructions have the correct byte offset
@@ -303,18 +315,52 @@ std::map<fb::ArgDomain, std::string> fb::BScriptReader::get_argmap(const std::st
 	return result;
 }
 
-std::vector<byte> fb::BScriptReader::to_bytes(void) const {
-	std::vector<byte> result;
+// find a split index
+std::size_t fb::BScriptReader::find_split_index(std::size_t region1_capacity_bytes) const {
+	std::optional<std::size_t> last_safe_boundary;
+
+	for (std::size_t i = 0; i < instructions.size(); ++i) {
+		const auto& instr = instructions[i];
+
+		bool fits = instr.byte_offset.value() + instr.size() <= region1_capacity_bytes;
+		if (!fits) {
+			if (!last_safe_boundary)
+				return 0;                      // nothing safely in region 1
+
+			return *last_safe_boundary + 1;    // first region-2 instr
+		}
+
+		auto flow{ instr.flow(opcodes, behavior_ops) };
+		if (flow == fb::Flow::End || flow == fb::Flow::Jump)
+			last_safe_boundary = i;
+	}
+
+	// everything fits
+	return instructions.size();
+}
+
+std::pair<std::vector<byte>, std::vector<byte>> fb::BScriptReader::to_bytes(void) const {
+	std::vector<byte> result_a, result_b;
+
+	// bank relative addr of ptr table start
+	std::size_t rg1_start_bank_relative = bscript_ptr.first - bscript_ptr.second;
+	// size of rg1 ptr table + script data
+	std::size_t rg1_byte_size{ rg_1_end - bscript_ptr.first };
+	// bank offset beyond the safe region 1
+	std::size_t rg1_end_bank_relative{ rg1_start_bank_relative + rg1_byte_size };
 
 	for (const std::size_t ep : ptr_table) {
-		result.push_back(static_cast<byte>(ep % 256));
-		result.push_back(static_cast<byte>(ep / 256));
+		result_a.push_back(static_cast<byte>(ep % 256));
+		result_a.push_back(static_cast<byte>(ep / 256));
 	}
 
 	for (const auto& instr : instructions) {
 		const auto bytes{ instr.get_bytes() };
-		result.insert(end(result), begin(bytes), end(bytes));
+		if (instr.byte_offset.value() < rg1_end_bank_relative)
+			result_a.insert(end(result_a), begin(bytes), end(bytes));
+		else
+			result_b.insert(end(result_b), begin(bytes), end(bytes));
 	}
 
-	return result;
+	return std::make_pair(result_a, result_b);
 }

@@ -11,6 +11,7 @@
 #include "./../AsmReader.h"
 #include "./../AsmWriter.h"
 #include "./../../fb/BScriptWriter.h"
+#include "./../../fb/fb_constants.h"
 #include "./../../fm/MScriptLoader.h"
 #include "./../../fm/MMLReader.h"
 #include "./../../fm/MMLWriter.h"
@@ -67,9 +68,9 @@ void fi::Cli::print_help(void) const {
 	std::cout << "    -r, --region                 ROM region which must be defined in the configuration xml (auto-detected by default)\n";
 	std::cout << "    -f, --force                  Force file overwrite when extracting data (disabled by default)\n";
 	std::cout << "    -s, --source-rom             Source ROM when assembling (by default the output file itself)\n";
+	std::cout << "    -o, --original-size          Only patch original ROM location (disabled by default)\n";
 	std::cout << "  IScript options:\n";
 	std::cout << "    -p, --no-shop-comments       Disable shop comment extraction (enabled by default)\n";
-	std::cout << "    -o, --original-size          Only patch original ROM location (disabled by default)\n";
 	std::cout << "  MScript options:\n";
 	std::cout << "    -n, --no-notes               Do not emit notes in music disassembly (notes enabled by default)\n";
 	std::cout << "  MML options:\n";
@@ -240,7 +241,10 @@ void fi::Cli::basm_to_nes(const std::string& p_basm_filename,
 	const std::string& p_nes_filename,
 	const std::string& p_source_rom_filename,
 	bool p_strict) {
-	
+
+	if (p_strict)
+		std::cout << "Using strict mode - Only original ROM data region will be used\n";
+
 	std::cout << "Attempting to read ROM contents from " << p_source_rom_filename << "\n";
 	auto rom{ klib::file::read_file_as_bytes(p_source_rom_filename) };
 
@@ -259,12 +263,42 @@ void fi::Cli::basm_to_nes(const std::string& p_basm_filename,
 	reader.read_asm_file(p_basm_filename, m_config);
 
 	const auto bytes{ reader.to_bytes() };
-	std::cout << "Total script byte size: " << bytes.size() << "\n";
+	std::cout << "Total script byte size (including ptr table): " <<
+		(bytes.first.size() + bytes.second.size()) << "\n";
 
-	auto bscriptptr{ m_config.pointer("bscript_ptr") };
+	auto bscriptptr{ m_config.pointer(fb::c::ID_BSCRIPT_PTR) };
+	std::size_t l_bscript_rg1_end{ m_config.constant(fb::c::ID_BSCRIPT_RG1_END) };
+	std::size_t l_bscript_rg1_size{ l_bscript_rg1_end - bscriptptr.first };
+	std::size_t l_rg2_start{ m_config.constant(fb::c::ID_BSCRIPT_RG2_START) };
+	std::size_t l_rg2_end{ m_config.constant(fb::c::ID_BSCRIPT_RG2_END) };
+	std::size_t l_bscript_rg2_size{ l_rg2_end - l_rg2_start };
 
-	for (std::size_t i{ 0 }; i < bytes.size(); ++i)
-		rom.at(bscriptptr.first + i) = bytes[i];
+	try_patch_msg("bscript pointer table and data (region 1)",
+		bytes.first.size(), l_bscript_rg1_size);
+	try_patch_msg("bscript data (region 2)",
+		bytes.second.size(), l_bscript_rg2_size);
+
+	if (p_strict && !bytes.second.empty())
+		throw std::runtime_error("Strict mode was enabled but the original ROM region could not fit all data");
+
+	clear_rom_section(rom, bscriptptr.first, l_bscript_rg1_end);
+	if (!p_strict)
+		clear_rom_section(rom, l_rg2_start, l_rg2_end);
+
+	for (std::size_t i{ 0 }; i < bytes.first.size(); ++i)
+		rom.at(bscriptptr.first + i) = bytes.first[i];
+
+	for (std::size_t i{ 0 }; i < bytes.second.size(); ++i)
+		rom.at(l_rg2_start + i) = bytes.second[i];
+
+	std::cout << "Verifying generated ROM contents\n";
+	try {
+		fb::BScriptLoader staticanalysisread(m_config, rom);
+	}
+	catch (const std::runtime_error& ex) {
+		std::cerr << "Invalid ROM generated. Ensure all code paths end\n" << ex.what();
+		return;
+	}
 
 	std::cout << "Attempting to patch file " << p_nes_filename << "\n";
 	klib::file::write_bytes_to_file(rom, p_nes_filename);
@@ -671,6 +705,12 @@ void fi::Cli::toggle_flag(std::size_t p_flag_idx) {
 		m_notes = !m_notes;
 	else if (p_flag_idx == 4)
 		m_lilypond_percussion = !m_lilypond_percussion;
+}
+
+void fi::Cli::clear_rom_section(std::vector<byte>& rom,
+	std::size_t p_start, std::size_t p_end) const {
+	for (std::size_t i{ p_start }; i < p_end; ++i)
+		rom.at(i) = 0xff;
 }
 
 // sad that this is needed in 2026

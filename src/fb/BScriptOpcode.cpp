@@ -61,6 +61,15 @@ std::size_t fb::BScriptInstruction::size(void) const {
 	return result;
 }
 
+fb::Flow fb::BScriptInstruction::flow(const std::map<byte, fb::BScriptOpcode>& p_opcodes,
+	const std::map<byte, fb::BScriptOpcode>& p_behavior_ops) const {
+	if (behavior_byte.has_value()) {
+		return p_behavior_ops.at(behavior_byte.value()).flow;
+	}
+	else
+		return p_opcodes.at(opcode_byte).flow;
+}
+
 std::vector<byte> fb::BScriptInstruction::get_bytes(void) const {
 	std::vector<byte> result;
 	result.push_back(opcode_byte);

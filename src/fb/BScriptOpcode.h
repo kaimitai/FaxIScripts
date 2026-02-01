@@ -25,6 +25,8 @@ namespace fb {
 		std::vector<ArgInstance> operands;
 		std::optional<std::size_t> byte_offset;
 
+		fb::Flow flow(const std::map<byte, fb::BScriptOpcode>& p_opcodes,
+			const std::map<byte, fb::BScriptOpcode>& p_behavior_ops) const;
 		std::size_t size(void) const;
 		std::vector<byte> get_bytes(void) const;
 	};

@@ -1,6 +1,6 @@
 <!-- Configuration file used by Echoes of Eolis and FaxIScripts (https://github.com/kaimitai/faxedit) -->
 <!-- Only make changes to this file if you are confident in what you are doing! (and keep backups even then) -->
-<eoe_config app_version="beta-5">
+<eoe_config app_version="beta-5.1">
 	<regions>
 		<!-- determine region by ROM signature - will take first match -->
 		<!-- make sure to use identifiers that will not change via ROM editing -->
@@ -111,6 +111,13 @@
 		<const name="string_data_end" region="en-transl" value="0x43d5a" />
 		<!-- byte-size of the script data in the original region; everything following the end of the ptr table -->
 		<const name="iscript_data_rg1_size" value="1581" />
+		<!-- offset of one past the last offset in which bscripts can be placed (region 1) -->
+		<const name="bscript_data_rg1_end" value="0x3b283" />
+		<!-- this bigger limit is probably safe, but not confirmed -->
+		<!-- const name="bscript_data_rg1_end" value="0x3b417" / -->
+		<!-- bscript region 2 (free region at end of bank) - size and 1 past end -->
+		<const name="bscript_data_rg2_start" value="0x3bdc5" />
+		<const name="bscript_data_rg2_end" value="0x3c010" />
 		<!-- secondary region for script data -->
 		<const name="iscript_data_rg2_start" region="us,randum" value="0x32d9b" />
 		<const name="iscript_data_rg2_start" region="eu,us-rev-a" value="0x32de5" />
@@ -1058,7 +1065,7 @@
 		</byte_to_string_map>
 		<!-- bscript opcodes  -->
 		<byte_to_string_map name="bscript_opcodes">
-			<entry byte="$01" str="Mnemonic=DisableJump,Arg=addr" />
+			<entry byte="$01" str="Mnemonic=DisableJump,Arg=addr,Flow=jump" />
 			<entry byte="$02" str="Mnemonic=Action,Arg=action" />
 			<entry byte="$03" str="Mnemonic=IfDistLessThan,Arg=direction:pixels:true:false,Flow=jump" />
 			<entry byte="$04" str="Mnemonic=EndBehavior" />
@@ -1074,13 +1081,15 @@
 			<entry byte="$02" str="Mnemonic=SetBehavior_BounceAndExpire,Arg=zero" />
 			<entry byte="$03" str="Mnemonic=SetBehavior_Garbled3,Arg=zero" />
 			<entry byte="$04" str="Mnemonic=SetBehavior_WalkForward,Arg=ticks:pixels:blocks" />
-			<!--entry byte="$05" str="Mnemonic=SetBehavior_NOP" /-->
+			<!-- $05 unused in the original game - argument list not certain -->
+			<entry byte="$05" str="Mnemonic=SetBehavior_NOP" />
 			<entry byte="$06" str="Mnemonic=SetBehavior_Unused18,Arg=zero" />
 			<entry byte="$07" str="Mnemonic=SetBehavior_Lighntingball,Arg=zero" />
 			<entry byte="$08" str="Mnemonic=SetBehavior_Charron,Arg=zero" />
 			<entry byte="$09" str="Mnemonic=SetBehavior_Hop,Arg=zero:pixels:blocks:mode" />
 			<entry byte="$0a" str="Mnemonic=SetBehavior_Wyvern,Arg=zero" />
-			<entry byte="$0b" str="Mnemonic=SetBehavior_NOP" />
+			<!-- $0b unused in the original game - argument list not certain -->
+			<entry byte="$0b" str="Mnemonic=SetBehavior_NOP_2" />
 			<entry byte="$0c" str="Mnemonic=SetBehavior_Borabora,Arg=zero" />
 			<entry byte="$0d" str="Mnemonic=SetBehavior_Pakukame,Arg=zero" />
 			<entry byte="$0e" str="Mnemonic=SetBehavior_Zorugeriru,Arg=zero" />
@@ -1089,7 +1098,8 @@
 			<entry byte="$11" str="Mnemonic=SetBehavior_MoveXY,Arg=ticks:pixels:blocks:pixels_y:blocks_y" />
 			<entry byte="$12" str="Mnemonic=SetBehavior_Zoradohna,Arg=ticks:pixels:blocks:byte" />
 			<entry byte="$13" str="Mnemonic=SetBehavior_MoveVert,Arg=ticks:pixels:blocks" />
-			<!--entry byte="$14" str="Mnemonic=SetBehavior_a8d7" / -->
+			<!-- $14 unused in the original game - argument list not certain -->
+			<entry byte="$14" str="Mnemonic=SetBehavior_a8d7,Arg=ticks:pixels:blocks" />
 			<entry byte="$15" str="Mnemonic=SetBehavior_Fall,Arg=ticks" />
 			<entry byte="$16" str="Mnemonic=SetBehavior_NecronAides,Arg=zero" />
 			<entry byte="$17" str="Mnemonic=SetBehavior_Bihoruda,Arg=zero" />
@@ -1159,6 +1169,14 @@
 		<byte_to_string_map name="bscript_defines_directions">
 			<entry byte="$00" str="DIR_X" />
 			<entry byte="$01" str="DIR_Y" />
+		</byte_to_string_map>
+		<!-- bscript defines (special case): RAM addresses  -->
+		<byte_to_string_map name="bscript_defines_ram">
+			<entry byte="$00" str="RAM_SPRITE_X_POS:$00ba" />
+			<entry byte="$01" str="RAM_SPRITE_Y_POS:$00c2" />
+			<entry byte="$02" str="RAM_SPRITE_FLAGS:$02dc" />
+			<entry byte="$03" str="RAM_SPRITE_HIT_COUNTER:$034c" />
+			<entry byte="$04" str="RAM_SPRITE_VALUES:$036c" />
 		</byte_to_string_map>
 	</byte_to_string_maps>
 </eoe_config>

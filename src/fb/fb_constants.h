@@ -32,6 +32,9 @@ namespace fb {
 		constexpr byte OPCODE_BEHAVIOR{ 0x00 };
 
 		constexpr char ID_BSCRIPT_PTR[]{ "bscript_ptr" };
+		constexpr char ID_BSCRIPT_RG1_END[]{ "bscript_data_rg1_end" };
+		constexpr char ID_BSCRIPT_RG2_START[]{ "bscript_data_rg2_start" };
+		constexpr char ID_BSCRIPT_RG2_END[]{ "bscript_data_rg2_end" };
 		constexpr char ID_SPRITE_COUNT[]{ "sprite_count" };
 		constexpr char ID_BSCRIPT_OPCODES[]{ "bscript_opcodes" };
 		constexpr char ID_BSCRIPT_BEHAVIORS[]{ "bscript_behaviors" };
@@ -40,6 +43,7 @@ namespace fb {
 		constexpr char ID_BSCRIPT_DEF_ACTIONS[]{ "bscript_defines_actions" };
 		constexpr char ID_BSCRIPT_DEF_HOPMODES[]{ "bscript_defines_hopmodes" };
 		constexpr char ID_BSCRIPT_DEF_DIRECTIONS[]{ "bscript_defines_directions" };
+		constexpr char ID_BSCRIPT_DEF_RAM[]{ "bscript_defines_ram" };
 
 		constexpr char SECTION_DEFINES[]{ "[defines]" };
 		constexpr char SECTION_BSCRIPT[]{ "[bscript]" };
