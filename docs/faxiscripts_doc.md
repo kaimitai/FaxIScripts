@@ -1,27 +1,43 @@
 # FaxIScripts - User Documentation
 
-This is the user documentation for FaxIScripts (v0.51), an assembler for the internal scripting language used by Faxanadu for the NES. The application code and binaries can be found on its [GitHub repository](https://github.com/kaimitai/faxiscripts/). It is assumed that users are somewhat acquainted with Faxanadu on the NES.
+This is the user documentation for FaxIScripts (v0.6), an assembler for the internal scripting languages used by Faxanadu for the NES. The application code and binaries can be found on its [GitHub repository](https://github.com/kaimitai/faxiscripts/). It is assumed that users are somewhat acquainted with Faxanadu on the NES.
+
+There are three types of scripts in the game:
+  * Interaction Scripts (iScripts)
+  * Behavior Scripts (bScripts)
+  * Music Scripts (mScripts)
+
+We provide assembly interfaces for all three script types, but for the music data we also provide an [MML interface](./faxiscripts_mml.md) providing a higher level of abstraction more suitable for music composition.
+
+All three script types were reverse engineered and documented by [ChipX86/Christian Hammond](http://chipx86.com/) as part of his [Faxanadu disassembly project](https://chipx86.com/faxanadu/). This application would not have been possible without his resources.
 
 <hr>
 
-If you want to edit the scripts used within Faxanadu, you will have to do some low level programming - but the language is simple and most scripts used by the game are self-contained and easy to follow.
+If you want to edit the scripts used within Faxanadu, you will have to do some low level programming - but the languages are simple and most scripts used by the game are self-contained and easy to follow.
 
-The scripting layer of Faxanadu consists of text-strings, shop data and code. The shop data and code live together in one section, whereas the strings live in a different section.
+##### Interaction Scripts (iScripts)
+The interaction script layer of Faxanadu consists of text-strings, shop data and code. The shop data and code live together in one section, whereas the strings live in a different section.
 
 A sprite in Faxanadu - an NPC or an item - can call script code. For certain events, like picking up items, dying, trying to open a door with a key and such - the index of the script it triggers is hard coded in the game's logic. For NPCs the sprite data defines which script will be called when you interact with it.
 
-The script code is one contiguos blob of data, and just before the script data begins there is a so called pointer table - with 152 entries - which tells the game where in the script code the entrypoint for the scripts are.
+The script code is one contiguos blob of data, and just before the script data begins there is a so called pointer table - with 152 entries by default - which tells the game where in the script code the entrypoint for the scripts are.
 
 Too see, or edit, which script is connected with a certain NPC in the game, you can use [Echoes of Eolis](https://github.com/kaimitai/faxedit/) - a graphical editor which will let you edit other data portions than the script layer.
 
-The music assembly format is described separately.
+##### Behavior Scripts (bScripts)
+The behavior script layer consists only of code. This layer has 101 entrypoints, one for each sprite in the game. The scripts define how enemies, NPCs and items behave in the game.
+
+The script code too is stored in one contiguous blob, following a pointer table.
+
+##### Music Scripts (mScripts)
+The music script layer consists of four entrypoints for each song - one entrypoint for each channel. 
 
 <hr>
 
 ## Table of Contents
 
-- [Running the assembler](#running-the-assembler)
-- [Assembly file contents](#assembly-file-contents)
+[Running the assembler](#running-the-assembler)
+- [ **iScript Assembly file contents** ](#iscript-assembly-file-contents)
   - [Defines](#defines)
   - [Strings](#strings)
   - [Shops](#shops)
@@ -32,28 +48,36 @@ The music assembly format is described separately.
     - [.entrypoint](#entrypoint-value)
     - [.textbox](#textbox-value)
     - [Opcodes](#opcodes)
-- [A concrete example](#a-concrete-example)
-- [Editing Tips](#editing-tips)
-- [Well-formed code](#well-formed-code)
-- [A highly technical note on Quests](#a-highly-technical-note-on-quests)
-- [Behind the scenes](#behind-the-scenes)
-- [Music](#music)
-- [Music Assembly file contents](#music-assembly-file-contents)
+  - [A concrete example](#a-concrete-example)
+  - [Editing Tips](#editing-tips)
+  - [Well-formed code](#well-formed-code)
+  - [A highly technical note on Quests](#a-highly-technical-note-on-quests)
+- [ **bScripts** ](#bscripts)
+  - [ bScript Assembly file contents ](#bscript-assembly-file-contents)
+    - [bScript defines section](#bscript-defines-section)
+    - [bScript section](#bscript-section)
+    - [bScript opcodes](#bscript-opcodes)
+    - [bScript Editing Tips](#bscript-editing-tips)
+- [ **Music** ](#music)
+  - [Music Assembly file contents](#music-assembly-file-contents)
     - [mScript opcodes](#mscript-opcodes)
+- [Behind the scenes](#behind-the-scenes)
 
 <hr>
 
 ## Running the assembler
 
-The assembler is a command-line tool which can disassemble the scripting layer of a Faxanadu ROM into a human-readable and editable assembly file. It can also read an assembly file and patch the ROM with the information it contains.
+The assembler is a command-line tool which can disassemble the scripting layers of a Faxanadu ROM into a human-readable and editable assembly files. It can also read an assembly file and patch the ROM with the information it contains.
 
-The idea is that users will extract the scripting layer to file, make modifications to this file, and then patch the ROM with their changes.
+The idea is that users will extract the scripting layer to files, make modifications to these files, and then patch the ROM with their changes.
 
-The assembler needs access to a configuration file (eoe_config.xml) in order to use the correct constants for its calculationes. These constants differ by ROM region.
+The assembler needs access to a configuration file ```eoe_config.xml``` in order to use the correct constants for its calculations. These constants differ by ROM region.
 
 The assembler will report on how much space it used for each data section, and how much more space is available, if any. If we can't fit the data within the limits patching will not take place.
 
-To extract a file, called "Faxanadu (U).nes" say, we run the following command from the command-line:
+##### <u>iScript commands</u>
+
+To extract interaction scripts from a file, called "Faxanadu (U).nes" say, we run the following command from the command-line:
 
  ```faxiscripts extract "Faxanadu (U).nes" faxanadu.asm```
 
@@ -75,11 +99,38 @@ To build a file we go in the opposite direction, and assemble. To build a file f
 
  * --original-size (-o for short): This option will make patching fail if we use more ROM data than the original game. Use this if you are already using the free section at the end of the bank for something else. Note that the game code is packed in the code section, so if you add something you will also have to remove something else if you use this mode.
  * --source-rom (-s for short): This option takes an argument, which is a filename for the ROM you will use as a source for patching. If this option is not specified we will patch the file given as output file. Use this if you don't want to patch a ROM file directly.
- --region (-r for short): Override automatic ROM region deduction. The parameter specified must match a region defined in eoe_config.xml
+ * --region (-r for short): Override automatic ROM region deduction. The parameter specified must match a region defined in eoe_config.xml
+
+##### <u>bScript commands</u>
+
+To extract behavior scripts from a file, called "Faxanadu (U).nes" for example, we run the following command from the command-line:
+
+ ```faxiscripts extract-bscript "Faxanadu (U).nes" faxanadu.basm```
+
+ Quotes are only necessary if any of your arguments contain spaces. You can write "xb" instead of "extract-bscript".
+
+ You can add options when extracting. They are:
+
+* --force (-f for short): Overwrite existing asm-file if it already exists. We don't allow it by default because users might inadvertently overwrite their assembly code if they aren't careful.
+* --region (-r for short): Override automatic ROM region deduction. The parameter specified must match a region defined in eoe_config.xml
+
+To build a file we go in the opposite direction, and assemble. To build a file faxanadu.basm and patch "Faxanadu (U).nes" with it, run the following command:
+
+ ```faxiscripts build-bscript faxanadu.basm "Faxanadu (U).nes"```
+
+ You can write "bb" instead of "build-bscript".
+
+ There are also options when building. They are:
+
+ * --original-size (-o for short): This option will make patching fail if we use more ROM data than the original game. Use this if you are already using the free section at the end of the bank for something else. Note that the game code is **possibly** packed in the code section, so if you add something you will also have to remove something else if you use this mode. It is quite possible however that we can extend the size of the first region, see the separate bScript documentation for more information.
+ * --source-rom (-s for short): This option takes an argument, which is a filename for the ROM you will use as a source for patching. If this option is not specified we will patch the file given as output file. Use this if you don't want to patch a ROM file directly.
+ * --region (-r for short): Override automatic ROM region deduction. The parameter specified must match a region defined in eoe_config.xml
+
+##### <u>mScript commands</u>
 
  For extracting and inserting music assembly, the assembler is used in the following way:
 
- To extract music from a file, called "Faxanadu (U).nes" say, we run the following command from the command-line:
+ To extract music from a file, called "Faxanadu (U).nes" for example, we run the following command from the command-line:
 
  ```faxiscripts extract-music "Faxanadu (U).nes" faxanadu.masm```
 
@@ -96,12 +147,12 @@ To build a file we go in the opposite direction, and assemble. To build a file f
 
  You can write "bm" instead of "build-music".
 
- There are also options when building. They are:
+ There are also options when building mScripts. They are:
 
  * --source-rom (-s for short): This option takes an argument, which is a filename for the ROM you will use as a source for patching. If this option is not specified we will patch the file given as output file. Use this if you don't want to patch a ROM file directly.
  --region (-r for short): Override automatic ROM region deduction. The parameter specified must match a region defined in eoe_config.xml
 
-## Assembly file contents
+## iScript Assembly file contents
 
 The generated assembly files produce four sections. Defines, required strings, shops and iscript - which is the actual code.
 
@@ -404,38 +455,252 @@ The area in ROM where this 3-byte lookup table is stored is in the middle of the
 
 You can extend this exploitation of going out of the original bounds of the lookup table even further; you can map all distinct values in the "extended lookup table" and use them as bitmasks where the value will be used as an OR when passed to IfQuest, and as an AND when passed to SetQuest, effectively querying or setting multiple quest flags at once.
 
-### Behind the scenes
+<hr>
 
-I started work on this assembler a few days after releasing Echoes of Eolis. The format is entirely mapped out in [Chipx86's Faxanadu disassembly](https://chipx86.com/faxanadu/) so we could parse the data almost immediately.
+## bScripts
 
-The problem I wrestled with was how to structure my data, and how to present it for editing. I had three requirements I wanted to fulfill:
+The behavior scripts work much in the same way as the interaction scripts, but one important difference to note is that bScripts have a lot of opcodes, and some of them take many arguments. Therefore we have decided to enforce named arguments in the commands used by the bScript assembler. To make the language easier to write, we have tried to make the assembler flexible.
 
-* Modularize the scripts - that is turn each script we read from each entrypoint into a discrete object
-* Be able to parse any valid script code from ROM and write functionally equivalent code back when patching
-* Not emitting more bytes than I read in
+This documentation is in large parts derived from [the Faxanadu disassembly](https://chipx86.com/faxanadu/PRG14.html), [ChipX86's bScript notes](https://notes.chipx86.com/Projects/Reverse-Engineering+Projects/Faxanadu+Disassembly/Sprite+Behavior+Scripts) and some of my own testing.
 
-It turns out it is almost impossible to fulfill all three. I suppose it can technically be done, but it would require us to identify all shared code and insert unconditional jumps wherever it could save us bytes - in other words code tail deduplication. When there is no limit to how the code can jump and loop, we decided to go forego modularization, and decided to just present the code as it is in the ROM - as assembly code.
+✅ We enforce named arguments, and pre-populate some constant defines, so that users don't need to remember the order of operands or the most common constants. This is the script for how bread behaves, for example:
 
-We move the shop data and treat it separately, as that is an abstraction we can get for free.
+```
+.entrypoint 1 ; Bread
+Behavior_Hop pixels=0 blocks=0 mode=HOP_MODE_3
+Behavior_Fall ticks=255
+End
+```
 
-The other problem I had to tackle was overflowing into an unsafe ROM region. The script code in the original game is completely packed between the pointer table and unrelated data, so we had to make use of free space near the end of the ROM bank if people want to add code without at the same time removing any.
+This makes scripts easier to read and helps avoid mixing up argument order.
 
-In an intermediary stage we decided to let the shop data live in original safe region 1, and let the script code start in the safe region 2. This was not incredibly hard to implement since our instruction stream became contiguous, but we did waste bytes because we left a lot of unused data in safe region 1.
+✅ Special rule: opcodes with exactly one operand
 
-For that reason we decided to let the code stream start in region 1 and be redirected to region 2 if it overflowed. This is what I refer to as smart static linking.
+If an opcode only takes one parameter, you may omit the parameter name.
 
-What it does, is as follows:
+```Jump @label``` is the same as ```Jump addr=@label```.
 
-* If we overflow, find the last instruction that is completely contained in region 1
-* Go backward, starting from this instruction, until a stream-ending opcode is found (End, EndGame or Jump)
-* Change the instruction byte offsets for all instructions after this End or Jump, by adding the necessary delta that makes the first relocated instruction start in region 2.
-* Go back and patch all pointer table entries, jump targets and so on which reference relocated instructions.
+The assembler treats them the same. Use whichever is more comfortable.
 
-This was not trivial to get right before I made the decision to link pointer table entries and labels to instruction indexes while parsing, rather than to byte offsets directly. After the relocation - and only after all instruction byte offsets have been completely resolved - we go back and assign byte offsets to pointers and references by querying the offset of the instruction it points to.
+✅ The optional zero operand
 
-To squeeze out even more bytes here you can insert an unconditional jump to bridge the code stream at the very last moment you overflow (but only if the last safe instruction is not already stream-ending) but you need to ensure that the jump itself completely fits in the region - and now all reference indexes after the jump shift by one. It is perfectly doable, but I opted not to do it since it will change the assembly code of the user - but we might make this optional in a future release.
+Many opcodes in the original virtual machine include an unused extra byte. It appears to always be zero and seems to be ignored by the game engine. It has to be preserved so that the instructions get the expected number of arguments, but the assembler will hide these if it can.
+
+Rules for the ```zero``` operand:
+* You may omit it entirely — it will default to 0.
+* If you do give it a value (for experimentation), it will be used.
+* If a zero operand does not have the value 0 in ROM, it will be extracted and shown in the asm-file output when disassembling.
+
+⚠ We cannot guarantee that this “zero byte” is truly unused for all opcodes. It’s possible that it has meaning for some instructions when set to non‑zero values. If you want to help explore undocumented behavior, feel free to experiment.
+
+✅ Not all operand names are final
+
+This scripting system is reverse‑engineered, and not all instructions are perfectly mapped out yet.
+
+- Some operand names may not reflect their true purpose in the VM.
+- Some operands might use the wrong sign. The assembler will still correctly use unsigned values (-128 to 127), but the disassembler will insist on showing them as unsigned (0-255) in such cases - if any.
+- Some opcodes might take additional meaningful values we haven’t discovered yet.
+- The naming may change in future versions if we discover more accurate meanings.
+
+But don’t worry: The assembler is fully functional and complete in the sense that you can create any valid script already.
+
+If you discover something new about an opcode or operand, please report it - it may improve the tool for everyone.
+
+✅ Summary
+- Write arguments as name=value, unless the opcode only has one argument.
+- Single‑argument opcodes can skip the name (Jump @label is fine).
+- The special zero argument is optional and defaults to 0.
+- Some opcodes and operands are not fully documented — experimentation is welcome.
+
+## bScript Assembly file contents
+
+The generated assembly files produce two sections; defines and bscript. The defines will be pre-populated with known constants so they can be used in script code. The bscript-section containts the actual script code.
+
+### bScript defines section
+
+This works the same way as for the interaction scripts. It is a list of constants that can be used in script code and turned into numbers when assembling.
+
+### bScript section
+
+This also works much in the same as the interaction scripts.
+
+bScripts have 101 entrypoint - one for each sprite in the game. The disassembler will add a comment to each entrypoint with the name of the sprite it belongs to. Some sprites share the same behavior, and therefore have the same entrypoint location.
+
+- comments start with ```;``` - anything after a semicolon will be ignored
+- labels start with ```@``` and end with a colon in the definition, but not when referenced
+
+The branching in bScripts however, do not depend so much on user input. In fact there is very little branching at all. There is one opcode ```IfDistLessThan``` which checks how far the player is from a sprite in the x- or y-directions, and branches to different code sections depending on whether the comparison is true or false - but that is all.
+
+Many bScript loop linearly between the entrypoint and a Jump-instruction at the end of the script.
+
+Some bScripts define a sprite's behavior fully, some bScripts just call a behavior command which hard is hard coded in the engine, and some use a mix of both.
+
+For example, the bScript for Zorugeriru is simply:
+
+```
+.entrypoint 49 ; Zorugeriru
+  Behavior_Zorugeriru
+  End
+```
+
+where the command ```Behavior_Zorugeriru``` calls a behavior fully implemented in assembly code, and not in script code. Some behaviors were probably too complex to script.
+
+For other sprites the behavior is fully defined by scripts. The behavior of the Monodron for example:
+
+```
+.entrypoint 42 ; Monodron
+@label_42_1:
+  Action action=ACTION_RANDOMLY_FLIP_X
+  Behavior_Fall ticks=5
+  Behavior_Hop pixels=0 blocks=1 mode=HOPMODE_2
+  Action action=ACTION_FACE_PLAYER_X
+  Behavior_Fall ticks=20
+  Behavior_Hop pixels=128 blocks=1 mode=HOPMODE_2
+  Jump addr=@label_42_1
+```
+
+This script does the following:
+* Randomly flip x-direction
+* Wait for 5 ticks while gravity acts
+* Hop using hop mode 2, while also moving 1 block in the x-direction
+* Face the player
+* Wait for 20 ticks (1/3 of a second) while gravity acts
+* Hop using hop mode 2, while also moving in the x-direction using the given pixels and blocks arguments
+* Jump back to the label at the start of the script - forming an endless loop
+
+## bScript opcodes
+
+The following opcodes take any number of these arguments.
+
+- **zero** — unused byte; assembler inserts 0; value 0–255 allowed
+- **ticks** — engine ticks (0–255), 60 Hz
+- **pixels** — X fractional speed (0–255)
+- **blocks** — X full-block speed (0–255)
+- **pixels_y** — Y fractional speed (0–255)
+- **blocks_y** — Y full-block speed (0–255)
+- **action** — action number (0–7), 8–255 undefined
+- **mode** — hop mode (0–4), others undefined
+- **direction** — 0=x, 1=y, others undefined
+- **phase** — animation phase (0–255, defined values probably depend on the sprite)
+- **ram** — RAM address $0000–$FFFF (resolved per sprite slot, 8 sprites can be on the screen so a value 0-7 will be added to this ram address)
+- **value** — byte value to add to a given RAM address (-127 to 128)
+- **addr** — jump label
+- **true** — jump label (condition true)
+- **false** — jump label (condition false)
+- **byte** — general byte (0–255)
+
+| Opcode | Mnemonic | Args | Comments |
+|--------|----------|-------|----------|
+| $01 | DisableJump | addr | Unclear |
+| $02 | Action | action | Perform a given action |
+| $03 | IfDistLessThan | direction,pixels,true,false | Checks if the player is within a given amount of pixels in a given directions, jumps to true if less-than |
+| $04 | EndBehavior | | Ends the current behavior |
+| $05 | Jump | addr | Unconditional jump |
+| $06 | AddValue | ram, value | Adds the given value to the given RAM address. RAM address offset by sprite's slot in memory (0-7). In the original game this is used to adjust the positions of some sprites. |
+| $07 | SetPhase | phase | Unclear; might set the sprite's animation frame index to the given phase value |
+| $ff | End | | Ends the behavior script |
+
+Behavior sub-opcodes
+
+| Opcode | Mnemonic | Args | Comments |
+|--------|----------|-------|----------|
+| $00 | Behavior_MoveX | ticks, pixels, blocks | Move in the x-direction |
+| $01 | Behavior_Wait | ticks | Wait for a number of ticks |
+| $02 | Behavior_BounceAndExpire | zero | Used only by coin |
+| $03 | Behavior_Rock | zero | Used by the falling rocks |
+| $04 | Behavior_WalkForward | ticks, pixels, blocks | Walks forward in the sprite's facing direction |
+| $05 | Behavior_NOP | | ⚠ Unused in the original game. Argument list uncertain. |
+| $06 | Behavior_Unused_06 | zero | |
+| $07 | Behavior_Lighntingball | zero | |
+| $08 | Behavior_Charron | zero | |
+| $09 | Behavior_Hop | zero, pixels, blocks, mode | Valid hop modes are in the range 0-4. Pixels and block represent changes in the x-direction. |
+| $0a | Behavior_Wyvern | zero | |
+| $0b | Behavior_NOP_2 | | ⚠ Unused in the original game. Argument list uncertain. |
+| $0c | Behavior_Borabora | zero | |
+| $0d | Behavior_Pakukame | zero | |
+| $0e | Behavior_Zorugeriru | zero | |
+| $0f | Behavior_Grieve | zero | |
+| $10 | Behavior_ShadowEura | zero | |
+| $11 | Behavior_MoveXY | ticks, pixels, blocks, pixels_y, blocks_y | Move in both the x and y directions |
+| $12 | Behavior_Zoradohna | ticks, pixels, blocks, byte | |
+| $13 | Behavior_MoveY | ticks, pixels, blocks | Move in the y-direction |
+| $14 | Behavior_a8d7 | ticks, pixels, blocks | ⚠ Unused in the original game. Argument list uncertain. |
+| $15 | Behavior_Fall | ticks | Waits for the given amount of ticks while gravity acts on the sprite |
+| $16 | Behavior_NecronAides | zero | |
+| $17 | Behavior_Bihoruda | zero | |
+| $18 | Behavior_Lilith | zero | |
+| $19 | Behavior_Yuinaru | zero | |
+| $1a | Behavior_Nash | zero | |
+| $1b | Behavior_MagicA | zero | Magic effect |
+| $1c | Behavior_MagicB | zero | Magic effect |
+| $1d | Behavior_MagicC | zero | Magic effect |
+| $1e | Behavior_ClearReadySetBit7 | zero | Only used by Geributa, meaning unclear |
+| $1f | Behavior_FlashDamagePlayer | zero | |
+| $20 | Behavior_GiantBees | zero | |
+| $21 | Behavior_Naga | zero | |
+| $22 | Behavior_Yareeka | zero | |
+| $23 | Behavior_Magman | zero | |
+| $24 | Behavior_Unused_24 | zero | |
+| $25 | Behavior_Unused_25 | zero | |
+| $26 | Behavior_Unused_26 | zero | |
+| $27 | Behavior_Tamazutsu | zero | |
+| $28 | Behavior_SirGawaineWolfman | zero | Two sprites share behavior code |
+| $29 | Behavior_ItemOintment | zero | |
+| $2a | Behavior_ItemGlove | zero | |
+| $2b | Behavior_ItemBattleSuit | zero | |
+| $2c | Behavior_ItemBattleHelmet | zero | |
+| $2d | Behavior_ItemDragonSlayer | zero | |
+| $2e | Behavior_ItemMattockQuest | zero | |
+| $2f | Behavior_ItemWingBootsQuest | zero | |
+| $30 | Behavior_ItemBlackOnyx | zero | |
+| $31 | Behavior_ItemPendant | zero | |
+| $32 | Behavior_ItemMattockRandom | zero | |
+| $33 | Behavior_ItemHourGlassRandom | zero | |
+| $34 | Behavior_ItemRedPotionRandom | zero | |
+| $35 | Behavior_ItemPoisonRandom | zero | |
+| $36 | Behavior_ItemGloveRandom | zero | |
+| $37 | Behavior_ItemWingBootsRandom | zero | |
+| $38 | Behavior_ItemOintmentRandom | zero | |
+| $39 | Behavior_SpringFinal | zero | |
+| $3a | Behavior_SpringFortress | zero | |
+| $3b | Behavior_SpringSky | zero | |
+| $3c | Behavior_SpringJoker | zero | |
+| $3d | Behavior_ItemMagicalRod | zero | |
+| $3e | Behavior_BossDeath | zero | |
+| $3f | Behavior_Buzz | zero | |
+| $40 | Behavior_Ishiisu | zero | |
+| $41 | Behavior_ExecutionHood | zero | |
+
+The opcodes not used in the original game have uncertain argument lists, and might corrupt the assembled bytecode when used. Based on our testing we think the argument lists we use even for these have the correct size, but we make no guarantees.
+
+#### Action operands
+
+These are the values the Action command can take, and are defined as constants in our assembly defines-section.
+
+| Value | Define Constant | Comments |
+|-------|-------------|----------|
+| $00 | ACTION_FACE_PLAYER_X | Face player in the x-direction |
+| $01 | ACTION_FLIP_X | Flip x-direction |
+| $02 | ACTION_FACE_PLAYER_Y | Face player in the y-direction |
+| $03 | ACTION_FLIP_Y | Flip y-direction |
+| $04 | ACTION_RANDOMLY_FLIP_X | Flip x-direction randomly (roughly 50/50) |
+| $05 | ACTION_RANDOMLY_FLIP_Y | Flip y-direction randomly (roughly 50/50) |
+| $06 | ACTION_FLY_UP | Clears the falling flag for a sprite |
+| $07 | ACTION_CAST_MAGIC | Cast magic in the current x-direction |
+
+## bScript Editing Tips
+
+As for the iScripts, ensure all your code is reachable and that your scripts either end or loop forever. Do not let your instructions fall through to non-script data or you might crash. The assembler will test your code paths before patching ROM, but it provides no other static analysis.
+
+"Loop forever" should come with the caveat that your loop actually has to do something that depends on game ticks, otherwise you might cause the game itself to actually loop forever and not ever yield control to other gamecode.
+
+Otherwise this scripting language is not fully known by me at least, so have fun and experiment!
+
+<hr>
 
 ## Music
+
+An assembly interface is provided for music as well, although for actual composition it is highly recommended to use the [MML interface](./faxiscripts_mml.md) provided by the application. The assembly format is most suitable for inspecting the music bytecode, but not so much for editing. We provide this interface mostly for completeness' sake and because the MML compiler needs it.
 
 Music in Faxanadu uses four channels per song, two square wave channels, one triangle wave channel and one noise channel.
 
@@ -465,7 +730,7 @@ The generated music assembly files produce two sections. Defines and mscript - w
 
 For music you can define note length constants. If you want a quarter note to be 36 ticks, for example, you can write
 
-```define quarter $a4```
+```define quarter 36```
 
 and use quarter as a symbol in your music code.
 
@@ -503,9 +768,43 @@ Once we are past the channel entrypoints, we are ready to run regular opcodes an
 | `$F8`  | JSR                    | Addr                | Jump label       | Jumps to subroutine |
 | `$F9`  | PushAddr               | —                   | —          | Pushes current address onto the return stack. |
 | `$FA`  | NOP                    | —                   | —          | Does nothing (safe filler). |
-| `$FB`  | NextLoopIf             | byte                | —          | Goes back to the start of the loop if the iteration count equals the argument |
+| `$FB`  | NextLoopIf             | byte                | —          | Ends the current loop if the iteration count equals the argument |
 | `$FC`  | EndLoop                | —                   | —          | Marks loop end (paired with BeginLoop). |
 | `$FD`  | BeginLoop              | byte                | —          | Starts a counted loop with given iteration count. |
 | `$FE`  | PopAddr                | —                   | —          | Pops return address and jumps. |
 | `$FF`  | End                    | —                   | —          | Terminates the song. |
 
+<hr>
+
+### Behind the scenes
+
+I started work on an iScript assembler a few days after releasing [Echoes of Eolis](https://github.com/kaimitai/faxedit). The iScript format is entirely mapped out in [Chipx86's Faxanadu disassembly](https://chipx86.com/faxanadu/) so we could parse the data almost immediately.
+
+The problem I wrestled with was how to structure my data, and how to present it for editing. I had three requirements I wanted to fulfill:
+
+* Modularize the scripts - that is turn each script we read from each entrypoint into a discrete object
+* Be able to parse any valid script code from ROM and write functionally equivalent code back when patching
+* Not emitting more bytes than I read in
+
+It turns out it is almost impossible to fulfill all three. I suppose it can technically be done, but it would require us to identify all shared code and insert unconditional jumps wherever it could save us bytes - in other words code tail deduplication. When there is no limit to how the code can jump and loop, we decided to go forego modularization, and decided to just present the code as it is in the ROM - as assembly code.
+
+We move the shop data and treat it separately, as that is an abstraction we can get for free.
+
+The other problem I had to tackle was overflowing into an unsafe ROM region. The script code in the original game is completely packed between the pointer table and unrelated data, so we had to make use of free space near the end of the ROM bank if people want to add code without at the same time removing any.
+
+In an intermediary stage we decided to let the shop data live in original safe region 1, and let the script code start in the safe region 2. This was not incredibly hard to implement since our instruction stream became contiguous, but we did waste bytes because we left a lot of unused data in safe region 1.
+
+For that reason we decided to let the code stream start in region 1 and be redirected to region 2 if it overflowed. This is what I refer to as smart static linking.
+
+What it does, is as follows:
+
+* If we overflow, find the last instruction that is completely contained in region 1
+* Go backward, starting from this instruction, until a stream-ending opcode is found (End, EndGame or Jump)
+* Change the instruction byte offsets for all instructions after this End or Jump, by adding the necessary delta that makes the first relocated instruction start in region 2.
+* Go back and patch all pointer table entries, jump targets and so on which reference relocated instructions.
+
+This was not trivial to get right before I made the decision to link pointer table entries and labels to instruction indexes while parsing, rather than to byte offsets directly. After the relocation - and only after all instruction byte offsets have been completely resolved - we go back and assign byte offsets to pointers and references by querying the offset of the instruction it points to.
+
+To squeeze out even more bytes here you can insert an unconditional jump to bridge the code stream at the very last moment you overflow (but only if the last safe instruction is not already stream-ending) but you need to ensure that the jump itself completely fits in the region - and now all reference indexes after the jump shift by one. It is perfectly doable, but I opted not to do it since it will change the assembly code of the user - but we might make this optional in a future release.
+
+The reason for the application name being FaxIScripts was that originally this was supposed to only handle iScripts. Only later on was it extended to also handle bScripts and mScripts.
