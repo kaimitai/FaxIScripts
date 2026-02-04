@@ -67,6 +67,7 @@ The assembler has the following features:
 * Strict-mode; where we don't patch a ROM if we spend more bytes than the original ROM did, tightly packed in one section (applies to iScripts and bScripts)
 * For iScripts and bScripts, we provide a smart static linker; The shop data and code stream starts within the first safe region, and if we overflow the static linker redirects code to the second region while patching all required labels, jumps, pointer table entries and instruction offsets. This is done without inserting a synthetic jump-node. bScripts too can be extended in this way with a tail end code relocation, although it is in its entirety a code section.
 * Automatic ROM region deduction, ensuring that the assembly code is extracted from, and injected to, the correct ROM locations.
+* Create Notepad++ syntax highlighting definition files for bScripts, mScripts and MML
 
 <hr>
 
