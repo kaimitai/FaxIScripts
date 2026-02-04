@@ -115,6 +115,7 @@ We prioritize fixing bugs if any are discovered, but here are some ideas for fut
 
 * 2026-02-04: version 0.6
     * Added support for behavior script extraction and patching. The assembler now handles all three script types!
+    * Improved the [MML (music macro language) documentation](./docs/faxiscripts_mml.md) and added example MMLs graciously provided by [Jessica](https://www.romhacking.net/community/9037/)
 
 * 2026-01-18: version 0.51
     * Added support for exporting music from MML files, or music directly from ROM, to the [LilyPond](https://lilypond.org/) format. This can be used to engrave your music and provides an alternative way to convert music to midi. Some new directives were added to the MML format so that composers can set time signatures for their songs, or set clefs per channel, in the LilyPond output. There is also an option for adding a drum staff for the percussion channel.

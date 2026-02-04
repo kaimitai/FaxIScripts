@@ -1,5 +1,8 @@
+<hr>
 
-# MML (Music Macro Language)
+# Faxanadu MML (Music Macro Language) format
+
+<hr>
 
 Creating music for **Faxanadu (NES)** presents a unique challenge: the original game uses raw bytecode tailored to a custom music engine to define music sequences, which is difficult and unintuitive for composers. Our goal is to **provide a layer of abstraction** that allows composers to write music using **MML** - a notation-based format familiar to many chiptune composers. This approach makes music creation more accessible and expressive while preserving full compatibility with the NES sound hardware.
 
@@ -18,6 +21,8 @@ Faxanadu’s sound engine has many quirks, and part of the fun is uncovering the
 
 This tool would not exist without **Christian Hammond’s reverse engineering of Faxanadu’s music engine**, which provided the foundation for understanding how the original system works. His disassembly and research can be found here:  
   [https://chipx86.com/faxanadu/](https://chipx86.com/faxanadu/)
+
+Special thanks to [Jessica](https://www.romhacking.net/community/9037/) for helping out with the documentation, and for providing us with high quality well-commented [MML files, which serve as great examples](#example-mml-songs). These can be a used as starting points for learning MML music composition as they exemplify a lot of what is covered in this document.
 
 ---
 
@@ -62,7 +67,10 @@ This tool would not exist without **Christian Hammond’s reverse engineering of
 - [ROM to MML](#mml-extracted-from-rom)
 - [🎧 MIDI Output and How the Playback VM Works](#midi-output-and-how-the-playback-vm-works)
 - [LilyPond export](#lilypond-export)
-- [Example mml music](#example-mml-song)
+- [Example mml music](#example-mml-songs)
+  - [Pokemon RB - Pallet Town](#pokemon-rb-pallet-town)
+  - [Mother - Humoresque of a Little Dog](#mother-humoresque-of-a-little-dog)
+  - [Ultima 3 - Wanderer](#ultima-3-wanderer)
 - [Troubleshooting](#troubleshooting)
 - [Original Songs](#original-songs)
 <!--/TOC-->
@@ -636,6 +644,8 @@ When execution reaches this opcode, it **checks how many iterations have already
 - Pass 3: same as Pass 1.
 - Pass 4: `c d e f`, `!endloopif 3` **triggers** (3 passes have completed), execution **jumps to the end of the loop**, and **`g a` is skipped**. Control continues **after** the loop.
 
+When the loop counter is 2, you can think of !endloopif as being used for first and second endings.
+
 ---
 
 #### Rules & Warnings
@@ -679,7 +689,7 @@ Applies a **SQ2-only** pitch bias (detune). This subtracts a small value from th
 
 ### SQ2 Pitch Effect: `!effect <n>`
 
-Applies a **special pitch modulation effect** to **SQ2 only**.  
+Applies a **vibrato effect** to **SQ2 only**.  
 This opcode is extremely rare in the original Faxanadu data (only 3 uses total).
 
 ```mml
@@ -708,6 +718,7 @@ This opcode is extremely rare in the original Faxanadu data (only 3 uses total).
 Values:
 - `0` = off
 - `2` = light modulation (as seen in original data)
+- Any byte value (```0-255```) is allowed as an argument, but not all values will produce reasonable effects
 
 
 ### Envelope Mode: `!envelope <n>`
@@ -806,10 +817,9 @@ Think of it as choosing the **waveform flavor** and a few playback options:
   - 12.5% = thin and nasal
   - 25% = bright
   - 50% = balanced
-  - 75% = hollow and warm
+  - 75% = not used much in practice, as it basically sounds the same as 25%
 - **Length counter** and **volume mode** are always set to “run” and “constant” in Faxanadu, so you don’t need to worry about them.
-- The last number is the starting volume (0-15), but in practice the game uses its own **software envelopes** to shape the sound dynamically.  
-  This means your `!pulse` volume is usually overridden by fades and curves later.
+- The last number (0-15) works as the base envelope volume, although the original game doesn't often use other constants than 0 here. If nonzero, enevelope 0 sustains a little bit instead of going completely silent.
 
 **Tip:** Use `!pulse` mainly to pick the duty cycle for the tone color. The envelope and volume opcodes will handle the actual loudness and expression.
 
@@ -1083,40 +1093,456 @@ Note: The Eolis theme in the original game data has an incredibly long percussio
 
 ---
 
-## Example mml song
+## Example mml songs
+
+The following three MML songs were graciously provided by Jessica ([RHDN profile](https://www.romhacking.net/community/9037/)).
+
+### Pokemon RB - Pallet Town
 
 ```
-#song 1
-#title "Yoshi's Island - Athletic Theme"
-t150
+; Pokemon RB - Pallet Town
+#song 9
+; Song 9 is the theme for most towns
 
-#sq1 {
-!start
-o4 v15
-!envelope $ENV_VOLUME_DECAY
-!pulse $DUTY_75 $LEN_RUN $CONST_VOL 0
-l12>dc24<a>d8c24<a8>dc24<a>d8c24<a8>dc24dl8af24dc2<g+l16ar>c8drfrf4ara+8arf+8drc4&c.g+32ara8gra8grara4grb+8arg8erd4.cr<g+8ar>c8drfrf4ara+8arf+8>dr<a4.ara8dra8b+ra4crarf2.r4<g+8ar>c8drfrf4ara+8arf+8drc4&c.g+32ara8gra8grara4grb+8arg8erd4.cr<g+8ar>c8drfrf4ara+8arf+8>dr<a4.ara8dra8b+ra4crarf2.r8 v12 c8dcrdcrdcrdcrd8crcO4A+O5rcO4A+O5rc<a+4r4rb+a+rb+a+rb+a+rb+a+rb+8a+ra+ara+ara+a4r4r v12 >dcrdcrdcrdcrd8crcO4A+O5rcO4A+O5rc<a+4r4r v15 >>crc8rcr8<a+ra+8ra+r8ara8rar8grc4.<g+8ar>c8drfrf4ara+8arf+8>dr<a4.ara8dra8b+ra4crarf2. v12 rcdefcfgg+afcfcfa8.fcf+df+ab+8af+>d<af+df+af+dgf+gagdgaa+b+a+agfededececega+b+a+agfed< v15 g+8ar>c8dr v15 frf4ar v12 a+8arf+8dr v11 c4&c.g+32ar v10 a8gra8gr v9 ara4gr v8 b+8arg8er v7 d4.cr
-!restart
+t120
+; 120 bpm (march tempo).
+; At this tempo, 8th notes are 15 frames, which means
+; we don't have symmetrical 16th notes.
+; Luckily, this song doesn't use 16th notes.
+
+#Sq1 {
+	!start	
+	; start is not necessary, strictly speaking, unless you write
+	; a subroutine above it.
+
+	!pulse $DUTY_50 $LEN_RUN $CONST_VOL 0
+	; 50% duty cycle (sounds kind of like a clarinet).
+	; Always put LEN_RUN and CONST_VOL. These are part of the 
+	; byte that is written to the volume and duty cycle registers
+	; by Faxanadu's engine. You don't need to understand this 
+	; so don't worry too much!
+	; I think the trailing 0 sets a base volume level. Each note 
+	; ordinarily fades to 0 volume. Setting this higher will
+	; allow a little sustain volume.
+	
+	!envelope 0 
+	; Envelope 0 is a gradual decay.
+	; Envelope 1 is sustain.
+	; Envelope 2 (not used much) is a crescendo and decrescendo.
+	
+	v13 o7 l8
+	; Slightly louder than Sq2.
+	; I recommend not using volume 14 and 15 because the square
+	; channels tend to be louder than everything else.
+	; Octave 7 may seem high but it's just octave 5 in famitracker.
+	; l8 means that a note without a number after it is an 8th note.
+	; This is how other versions of MML work too.
+
+	dc < ba > ge f+e 
+	; Type a through g to play a note and r to play a rest.
+	; + signifies a sharp and - signifies a flat.
+	; To go down or up octaves, use < and >.
+	; OR specify the octave with o2, o3, etc.
+
+	d4. < b gg ab > 
+	; Numbers after notes are their rhythms. 4. is a dotted quarter.
+	; I find it useful to write 1 measure per line.
+	; Most people do not use as much whitespace as I do, 
+	; but that's OK because the MML interpreter will get rid of it.
+	
+	c4. r4 < f+ ga
+	b4. > c16 < b16 a4. r >
+	dc < b > d gf+ f+g
+	e4. d d4. r 
+	c < bag > dc < ba 
+	g4. r4 gab >
+	c4. r d4. c <
+	; c4. r could be written as a half note (c2)
+	; but I wanted it to cut off early.
+	
+	b4. r4 gab >
+	c4 c4 d4. c16 d16 <
+	b4. r4 bag l4
+	a4. r8 eb 
+	a4. r8 ge
+	f+4. r8 gb
+	b4. r8 a4. r8
+	!restart
+	; restart is only necessary in one channel
 }
-#sq2 {
-!start
-o4 v15 
-!pulse $DUTY_50 $LEN_RUN $CONST_VOL 0
-!envelope $ENV_VOLUME_DECAY
-L4O4 l2ff+gee8l16fra8ar>crc4erf+8drc8<arf+4.>erd8drd8drdrd4dra8erd8cr<a+4.are8fra8ar>crc4erf+8drc8ard4.erd8O4A+O5rd8erc4<grb+ra2.r4e8fra8ar>crc4erf+8drc8<arf+4.>erd8drd8drdrd4dra8erd8cr<a+4.are8fra8ar>crc4erf+8drc8ard4.erd8O4A+O5rd8erc4<grb+ra2.r8 v12 f+8rf+r8f+r8f+r8f+r8r16f+r8gr8gr8g4r4r8er8er8er8er8r16er8fr8f8rf4r4r8 v12 f+r8f+r8f+r8f+r8r16f+r8gr8gr8g4r4r v15 >grg8rgr8frf8rfr8ere8rer8dr<a+4.e8fra8ar>crc4erf+8drc8ard4.erd8O4A+O5rd8erc4<grb+ra2.r1r1r1r1r4e8fra8ar v15 >crc4er v12 f+8drc8<ar v11 f+4.>er v10 d8drd8dr v9 drd4dr v8 a8erd8cr v7 <a+4.ar
-!restart
+
+#Sq2 {
+	!start
+	!pulse $DUTY_50 $LEN_RUN $CONST_VOL 0
+	!envelope 0 
+
+	[ v11 o5 l8 
+	; This channel is a little quieter because Sq1 has the melody.
+	; Anything inside of [ ] is a loop. If there is a number after
+	; the ], it will loop that many times.
+	; Otherwise, it is an infinite loop.
+	; You can put a second loop inside an infinite loop, but you
+	; cannot use a finite loop inside another finite loop.
+
+	b4 > c d4 gdc <
+	b4 g > d4 d !endloopif 1 c < b 
+	rb > c < b > c4. r4 <
+	b > c < abgaf+ ]2
+	o6 g f+ e4 d c4 < 
+	ab > cdc < ba g4 f+4
+
+	[ o6 c < geg > d < a f+ a
+	bgdgbgdg ]2
+	; Use repeats whenever possible to save space in the ROM.
+	[o5 aece ]4
+	f+ dcdgece
+	gece f+ dcd
 }
-#tri {
-!start
-o4 l8o2f>a12aa24<ff+>a12aa24<f+g>a+12a+a+24<gc>e16ee16e<fb+cb+fb+c16.>c&c32<db+f+b+db+f+16.>c&c32<g>d<d>d<g>d<d16.>d&d32<cb+gb+cb+g16.>c&c32<fb+cb+fb+c16.>c&c32<d>dO2F+O3d<d>d<f+16.>d&d32<g>d<d>d<cb+g16.>c&c32<fb+cb+fb+c16.>c&c32<fb+cb+fb+c16.>c&c32<db+f+b+db+f+16.>c&c32<g>d<d>d<g>d<d16.>d&d32<cb+gb+cb+g16.>c&c32<fb+cb+fb+c16.>c&c32<d>dO2F+O3d<d>d<f+16.>d&d32<g>d<d>d<cb+g16.>c&c32<fb+cb+fb+c16.>c&c32 v12 <d>dO2F+O3d<d>d<f+16.>d&d32<g>d<d>d<g>a+16a+a+16a+<cb+gb+cb+g16.>c&c32<fb+cb+f>a16aa16a<d>dO2F+O3d<d>d<f+16.>d&d32<g>d<d>d<gfed >cc.c.<a+a+.a+.aa.a.gcdefb+cb+fb+c16.>c&c32<d>dO2F+O3d<d>d<f+16.>d&d32<g>d<d>d<cb+g16.>c&c32<facafac16.a&a32fb+cb+fb+c16.>c&c32<db+f+b+db+f+16.>c&c32<g>d<d>d<g>d<d16.>d&d32<cb+gb+cb+g16.>c&c32<fb+cb+ v15 fb+c16.>c&c32 v12 <db+f+b+ v11 db+f+16.>c&c32 <g>d<d>d <g>d<d16.>d&d32 <cb+gb+ cb+g16.>c&c32
-!restart
+
+#Tri {
+	!start
+	[ o4 l4
+	; default length is 4 in this block instead of 8,
+	; because this channel has no 8th notes.
+	; Unlike the square channels, o4 is the same in Famitracker.
+	; Triangle doesn't have volume or duty cycles.
+
+	g4. e4. f+
+	g4. a4. g
+	e4. f+4. !endloopif 1
+	; this breaks the loop if it has played all the way through once.
+	; The number you use with !endloopif should be 1 less than
+	; the total number of loops (in this case, two). 
+
+	e g4. f+4. d ]2 ; 1st ending
+	l4 a g4. e4. d ; 2nd ending.
+	; l4 has to be specified again because the last note
+	; before endloopif was a different length.
+
+	c2 d2 g2 ed 
+	c2 d2 g2 ag
+	l2 eaeg f+ 
+	; I set l2 here because there are so many half notes
+	e1 f+
 }
-#noise {
-!start
-L4 [[p2 p1 p2 p1 p2 p1 p2 p1 p2 p3 p2 p3]255]
-!end
+
+#Noise {
+	!end
+	; You have to specify the noise channel, 
+	; even if there is nothing in it.
 }
 ```
+
+---
+
+### Mother - Humoresque of a Little Dog
+
+```
+#song 15
+; Mother - Humoresque of a Little Dog
+; Song 15 is the shop theme.
+
+t225
+; The actual tempo is 150, but if you don't want to use
+; a lot of triplets, you can write it as though it's in 6/8 and raise
+; the tempo by 50%. The beat becomes the dotted quarter note,
+; and 8th notes become triplets.
+
+#Sq1 {
+	!start
+	!pulse $DUTY_25 $LEN_RUN $CONST_VOL 0
+	!envelope 0
+
+	v12 o5 l4.
+	a+4 b8 > g4 < a+8+b4 > g8 < a+4 b8 >
+	g4 < a+8 b4 > g8 f4e8 e-4d8
+	c4 r8 c4d8 e-4e8 > c < 
+	b- a d+4e8 c4 r 
+	[b8 a+4b8 a4g8r4 ]2 
+	a8 g4 a8 b > c < f+ g
+	d+4e8 d+4e8 < b > c
+
+	o5 g4f+8 a+4b8 > d4 < b8 > g4 r8
+	f4 < g8 > e4 < g8 > d4d+8 e4 < g8 >
+	c c4d8 d+4e8 > c <
+	b- a g e
+	a a b a
+	g4f+8 g4ag8 e
+	d d g4e-8 d
+	c < g > c r
+	!restart	
+}
+
+#Sq2 {
+	!start
+	!pulse $DUTY_25 $LEN_RUN $CONST_VOL 0
+	!envelope 0
+
+	; The original game has Sq2 doubled with Sq1. I wrote this
+	; harmony part, but I think Mother 2 had something similar.
+
+	v9 o5 l4.
+	g4r8 > d4 < g8r4 > d8 < g4 r8 >
+	d4 < g8 r4 > d8 < a4g8 g-4f8
+	e4 r8 e4f8 f+4g8 > e
+	d c < b4 > c8 < g4 r >
+	
+	[ g8 f+4g8 f4d8 r4 ]2
+	c8 < b4 > c8 g g d d
+	c c d e
+	o5 e4 d8 f+4 g8 b4 g8 > d4 r8
+	c4 < b8 > c4 < b8 b-4 b8 > c4 < b8
+	g > e4f8 f+4g8 e 
+	d c < b > c 
+	c c d+ d
+	e4d+8 e4 f d8 c <
+	b b > d4 < g8 f
+	e d c r 
+}
+
+#Tri {
+	!start
+	[ o2 l4.
+	gr > dr <
+	ggab >
+	cr < gr >
+	cc < ba
+	[ o2 gr > dr ]2
+	o3 c r1 r8 r1 r2
+
+	[ o2 gr > dr ]2
+	[ o3 cr < gr ]2
+	o3 ff f+f+ 
+	gg aa
+	dd < gg >
+	c < g > c r 
+}
+
+#Noise {
+	; In drum tracks:
+	; p1 - bass drum
+	; p2 - snare drum
+	; p3 - hi-hat
+	; p4 - harsh noise
+	; p5 & p6 - other hi-hats, ordinarily not used.
+	;
+	; Because the number signifies which drum instrument you
+	; are using, lengths must be specified before the notes
+	; whenever you change rhythms.
+	;
+	; Volume changes (v) do not seem to work here.
+
+	[ l4. p1 l4 p2 l8 p3 ]12 ; Basic swing rhythm.
+	l4. p1 r r r r r r r 
+
+	; Writing the above rests wastes space, but it's easier
+	; to count the beats this way. As I mentioned at the top
+	; of the file, l4. is one beat in this song.
+
+	[ l4. p1 l4 p2 l8 p3 ]8
+	[ l4. p1 l8 p2 r p3 p1 r p3 p1 r p3 ]3
+	l4. p2 p1 p2 r 
+}
+```
+---
+
+### Ultima 3 - Wanderer
+
+```
+#song 7
+; Ultima 3 - Wanderer
+t120
+
+; Ultima 3 is the first RPG with a full soundtrack, which directly influenced
+; the original Dragon Quest. This is much better work than you might expect
+; from a game in 1983. There was limited disk space, so the composer wrote a lot
+; of musical patterns, which he re-used to make songs.
+; We can do the same thing via !jsr (see below).
+;
+; I transcribed this using the sheet music available here:
+; https://www.youtube.com/watch?v=XZZ2J44wPl4&list=RDXZZ2J44wPl4
+; I have written some notes with alternate spellings (e.g. F+ instead of Gb)
+; for music theory reasons that I won't get into here.
+
+#Sq1 {
+	!start
+	!pulse $DUTY_50 $LEN_RUN $CONST_VOL 0
+	!envelope 0
+	v11 ; I recommend never using volume level 15 or 14
+	; because square channels are much louder than the other instruments.
+	; A lot of great games use lower volume than you might expect!
+	
+	r1 ; intro (triangle bass is playing)
+	[ r2. r8 o5 l8 g ; eighth note pickup
+	
+	!jsr @melody8ths 
+	!jsr @melody8ths 
+	!jsr @melodytriplets 
+	!jsr @melody8ths 
+
+	; About !jsr:
+	; Whenever you have a song structure where a section is repeated, not
+	; immediately, but some time later, consider making that into a subroutine
+	; and use !jsr. JSR is "jump to subroutine" in assembly language,
+	; but it works like the macros of other MML implementations. 
+	; The only difference is JSR jumps to a different memory location and
+	; saves the return address, similar to loops.
+	; I place subroutines at the end of their respective instrument blocks.
+	; You cannot use a Sq1 subroutine in other instruments.
+
+	o6 l8 dcdc < b4 > a-4 
+	; this isn't a subroutine because it only happens once
+	g4 e-2 e-4
+	fe-fe- d4 a-4
+	g4 e-2 d4
+	e-4 c4 < b-4 a-4
+	g2 b2 
+
+	!jsr @melody8ths ; As you can see, without subroutines, this song would
+	!jsr @melodytriplets ; use a lot more bytes than it currently does!
+	!jsr @melodybridge
+	!jsr @melody8ths
+	!jsr @melody8ths
+	!jsr @melodybridge
+	!jsr @melodytriplets
+	!jsr @melodytriplets
+
+	o6 l8 cde-fga-bg >
+	c2 r2 ] ; Ending/repeat.
+
+	; Subroutines are below this point.
+	; You MUST name them with @ and call them with !jsr.
+	; You MUST end them with !return or weird things will happen.
+
+	@melody8ths:
+	o6 l8 cde-cde-fd 
+	e-4 g4 fe-df 
+	e-dce- l4 d < b 
+	> c < gr g 
+	!return
+
+	@melodytriplets:
+	o6 l6 ; l6 is 1/3 of a half note, twice as long as ordinary triplets.
+	cde-de-f
+	e-fgfe-d
+	e-dcdc < b >
+	cdc < g3 g6
+	!return
+
+	@melodybridge:
+	o5 l8
+	a-g f4 g2
+	ag f4 g4 a-4
+	a4 > e4 f+edc+
+	d2 e4 c+4
+	d < a f+ a d2 > 
+	d < a f a d2 > 
+	c < geg c2 > 
+	c < ge-g c4 < b4 
+	!return
+}
+
+#Sq2 {
+	!start
+	!pulse $DUTY_50 $LEN_RUN $CONST_VOL 0
+	!envelope 0
+	
+	r1
+	[ v10 l8
+	[ r1 ]13
+	
+	!jsr @counter8ths
+
+	o5 l8 baba g4 > f4 
+	e-4 c2 c4
+	dcdc l4 < b- > f
+	e- < b-2 g >
+	c < a- d f
+	e-2 d2
+
+	!jsr @counter8ths
+	!jsr @counter8ths
+	!jsr @counterbridge
+	[ r1 ]4
+	!jsr @counter8ths
+	!jsr @counterbridge
+	!jsr @counter8ths
+	!jsr @counter8ths
+
+	o5 l8 e-d ce- dc < b > d
+	c2 r2 ]
+	
+	@counter8ths:
+	o5 e-g > c < e- g > c d < b >
+	c4 e-4 dc < b > d
+	c4 < g4 b4 f4
+	e-g e-c < ga-b > f
+	!return
+
+	@counterbridge:
+	o5 l8 fe- d4 e-4 c4
+	fe d4 e-4 e-4
+	e2 a2.
+	g+4 a2
+	af+ df+ < a2 >
+	af df < a2 >
+	ge ce < g2 >
+	ge- ce- < g4 g4
+	!return
+}
+
+#Tri {
+	!start
+
+	[ [ o3 l2 c < g ]6 ; This isn't a subroutine because it's so simple
+	
+	!jsr @bassquarter
+	!jsr @bassquarter
+
+	[ o3 l2 c < g ]4
+
+	o3 l8 d2 < g2 > 
+	cde-f g2
+	f2 < b-2 >
+	e-fga- b-4 b4 >
+	c2 < f2 
+	ge-dc dcd < g
+
+	!jsr @bassquarter
+	!jsr @bassquarter
+	!jsr @bassbridge
+
+	[ o3 l2 c < g ]4
+
+	!jsr @bassquarter
+	!jsr @bassbridge
+	
+	[ o3 l2 c < g ]4
+	!jsr @bassquarter
+	o4 l4 c < c g < g ]
+
+	@bassquarter:
+	[ o3 l4 c g < !endloopif 3 g > g ]4
+	o2 g2
+	!return
+
+	@bassbridge:
+	o2 l4 f b- > e- e
+	l8 fgab > c4 < b4 >
+	c+2 dc+ < ba
+	b2 > c+4 g4
+	o4 l8 f+d < a > d < f+2
+	o4 fd < a > d < f2
+	o4 ec < g > c < e2
+	o4 e-c < g > c < e-4 f4 
+	!return
+}
+
+#Noise {
+	!end ; #Noise block must be included, even if it doesn't play anything
+}
+```
+
 ---
 ## Troubleshooting
 

@@ -516,6 +516,8 @@ If you discover something new about an opcode or operand, please report it - it 
 
 The generated assembly files produce two sections; defines and bscript. The defines will be pre-populated with known constants so they can be used in script code. The bscript-section containts the actual script code.
 
+Only one command, label definition or entrypoint definition can be on any one line. (comments can be added to the end of any line however)
+
 ### bScript defines section
 
 This works the same way as for the interaction scripts. It is a list of constants that can be used in script code and turned into numbers when assembling.
@@ -524,7 +526,7 @@ This works the same way as for the interaction scripts. It is a list of constant
 
 This also works much in the same as the interaction scripts.
 
-bScripts have 101 entrypoint - one for each sprite in the game. The disassembler will add a comment to each entrypoint with the name of the sprite it belongs to. Some sprites share the same behavior, and therefore have the same entrypoint location.
+bScripts have 101 entrypoint, numbered from 0 to 100 - one for each sprite in the game. The disassembler will add a comment to each entrypoint with the name of the sprite it belongs to. Some sprites share the same behavior, and therefore have the same entrypoint location.
 
 - comments start with ```;``` - anything after a semicolon will be ignored
 - labels start with ```@``` and end with a colon in the definition, but not when referenced
@@ -582,7 +584,7 @@ The following opcodes take any number of these arguments.
 - **mode** — hop mode (0–4), others undefined
 - **direction** — 0=x, 1=y, others undefined
 - **phase** — animation phase (0–255, defined values probably depend on the sprite)
-- **ram** — RAM address $0000–$FFFF (resolved per sprite slot, 8 sprites can be on the screen so a value 0-7 will be added to this ram address)
+- **ram** — RAM address $0000–$07ff (resolved per sprite slot, 8 sprites can be on the screen so a value 0-7 will be added to the given ram address)
 - **value** — byte value to add to a given RAM address (-127 to 128)
 - **addr** — jump label
 - **true** — jump label (condition true)
@@ -600,6 +602,8 @@ The following opcodes take any number of these arguments.
 | $07 | SetPhase | phase | Unclear; might set the sprite's animation frame index to the given phase value |
 | $ff | End | | Ends the behavior script |
 
+The operand ```value``` used by opcode ```AddValue``` should resolve to a valid RAM address, which is in the range $0000-$07ff. What each address means is documented in [ChipX86's disassembly (RAM map)](https://chipx86.com/faxanadu/RAM.html).
+
 Behavior sub-opcodes
 
 | Opcode | Mnemonic | Args | Comments |
@@ -611,7 +615,7 @@ Behavior sub-opcodes
 | $04 | Behavior_WalkForward | ticks, pixels, blocks | Walks forward in the sprite's facing direction |
 | $05 | Behavior_NOP | | ⚠ Unused in the original game. Argument list uncertain. |
 | $06 | Behavior_Unused_06 | zero | |
-| $07 | Behavior_Lighntingball | zero | |
+| $07 | Behavior_Lightningball | zero | |
 | $08 | Behavior_Charron | zero | |
 | $09 | Behavior_Hop | zero, pixels, blocks, mode | Valid hop modes are in the range 0-4. Pixels and block represent changes in the x-direction. |
 | $0a | Behavior_Wyvern | zero | |
