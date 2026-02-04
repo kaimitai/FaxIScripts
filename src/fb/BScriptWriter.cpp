@@ -47,6 +47,7 @@ std::string fb::BScriptWriter::get_label_name(std::size_t p_ptr_table_idx, std::
 
 void fb::BScriptWriter::write_asm(const std::string& p_filename,
 	const fb::BScriptLoader& loader) const {
+	bool rg2_marked{ false };
 
 	std::string af{
 		std::format(" ; BScript asm file extracted by {} v{}\n ; {}\n\n",
@@ -66,6 +67,12 @@ void fb::BScriptWriter::write_asm(const std::string& p_filename,
 
 	std::size_t ptr_table_index{ 0 };
 	for (const auto& kv : instrs) {
+		// emit info on region 2 code start if applicable
+		if (!rg2_marked && kv.first >= loader.m_rg2_rom_offset) {
+			af += "\n\n ; ***** Region 2 code start *****\n";
+			rg2_marked = true;
+		}
+
 		// emit entrypoints if any
 		auto epiter{ offset_to_eps.find(kv.first) };
 		if (epiter != end(offset_to_eps)) {

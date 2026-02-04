@@ -30,6 +30,10 @@ namespace fb {
 
 		std::map<fb::ArgDomain, std::string> get_argmap(const std::string& p_asm,
 			const std::vector<std::string>& p_line) const;
+		void validate_argmap(const std::string& p_asm,
+			const std::string& p_mnemonic,
+			const std::map<fb::ArgDomain, std::string>& p_argmap,
+			const std::map<std::string, std::set<fb::ArgDomain>>& p_opcode_args) const;
 
 		std::string get_label_name(const std::string& p_asm, const std::map<fb::ArgDomain, std::string>& p_argmap,
 			fb::ArgDomain domain) const;

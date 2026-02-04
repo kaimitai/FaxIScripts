@@ -546,6 +546,7 @@ These special commands control the flow of music in a channel:
   Marks the **entry point** for the music in the current channel.  
   - If omitted, the entry point is assumed to be the **start of the channel block**.  
   - Reason for existence: It’s theoretically possible to have a subroutine with a return before the entry point.
+  - It can also be used to make a song start from different places during testing
   ```mml
   !start
   ```
@@ -1302,7 +1303,7 @@ t225
 
 #Tri {
 	!start
-	[ o2 l4.
+	o2 l4.
 	gr > dr <
 	ggab >
 	cr < gr >

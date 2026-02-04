@@ -9,6 +9,7 @@ fb::BScriptLoader::BScriptLoader(const fe::Config& p_config,
 	m_rom{ p_rom },
 	m_bscript_ptr{ p_config.pointer(c::ID_BSCRIPT_PTR) },
 	m_bscript_count{ p_config.constant(c::ID_SPRITE_COUNT) },
+	m_rg2_rom_offset { p_config.constant(c::ID_BSCRIPT_RG2_START) },
 	opcodes{ fb::parse_opcodes(p_config.bmap(c::ID_BSCRIPT_OPCODES)) },
 	behavior_ops{ fb::parse_opcodes(p_config.bmap(c::ID_BSCRIPT_BEHAVIORS)) }
 {

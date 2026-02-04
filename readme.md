@@ -16,7 +16,7 @@ Interaction scripts are used for several things; interacting with NPCs and shops
 
 This scripting layer contains strings, shop data and actual code. The strings are stored in a separate section, but the shop data and code live together in one combined section. The shop data gets moved to its own section in our assembly files, and any opcode referencing a shop uses its index - which is only resolved to an actual address during linking. This provides a zero-cost abstraction - no extra bytes, no layout penalties.
 
-There are two ROM sections we can use when patching, and the users can choose between different patching modes.
+There are two ROM sections we can use when patching, and users can choose between different patching modes.
 
 An example of an extracted iScript:
 
@@ -108,6 +108,7 @@ We prioritize fixing bugs if any are discovered, but here are some ideas for fut
 * Add an option to let the linker insert a jump-instruction to bridge the gap between the safe ROM regions for iScripts and bScripts. This could potentially save some bytes over the current bridging strategy.
 * Allow Japanese characters directly in strings for the jp region
 * Emit more statistics from MML compilation; like for example total fractional drift (if any) and byte size per channel.
+* Allow adding new iScripts beyond the original count of 152, if possible. Requires patching a pointer-to-pointer, but needs to be investigated.
 
 <hr>
 

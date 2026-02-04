@@ -104,6 +104,27 @@ void fb::BScriptReader::read_asm_file(const std::string& p_filename,
 			klib::str::to_lower(opc.second.mnemonic), opc.first
 		));
 
+	// make a map of all arguments an opcode takes
+	std::map<std::string, std::set<fb::ArgDomain>> opcode_args;
+	for (const auto& kv : opcodes) {
+		std::string l_mnemonic{ klib::str::to_lower(kv.second.mnemonic) };
+		if (opcode_args.contains(l_mnemonic))
+			throw std::runtime_error(std::format("Opcode {} defined more than once", l_mnemonic));
+		else {
+			for (auto templatearg : kv.second.args)
+				opcode_args[l_mnemonic].insert(templatearg.domain);
+		}
+	}
+	for (const auto& kv : behavior_ops) {
+		std::string l_mnemonic{ klib::str::to_lower(kv.second.mnemonic) };
+		if (opcode_args.contains(l_mnemonic))
+			throw std::runtime_error(std::format("Opcode {} defined more than once", l_mnemonic));
+		else {
+			for (auto templatearg : kv.second.args)
+				opcode_args[l_mnemonic].insert(templatearg.domain);
+		}
+	}
+
 	// map string label to instruction index
 	std::map<std::string, std::size_t> label_to_instr_idx;
 	// map from ptr table index to instruction index
@@ -153,6 +174,8 @@ void fb::BScriptReader::read_asm_file(const std::string& p_filename,
 			}
 			else
 				argmap = get_argmap(line, args);
+
+			validate_argmap(line, mnemonic, argmap, opcode_args);
 
 			fb::BScriptInstruction instr(real_opcode ? opcode_byte : 0x00);
 			if (!real_opcode)
@@ -347,6 +370,21 @@ std::size_t fb::BScriptReader::find_split_index(std::size_t region1_capacity_byt
 
 	// everything fits
 	return instructions.size();
+}
+
+void fb::BScriptReader::validate_argmap(const std::string& p_asm,
+	const std::string& p_mnemonic,
+	const std::map<fb::ArgDomain, std::string>& p_argmap,
+	const std::map<std::string, std::set<fb::ArgDomain>>& p_opcode_args) const {
+
+	// we know the opcode given is lowercase, and that the opcode args map
+	// has an entry for this opcode
+
+	for (const auto& kv : p_argmap)
+		if (!p_opcode_args.at(p_mnemonic).contains(kv.first))
+			throw std::runtime_error(std::format(
+				"Invalid argument to opcode '{}' on line '{}'",
+				p_mnemonic, p_asm));
 }
 
 std::pair<std::vector<byte>, std::vector<byte>> fb::BScriptReader::to_bytes(void) const {

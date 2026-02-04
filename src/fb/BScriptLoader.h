@@ -25,6 +25,8 @@ namespace fb {
 		std::map<std::size_t, fb::BScriptInstruction> m_instrs;
 		std::set<std::size_t> m_jump_targets;
 
+		std::size_t m_rg2_rom_offset;
+
 		void parse_blob_from_entrypoint(std::size_t p_ep, std::size_t p_zero_addr);
 		uint16_t read_short(std::size_t& offset) const;
 		byte read_byte(std::size_t& offset) const;
