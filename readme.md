@@ -151,6 +151,8 @@ We prioritize fixing bugs if any are discovered, but here are some ideas for fut
 
 Special thanks to [ChipX86/Christian Hammond](http://chipx86.com/) - For entirely mapping out the scripting languages and the music engine in his [Faxanadu disassembly](https://chipx86.com/faxanadu/) - and for coining the terms iScript, bScript and mScript. This project would not have existed without his resources.
 
+Another special thanks to [Jessica](https://www.romhacking.net/community/9037/) for testing out the MML compiler and improving the [MML documentation](./docs/faxiscripts_mml.md) - and for providing example music files which were also added to the docs.
+
 <hr>
 
 You can also find me on the **Faxanadu Randomizer & Romhacking** Discord server, the main hub for all things Faxanadu.
