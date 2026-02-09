@@ -189,6 +189,9 @@
     <ClCompile Include="src\fb\BScriptReader.cpp">
       <Filter>Source Files\fb</Filter>
     </ClCompile>
+    <ClCompile Include="src\fm\BinaryMod.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\fi\Opcode.h">
@@ -319,6 +322,9 @@
     </ClInclude>
     <ClInclude Include="src\fb\BScriptReader.h">
       <Filter>Header Files\fb</Filter>
+    </ClInclude>
+    <ClInclude Include="src\fm\BinaryMod.h">
+      <Filter>Header Files\fm</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

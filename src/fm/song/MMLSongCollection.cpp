@@ -186,6 +186,66 @@ std::string fm::MMLSongCollection::to_string(void) const {
 	return result;
 }
 
+fm::BinaryMod fm::MMLSongCollection::to_binary_mod(std::size_t p_song_no) {
+	std::vector<byte> result;
+	std::vector<std::size_t> ptr_table;
+	std::vector<std::size_t> addr_refs;
+	std::size_t instr_offset{ 0 };
+	std::vector<fm::MusicInstruction> instrs;
+
+	for (std::size_t c{ 0 }; c < songs.at(p_song_no).channels.size(); ++c) {
+		try {
+			auto c_instrs{ songs.at(p_song_no).channels[c].to_bytecode() };
+			ptr_table.push_back(c_instrs.entrypt_idx + instr_offset);
+
+			for (auto& instr : c_instrs.instrs) {
+				if (instr.jump_target.has_value())
+					instr.jump_target = instr.jump_target.value() + instr_offset;
+				instrs.push_back(instr);
+			}
+
+			instr_offset += c_instrs.instrs.size();
+		}
+		catch (const std::runtime_error& ex) {
+			throw std::runtime_error(std::format("Error when encoding song {} channel {}: {}", p_song_no + 1, c + 1, ex.what()));
+		}
+		catch (const std::exception& ex) {
+			throw std::runtime_error(std::format("Error when encoding song {} channel {}: {}", p_song_no + 1, c + 1, ex.what()));
+		}
+		catch (...) {
+			throw std::runtime_error(std::format("Unknown error when encoding song {} channel {}", p_song_no + 1, c + 1));
+		}
+	}
+
+	// set byte offsets for all instructions
+	std::size_t byte_offset{ 0 };
+	for (std::size_t i{ 0 }; i < instrs.size(); ++i) {
+		instrs[i].byte_offset = byte_offset;
+		byte_offset += instrs[i].size();
+	}
+
+	// update all jump targets now that all byte offsets are known
+	// turn instr index into byte offsets
+	for (std::size_t i{ 0 }; i < instrs.size(); ++i) {
+		if (instrs[i].jump_target.has_value()) {
+			instrs[i].jump_target = instrs.at(instrs[i].jump_target.value()).byte_offset.value();
+			addr_refs.push_back(instrs[i].byte_offset.value() + 1);
+		}
+	}
+
+	// update ptr table values in the same way
+	for (std::size_t& n : ptr_table)
+		n = instrs.at(n).byte_offset.value();
+
+	// emit bytes - instructions
+	for (const auto& instr : instrs) {
+		auto bytes{ instr.get_bytes() };
+		result.insert(end(result), begin(bytes), end(bytes));
+	}
+
+	return fm::BinaryMod(ptr_table, addr_refs, result, { static_cast<byte>(p_song_no) });
+}
+
 std::vector<byte> fm::MMLSongCollection::to_bytecode(const fe::Config& p_config) {
 	std::vector<byte> result;
 	std::vector<std::size_t> ptr_table;
@@ -258,6 +318,13 @@ std::vector<byte> fm::MMLSongCollection::to_bytecode(const fe::Config& p_config)
 		result.insert(end(result), begin(bytes), end(bytes));
 	}
 
+	return result;
+}
+
+std::vector<fm::BinaryMod> fm::MMLSongCollection::to_binary_mods(void) {
+	std::vector<fm::BinaryMod> result;
+	for (std::size_t i{ 0 }; i < songs.size(); ++i)
+		result.push_back(to_binary_mod(i));
 	return result;
 }
 

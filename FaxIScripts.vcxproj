@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -152,6 +152,7 @@
     <ClCompile Include="src\fi\IScriptLoader.cpp" />
     <ClCompile Include="src\fi\Opcode.cpp" />
     <ClCompile Include="src\fi\Shop.cpp" />
+    <ClCompile Include="src\fm\BinaryMod.cpp" />
     <ClCompile Include="src\fm\fm_util.cpp" />
     <ClCompile Include="src\fm\MMLReader.cpp" />
     <ClCompile Include="src\fm\MMLWriter.cpp" />
@@ -194,6 +195,7 @@
     <ClInclude Include="src\fi\IScriptLoader.h" />
     <ClInclude Include="src\fi\Opcode.h" />
     <ClInclude Include="src\fi\Shop.h" />
+    <ClInclude Include="src\fm\BinaryMod.h" />
     <ClInclude Include="src\fm\fm_constants.h" />
     <ClInclude Include="src\fm\fm_util.h" />
     <ClInclude Include="src\fm\MMLReader.h" />

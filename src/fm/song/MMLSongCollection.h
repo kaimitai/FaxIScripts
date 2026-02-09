@@ -6,6 +6,7 @@
 #include "./../MusicOpcode.h"
 #include "./../../fe/Config.h"
 #include "./../../common/midifile/MidiFile.h"
+#include "./../BinaryMod.h"
 #include "Fraction.h"
 #include <map>
 #include <set>
@@ -41,6 +42,7 @@ namespace fm {
 		std::string to_string(void) const;
 
 		std::vector<byte> to_bytecode(const fe::Config& p_config);
+		std::vector<fm::BinaryMod> to_binary_mods(void);
 		std::vector<smf::MidiFile> to_midi(void);
 		std::vector<std::string> to_lilypond(bool p_incl_percussion);
 		void sort(void);
@@ -49,6 +51,8 @@ namespace fm {
 		std::string integral_notes(void) const;
 
 	private:
+		fm::BinaryMod to_binary_mod(std::size_t p_song_no);
+
 		// turn bytecode into mml via an MML loader
 		fm::NormalizedBytecodeChannel normalize_bytecode_channel(
 			const fm::BytecodeChannel& ch) const;

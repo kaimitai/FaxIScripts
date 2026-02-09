@@ -22,6 +22,7 @@ namespace fi {
 		inline const std::pair<std::string, std::string> CMD_ROM_TO_MIDI{ "rom-to-midi" , "r2m" };
 		inline const std::pair<std::string, std::string> CMD_MML_TO_LILYPOND{ "mml-to-ly" , "m2l" };
 		inline const std::pair<std::string, std::string> CMD_ROM_TO_LILYPOND{ "rom-to-ly" , "r2l" };
+		inline const std::pair<std::string, std::string> CMD_ROM_TO_MOD{ "rom-to-mod" , "r2mod" };
 		inline const std::pair<std::string, std::string> CMD_EXTRACT_MUSIC{ "extract-music" , "xm" };
 		inline const std::pair<std::string, std::string> CMD_BUILD_MUSIC{ "build-music" , "bm" };
 		inline const std::pair<std::string, std::string> CMD_EXTRACT_BSCRIPTS{ "extract-bscript" , "xb" };

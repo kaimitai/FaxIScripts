@@ -136,6 +136,9 @@ fi::Cli::Cli(int argc, char** argv) :
 		mml_to_lilypond(m_in_file, m_out_file);
 	else if (m_script_mode == fi::ScriptMode::RomToLilyPond)
 		rom_to_lilypond(m_in_file, m_out_file);
+	// mod dispatch
+	else if (m_script_mode == fi::ScriptMode::RomToMod)
+		rom_to_mod(m_in_file, m_out_file);
 	// can't really happen
 	else
 		throw(std::runtime_error("Invalid script mode"));
@@ -527,6 +530,16 @@ void fi::Cli::rom_to_lilypond(const std::string& p_nes_filename,
 	save_lilypond_files(coll, p_out_file_prefix);
 }
 
+void fi::Cli::rom_to_mod(const std::string& p_nes_filename,
+	const std::string& p_out_file_prefix) {
+	auto rom_data{ load_rom_and_determine_region(p_nes_filename) };
+	fm::MScriptLoader loader(m_config, rom_data);
+	fm::MMLSongCollection coll(get_global_transpose(rom_data));
+	coll.extract_bytecode_collection(loader);
+
+	save_music_mod_files(coll, p_out_file_prefix);
+}
+
 void fi::Cli::mml_to_lilypond(const std::string& p_mml_filename,
 	const std::string& p_out_file_prefix) {
 	auto coll{ load_mml_file(p_mml_filename) };
@@ -560,6 +573,21 @@ void fi::Cli::save_lilypond_files(fm::MMLSongCollection& coll,
 		klib::file::write_string_to_file(lps[i], l_filename);
 		std::cout << "Wrote " << l_filename << "!\n";
 	}
+}
+
+void fi::Cli::save_music_mod_files(fm::MMLSongCollection& coll,
+	const std::string& p_out_file_prefix) const {
+
+	std::cout << "Attempting to write modular music files...\n";
+
+	auto bmods{ coll.to_binary_mods() };
+
+	for (std::size_t i{ 0 }; i < bmods.size(); ++i) {
+		std::string l_filename{ std::format("{}-{:02}.bmod", p_out_file_prefix, i + 1) };
+		klib::file::write_bytes_to_file(bmods[i].to_bytes(), l_filename);
+		std::cout << "Wrote " << l_filename << "!\n" << bmods[i].to_string() << "\n";
+	}
+
 }
 
 void fi::Cli::parse_arguments(int arg_start, int argc, char** argv) {
@@ -662,6 +690,9 @@ void fi::Cli::set_mode(const std::string& p_mode) {
 	}
 	else if (check_mode(p_mode, appc::CMD_ROM_TO_LILYPOND)) {
 		m_script_mode = fi::ScriptMode::RomToLilyPond;
+	}
+	else if (check_mode(p_mode, appc::CMD_ROM_TO_MOD)) {
+		m_script_mode = fi::ScriptMode::RomToMod;
 	}
 	else throw std::runtime_error("Unknown commad " + p_mode);
 }

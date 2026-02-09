@@ -12,6 +12,7 @@ namespace fi {
 		IScriptBuild, IScriptExtract,
 		MmlExtract, MmlBuild, MmlToMidi, RomToMidi,
 		MmlToLilyPond, RomToLilyPond,
+		RomToMod,
 		MScriptBuild, MScriptExtract,
 		BScriptBuild, BScriptExtract
 	};
@@ -79,12 +80,18 @@ namespace fi {
 		void mml_to_lilypond(const std::string& p_mml_filename,
 			const std::string& p_out_file_prefix);
 
+		// to binary music
+		void rom_to_mod(const std::string& p_nes_filename,
+			const std::string& p_out_file_prefix);
+
 		// common
 		std::vector<byte> load_rom_and_determine_region(const std::string& p_nes_filename);
 		fm::MMLSongCollection load_mml_file(const std::string& p_mml_file) const;
 		void save_midi_files(fm::MMLSongCollection& coll,
 			const std::string& p_out_file_prefix) const;
 		void save_lilypond_files(fm::MMLSongCollection& coll,
+			const std::string& p_out_file_prefix) const;
+		void save_music_mod_files(fm::MMLSongCollection& coll,
 			const std::string& p_out_file_prefix) const;
 		bool check_mode(const std::string& p_mode,
 			const std::pair<std::string, std::string>& p_cmds);
