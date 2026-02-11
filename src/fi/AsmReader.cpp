@@ -38,7 +38,6 @@ void fi::AsmReader::read_asm_file(const fe::Config& p_config,
 	parse_section_defines();
 	parse_section_shops();
 	parse_section_iscript(p_config);
-
 }
 
 void fi::AsmReader::parse_section_strings(void) {
@@ -422,9 +421,9 @@ std::map<std::string, int> fi::AsmReader::relocate_strings(
 	}
 	m_strings = l_strs;
 
-	if (m_strings.size() >= 255)
+	if (m_strings.size() > 255)
 		throw std::runtime_error(
-			std::format("Only 254 unique strings can be used, but actual count is {}",
+			std::format("Only 255 unique strings can be used, but actual count is {}",
 				m_strings.size())
 		);
 

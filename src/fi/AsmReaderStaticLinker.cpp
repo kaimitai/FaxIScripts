@@ -58,12 +58,10 @@ void fi::AsmReader::parse_section_iscript(const fe::Config& p_config) {
 			));
 
 	// extract constants we need from the config
-	std::size_t l_iscript_count{ p_config.constant(c::ID_ISCRIPT_COUNT) };
-	std::size_t l_iscript_rg1_size{ p_config.constant(c::ID_ISCRIPT_RG1_SIZE) };
+	std::size_t l_iscript_min_count{ p_config.constant(c::ID_ISCRIPT_MIN_COUNT) };
+	std::size_t l_iscript_rg1_end{ p_config.constant(c::ID_ISCRIPT_RG1_END) };
 	std::size_t l_iscript_rg2_offset{ p_config.constant(c::ID_ISCRIPT_RG2_START) };
 	auto l_iscript_ptr{ p_config.pointer(c::ID_ISCRIPT_PTR_LO) };
-	std::size_t l_iscript_data_start{ l_iscript_ptr.first +
-	2 * l_iscript_count };
 
 	// start by calculating the shop offsets and code offset
 	// we are not emitting any bytes in the first pass
@@ -246,8 +244,16 @@ void fi::AsmReader::parse_section_iscript(const fe::Config& p_config) {
 	// we have labels and entrypoint idx to instruction index
 
 	// verify that we can populate each ptr table entry when we need to
+	// script idx 0xff is end-delimiter and can not be used
+	if (ptr_to_instr_index.size() < l_iscript_min_count || ptr_to_instr_index.size() > 255)
+		throw std::runtime_error(std::format("Entrypoint count must be in range {}-{}, but actual count is {}",
+			l_iscript_min_count, 255, ptr_to_instr_index.size()));
+
+	std::size_t l_iscript_count{ ptr_to_instr_index.size() };
+
+	// ensure our entrypoint map is not sparse in any way
 	for (std::size_t i{ 0 }; i < l_iscript_count; ++i)
-		if (ptr_to_instr_index.find(i) == end(ptr_to_instr_index))
+		if (!ptr_to_instr_index.contains(i))
 			throw std::runtime_error(std::format("Entrypoint {} not defined. ", i));
 
 	// intermediate processing step where we update all string references
@@ -263,6 +269,11 @@ void fi::AsmReader::parse_section_iscript(const fe::Config& p_config) {
 	// overflow we need to split, so let us check
 	// store instruction index and byte offset if it exists
 	std::optional<std::size_t> first_unsafe_inst_idx;
+
+	// let us calculate the size of region 1 (minus the ptr table) with our script count
+	std::size_t l_iscript_data_start{ l_iscript_ptr.first +
+	2 * l_iscript_count };
+	std::size_t l_iscript_rg1_size{ l_iscript_rg1_end - l_iscript_data_start };
 
 	for (std::size_t i{ 0 }; i < m_instructions.size(); ++i)
 		if (m_instructions[i].byte_offset.value() + m_instructions[i].size >
@@ -333,12 +344,20 @@ void fi::AsmReader::parse_section_iscript(const fe::Config& p_config) {
 		m_ptr_table[kv.first] = m_instructions[kv.second].byte_offset.value();
 }
 
+std::size_t fi::AsmReader::get_entrypoint_count(void) const {
+	return m_ptr_table.size();
+}
+
 std::pair<std::vector<byte>, std::vector<byte>>
 fi::AsmReader::get_script_bytes(const fe::Config& p_config) const {
 	std::vector<byte> region_1, region_2;
 
-	std::size_t l_iscript_count{ p_config.constant(c::ID_ISCRIPT_COUNT) };
+	std::size_t l_iscript_count{ m_ptr_table.size() };
 	auto l_iscript_ptr{ p_config.pointer(c::ID_ISCRIPT_PTR_LO) };
+
+	// let us calculate the size of region 1 (minus the ptr table) with our script count
+	std::size_t l_iscript_data_start{ l_iscript_ptr.first + 2 * l_iscript_count };
+	std::size_t l_iscript_rg1_size{ p_config.constant(c::ID_ISCRIPT_RG1_END) - l_iscript_data_start };
 
 	const uint16_t SCRIPT_DATA_START{
 		static_cast<uint16_t>(
@@ -363,7 +382,7 @@ fi::AsmReader::get_script_bytes(const fe::Config& p_config) const {
 	for (const auto& instr : m_instructions) {
 		auto instrbytes{ instr.get_bytes() };
 
-		if (instr.byte_offset < SCRIPT_DATA_START + p_config.constant(c::ID_ISCRIPT_RG1_SIZE))
+		if (instr.byte_offset < SCRIPT_DATA_START + l_iscript_rg1_size)
 			region_1.insert(end(region_1), begin(instrbytes), end(instrbytes));
 		else
 			region_2.insert(end(region_2), begin(instrbytes), end(instrbytes));

@@ -187,18 +187,16 @@ void fi::Cli::asm_to_nes(const std::string& p_asm_filename,
 
 	// extract constants we need from config
 	std::size_t l_size_strings{ m_config.constant(c::ID_STRING_DATA_END) - m_config.constant(c::ID_STRING_DATA_START) };
-	std::size_t l_iscript_count{ m_config.constant(c::ID_ISCRIPT_COUNT) };
-	std::size_t l_iscript_rg1_size{ m_config.constant(c::ID_ISCRIPT_RG1_SIZE) };
 	std::size_t l_iscript_rg2_start{ m_config.constant(c::ID_ISCRIPT_RG2_START) };
 	std::size_t l_iscript_rg2_size{ m_config.constant(c::ID_ISCRIPT_RG2_END) - l_iscript_rg2_start };
 	auto l_iscript_ptr{ m_config.pointer(c::ID_ISCRIPT_PTR_LO) };
+	std::size_t l_iscript_rg1_size{ m_config.constant(c::ID_ISCRIPT_RG1_END) - l_iscript_ptr.first };
 	std::size_t l_iscript_string_start{ m_config.constant(c::ID_STRING_DATA_START) };
 	std::size_t l_iscript_string_size{ m_config.constant(c::ID_STRING_DATA_END) - l_iscript_string_start };
 
 	try_patch_msg("strings", strbytes.size(), l_size_strings);
-	try_patch_msg("script data (region 1)",
-		bytes.first.size() - l_iscript_count * 2,
-		l_iscript_rg1_size);
+	try_patch_msg(std::format("pointer table ({} entries) and script data (region 1)", reader.get_entrypoint_count()),
+		bytes.first.size(), l_iscript_rg1_size);
 
 	try_patch_msg("script data (region 2)",
 		bytes.second.size(),
@@ -222,6 +220,13 @@ void fi::Cli::asm_to_nes(const std::string& p_asm_filename,
 	// accidentally import any garbage strings from the file we emit
 	for (std::size_t i{ strbytes.size() }; i < l_iscript_string_size; ++i)
 		rom.at(i + l_iscript_string_start) = 0x00;
+
+	// finally patch the ref to the hi pointers
+	std::size_t l_hi_byte_addr_bank_rel{ l_iscript_ptr.first + reader.get_entrypoint_count() - l_iscript_ptr.second };
+	std::size_t l_rom_offset_hi_byte_ref{ m_config.constant(c::ID_ISCRIPT_PTR_HI_REF_OFFSET) };
+
+	rom.at(l_rom_offset_hi_byte_ref) = static_cast<byte>(l_hi_byte_addr_bank_rel % 256);
+	rom.at(l_rom_offset_hi_byte_ref + 1) = static_cast<byte>(l_hi_byte_addr_bank_rel / 256);
 
 	std::cout << "Verifying generated ROM contents\n";
 	try {
@@ -374,6 +379,8 @@ void fi::Cli::nes_to_asm(const std::string& p_nes_filename,
 
 	std::cout << "Attempting to parse ROM scripting layer\n";
 	loader.parse_rom(m_config);
+
+	std::cout << "Detected " << loader.ptr_table.size() << " script entrypoints\n";
 
 	fi::AsmWriter asmw;
 

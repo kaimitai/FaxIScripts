@@ -13,8 +13,9 @@ namespace fi {
 	namespace c {
 
 		constexpr char ID_ISCRIPT_PTR_LO[]{ "iscript_ptr_lo" };
-		constexpr char ID_ISCRIPT_COUNT[]{ "iscript_count" };
-		constexpr char ID_ISCRIPT_RG1_SIZE[]{ "iscript_data_rg1_size" };
+		constexpr char ID_ISCRIPT_MIN_COUNT[]{ "iscript_min_count" };
+		constexpr char ID_ISCRIPT_PTR_HI_REF_OFFSET[]{ "iscript_ptr_hi_ref_offset" };
+		constexpr char ID_ISCRIPT_RG1_END[]{ "iscript_data_rg1_end" };
 		constexpr char ID_ISCRIPT_RG2_START[]{ "iscript_data_rg2_start" };
 		constexpr char ID_ISCRIPT_RG2_END[]{ "iscript_data_rg2_end" };
 

@@ -53,8 +53,12 @@ void fi::AsmWriter::generate_asm_file(const fe::Config& p_config,
 	append_strings_section(af, p_strings);
 	append_shops_section(af, p_shops);
 
+	// input a comment where region 2 starts, if it does at all
+	std::size_t l_rg2_start{ p_config.constant(c::ID_ISCRIPT_RG2_START) };
+	bool l_rg2_marked{ false };
+
 	// here we generate the actual assembly
-	af += "\n[iscript]";
+	af += "\n[iscript]\n";
 
 	int lastentry{ 0 }, lastlabel{ 0 };
 	std::map<std::size_t, std::string> l_labels;
@@ -63,6 +67,11 @@ void fi::AsmWriter::generate_asm_file(const fe::Config& p_config,
 	for (const auto& kv : p_instructions) {
 		const fi::Instruction& instr{ kv.second };
 		std::size_t offset{ kv.first };
+
+		if (!l_rg2_marked && (offset >= l_rg2_start)) {
+			af += "\n\n ; ***** Region 2 code start *****\n";
+			l_rg2_marked = true;
+		}
 
 		auto ep{ l_eps.find(offset) };
 		if (ep != end(l_eps)) {

@@ -16,8 +16,13 @@ void fi::IScriptLoader::parse_rom(const fe::Config& p_config) {
 	ptr_table.clear();
 
 	// extract vals we need from config
-	std::size_t l_iscript_count{ p_config.constant(c::ID_ISCRIPT_COUNT) };
+	std::size_t l_iscript_hi_ref{ p_config.constant(c::ID_ISCRIPT_PTR_HI_REF_OFFSET) };
 	auto l_iscript_ptr{ p_config.pointer(c::ID_ISCRIPT_PTR_LO) };
+	std::size_t l_hi_addr{ static_cast<std::size_t>(rom.at(l_iscript_hi_ref)) +
+		256 * static_cast<std::size_t>(rom.at(l_iscript_hi_ref + 1)) };
+
+	// start of hi bytes minus start of lo bytes is the total script count
+	std::size_t l_iscript_count{ l_hi_addr - (l_iscript_ptr.first - l_iscript_ptr.second) };
 
 	for (std::size_t i{ 0 }; i < l_iscript_count; ++i)
 		ptr_table.push_back(static_cast<std::size_t>(rom.at(l_iscript_ptr.first + i))
