@@ -103,7 +103,6 @@
 		<const name="sprite_count" value="101" />
 		<!-- minimum number of iScripts we require when assembling; hard-coded ref to index #151 in game code -->
 		<const name="iscript_min_count" value="152" />
-		<const name="music_count" value="16" />
 		<const name="string_data_start" region="eu,us,randum,us-rev-a" value="0x34310" />
 		<const name="string_data_end" region="eu,us,randum,us-rev-a" value="0x38010" />
 		<const name="string_data_start" region="jp" value="0x35f50" />

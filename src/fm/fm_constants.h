@@ -14,7 +14,6 @@ namespace fm {
 	namespace c {
 
 		constexpr char ID_MUSIC_PTR[]{ "music_ptr" };
-		constexpr char ID_MUSIC_COUNT[]{ "music_count" };
 		constexpr char ID_MUSIC_DATA_END[]{ "music_data_end" };
 		constexpr char ID_MSCRIPT_OPCODES[]{ "mscript_opcodes" };
 		constexpr char ID_CHAN_PITCH_OFFSET[]{ "music_channel_pitch_offset" };

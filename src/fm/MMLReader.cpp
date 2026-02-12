@@ -10,7 +10,7 @@ fm::MMLReader::MMLReader(const fe::Config& p_config) {
 	m_opcodes = parse_opcode_map(p_config.bmap(c::ID_MSCRIPT_OPCODES));
 }
 
-// we employ the same strategy as for iscript, but this is less comples
+// we employ the same strategy as for iscript, but this is less complex
 // we still need to resolve jump targets and ptr table entries however
 void fm::MMLReader::read_mml_file(const std::string& p_filename,
 	const fe::Config& p_config) {

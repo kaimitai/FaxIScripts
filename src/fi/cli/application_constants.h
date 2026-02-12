@@ -10,7 +10,7 @@ namespace fi {
 	namespace appc {
 
 		constexpr char APP_NAME[]{ "FaxIScripts" };
-		constexpr char APP_VERSION[]{ "0.61" };
+		constexpr char APP_VERSION[]{ "0.7" };
 		constexpr char APP_URL[]{ "https://github.com/kaimitai/FaxIScripts" };
 		constexpr char CONFIG_XML[]{ "eoe_config.xml" };
 

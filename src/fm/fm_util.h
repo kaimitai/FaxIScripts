@@ -28,6 +28,8 @@ namespace fm {
 		int mml_constant_to_int(const std::string& name);
 		std::string mml_arg_to_string(fm::MmlArgDomain p_domain,
 			int p_value);
+
+		std::size_t get_music_count(const fe::Config& p_config, const std::vector<byte>& p_rom);
 	}
 
 }

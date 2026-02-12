@@ -6,7 +6,7 @@ fm::MScriptLoader::MScriptLoader(const fe::Config& p_config,
 	const std::vector<byte>& p_rom) :
 	m_rom{ p_rom },
 	m_music_ptr{ p_config.pointer(c::ID_MUSIC_PTR) },
-	m_music_count{ 4 * p_config.constant(c::ID_MUSIC_COUNT) },
+	m_music_count{ 4 * fm::util::get_music_count(p_config, p_rom) },
 	m_opcodes{ parse_opcode_map(p_config.bmap(c::ID_MSCRIPT_OPCODES)) }
 
 {

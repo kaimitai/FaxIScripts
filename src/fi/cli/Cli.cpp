@@ -457,6 +457,8 @@ void fi::Cli::nes_to_masm(const std::string& p_nes_filename,
 	fm::MScriptLoader loader(m_config, rom_data);
 	loader.parse_rom();
 
+	std::cout << "Detected " << loader.get_song_count() << " music tracks\n";
+
 	fm::MMLWriter l_writer(m_config);
 	l_writer.generate_mml_file(m_out_file, loader.m_instrs, loader.m_opcodes,
 		loader.m_ptr_table,

@@ -237,3 +237,24 @@ std::string fm::util::mml_arg_to_string(fm::MmlArgDomain p_domain,
 	}
 
 }
+
+std::size_t fm::util::get_music_count(const fe::Config& p_config, const std::vector<byte>& p_rom) {
+	auto musicptr{ p_config.pointer(c::ID_MUSIC_PTR) };
+	std::size_t result{ 0 };
+	std::size_t lowest_target{ 0x10000 };
+
+	// read ptr by ptr until the cursor gets "close" to an address referenced by a ptr
+	// the original ROM data has a stray 0xff between ptr table and music data
+	for (std::size_t i{ 0 }; ; i += 2) {
+		std::size_t next_ptr_addr{ (musicptr.first - musicptr.second) + (i + 2) };
+		if (next_ptr_addr > lowest_target + 1)
+			break;
+
+		++result;
+		std::size_t ptr_addr{ static_cast<std::size_t>(p_rom.at(musicptr.first + i)) +
+			256 * static_cast<std::size_t>(p_rom.at(musicptr.first + i + 1)) };
+		lowest_target = std::min(lowest_target, ptr_addr);
+	}
+
+	return result / 4;
+}
