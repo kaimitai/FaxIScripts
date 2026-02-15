@@ -26,6 +26,8 @@ namespace fi {
 		inline const std::pair<std::string, std::string> CMD_BUILD_MUSIC{ "build-music" , "bm" };
 		inline const std::pair<std::string, std::string> CMD_EXTRACT_BSCRIPTS{ "extract-bscript" , "xb" };
 		inline const std::pair<std::string, std::string> CMD_BUILD_BSCRIPTS{ "build-bscript" , "bb" };
+		inline const std::pair<std::string, std::string> CMD_EXTRACT_MISC{ "extract-misc" , "xmisc" };
+		inline const std::pair<std::string, std::string> CMD_BUILD_MISC{ "build-misc" , "bmisc" };
 
 		inline const std::vector<std::pair<std::string, std::string>> CLI_FLAGS{
 			{"--no-shop-comments", "-p"},

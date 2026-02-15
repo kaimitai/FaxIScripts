@@ -164,6 +164,7 @@
     <ClCompile Include="src\fm\song\MMLSongCollection.cpp" />
     <ClCompile Include="src\fm\song\Parser.cpp" />
     <ClCompile Include="src\fm\song\Tokenizer.cpp" />
+    <ClCompile Include="src\fv\MiscWriter.cpp" />
     <ClCompile Include="src\main.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -210,6 +211,8 @@
     <ClInclude Include="src\fm\song\mml_constants.h" />
     <ClInclude Include="src\fm\song\Parser.h" />
     <ClInclude Include="src\fm\song\Tokenizer.h" />
+    <ClInclude Include="src\fv\fv_constants.h" />
+    <ClInclude Include="src\fv\MiscWriter.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

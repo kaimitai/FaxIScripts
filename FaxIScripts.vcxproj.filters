@@ -79,6 +79,12 @@
     <Filter Include="Source Files\fb">
       <UniqueIdentifier>{84b7666b-c849-40bb-87c5-9119d38ffb85}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\fv">
+      <UniqueIdentifier>{bf00aef5-b382-4392-a272-c37c55462a3b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\fv">
+      <UniqueIdentifier>{231abf33-fc64-400d-baa1-6ba5c2cb6668}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp">
@@ -188,6 +194,9 @@
     </ClCompile>
     <ClCompile Include="src\fb\BScriptReader.cpp">
       <Filter>Source Files\fb</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fv\MiscWriter.cpp">
+      <Filter>Source Files\fv</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -319,6 +328,12 @@
     </ClInclude>
     <ClInclude Include="src\fb\BScriptReader.h">
       <Filter>Header Files\fb</Filter>
+    </ClInclude>
+    <ClInclude Include="src\fv\MiscWriter.h">
+      <Filter>Header Files\fv</Filter>
+    </ClInclude>
+    <ClInclude Include="src\fv\fv_constants.h">
+      <Filter>Header Files\fv</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

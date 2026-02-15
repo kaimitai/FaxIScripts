@@ -5,6 +5,8 @@
 #include <string>
 #include <vector>
 
+using byte = unsigned char;
+
 namespace klib {
 
 	namespace str {
@@ -24,8 +26,19 @@ namespace klib {
 		std::string to_upper(const std::string& str);
 
 		std::pair<std::string, std::string> parse_define(const std::string& str);
+		std::string to_binary(byte b);
 
 		int parse_numeric(const std::string& token);
+
+		template<class T, class U>
+		std::map<U, T> invert_map(const std::map<T, U>& p_map) {
+			std::map<U, T> result;
+
+			for (const auto& kv : p_map)
+				result.insert(std::make_pair(kv.second, kv.first));
+
+			return result;
+		}
 	}
 
 }

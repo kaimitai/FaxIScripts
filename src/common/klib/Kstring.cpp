@@ -2,6 +2,8 @@
 #include <cctype>
 #include <stdexcept>
 
+using byte = unsigned char;
+
 int klib::str::parse_numeric(const std::string& token) {
 	if (token.empty())
 		throw std::runtime_error("Empty index token");
@@ -230,4 +232,14 @@ std::pair<std::string, std::string> klib::str::parse_define(const std::string& s
 		throw std::runtime_error("Empty key or value in define: " + str);
 
 	return std::make_pair(key, value_token);
+}
+
+std::string klib::str::to_binary(byte b) {
+	std::string s(8, '0');
+
+	for (int i{ 7 }; i >= 0; --i) {
+		s[static_cast<std::size_t>(7 - i)] = ((b >> i) & 1) ? '1' : '0';
+	}
+
+	return s;
 }

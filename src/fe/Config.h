@@ -44,6 +44,7 @@ namespace fe {
 		std::set<byte> vset_as_set(const std::string& p_id) const;
 		const std::map<byte, std::string>& bmap(const std::string& p_id) const;
 		std::map<std::string, byte> bmap_reverse(const std::string& p_id) const;
+		bool has_constant(const std::string& p_id) const;
 	};
 
 }

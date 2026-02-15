@@ -21,6 +21,7 @@
 #include "./../../fm/song/MMLSongCollection.h"
 #include "./../../fm/song/Tokenizer.h"
 #include "./../../fm/song/Parser.h"
+#include "./../../fv/MiscWriter.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -54,6 +55,10 @@ void fi::Cli::print_help(void) const {
 		"  MML (high level music format):\n"
 		"    xmml, extract-mml      - Extract music as MML from ROM\n"
 		"    bmml, build-mml        - Compile MML and patch ROM\n"
+		"\n"
+		"  Miscellaneous strings and constants:\n"
+		"    xmisc, extract-misc    - Extract miscellaneous data from ROM\n"
+		"    bmisc, build-misc      - Patch ROM with miscellaneous data\n"
 		"\n"
 		"  MIDI:\n"
 		"    m2m, mml-to-midi       - Convert MML to MIDI files\n"
@@ -136,6 +141,11 @@ fi::Cli::Cli(int argc, char** argv) :
 		mml_to_lilypond(m_in_file, m_out_file);
 	else if (m_script_mode == fi::ScriptMode::RomToLilyPond)
 		rom_to_lilypond(m_in_file, m_out_file);
+	// miscellaneous data dispatch
+	else if (m_script_mode == fi::ScriptMode::MiscBuild)
+		misc_to_nes(m_in_file, m_out_file, m_source_rom.empty() ? m_out_file : m_source_rom);
+	else if (m_script_mode == fi::ScriptMode::MiscExtract)
+		nes_to_misc(m_in_file, m_out_file, m_overwrite);
 	// can't really happen
 	else
 		throw(std::runtime_error("Invalid script mode"));
@@ -348,6 +358,23 @@ void fi::Cli::masm_to_nes(const std::string& p_mml_filename,
 	std::cout << "File patched\n";
 }
 
+void fi::Cli::misc_to_nes(const std::string& p_txt_filename,
+	const std::string& p_nes_filename,
+	const std::string& p_source_rom_filename) {
+
+	auto rom{ load_rom_and_determine_region(p_source_rom_filename) };
+	fv::MiscWriter reader(rom, m_config);
+
+	std::cout << "Attempting to parse " << p_txt_filename << "\n";
+	reader.load_txt_file(p_txt_filename);
+
+	std::cout << "Attempting to ptach " << p_nes_filename << "\n";
+	int itemcnt{ reader.patch_rom(rom, m_config) };
+
+	klib::file::write_bytes_to_file(rom, p_nes_filename);
+	std::cout << std::format("Misc data ({} items) written to file ", itemcnt) << p_nes_filename << "!\n";
+}
+
 void fi::Cli::nes_to_asm(const std::string& p_nes_filename,
 	const std::string& p_asm_filename, bool p_shop_comments, bool p_overwrite) {
 
@@ -467,6 +494,26 @@ void fi::Cli::nes_to_masm(const std::string& p_nes_filename,
 		m_notes);
 
 	std::cout << "Extraction complete!\n";
+}
+
+void fi::Cli::nes_to_misc(const std::string& p_nes_filename,
+	const std::string& p_txt_filename,
+	bool p_overwrite) {
+
+	if (m_strict)
+		std::cout << "Will output misc data for all sprites (not only enemies and bosses)\n";
+
+	// fail early if output file already exists and we do not overwrite
+	if (!p_overwrite && klib::file::file_exists(p_txt_filename))
+		throw std::runtime_error(std::format("txt file {} exists, and overwrite-flag is not set", p_txt_filename));
+
+	const auto rom_data{ load_rom_and_determine_region(p_nes_filename) };
+
+	fv::MiscWriter writer(rom_data, m_config, m_strict);
+	writer.load_rom(rom_data, m_config);
+	writer.write_txt_file(p_txt_filename);
+
+	std::cout << std::format("Extraction to {} complete!\n", p_txt_filename);
 }
 
 void fi::Cli::nes_to_mml(const std::string& p_nes_filename,
@@ -671,6 +718,12 @@ void fi::Cli::set_mode(const std::string& p_mode) {
 	}
 	else if (check_mode(p_mode, appc::CMD_ROM_TO_LILYPOND)) {
 		m_script_mode = fi::ScriptMode::RomToLilyPond;
+	}
+	else if (check_mode(p_mode, appc::CMD_BUILD_MISC)) {
+		m_script_mode = fi::ScriptMode::MiscBuild;
+	}
+	else if (check_mode(p_mode, appc::CMD_EXTRACT_MISC)) {
+		m_script_mode = fi::ScriptMode::MiscExtract;
 	}
 	else throw std::runtime_error("Unknown commad " + p_mode);
 }

@@ -117,3 +117,7 @@ bool fe::Config::is_byte_match(const std::vector<byte>& p_rom, std::size_t p_off
 
 	return true;
 }
+
+bool fe::Config::has_constant(const std::string& p_id) const {
+	return m_constants.contains(p_id);
+}
