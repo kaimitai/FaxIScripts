@@ -43,9 +43,11 @@ namespace fv {
 
 		constexpr char ID_WEAPON_COUNT[]{ "weapon_count" };
 		constexpr char ID_MAGIC_COUNT[]{ "magic_count" };
+		constexpr char ID_ARMOR_COUNT[]{ "armor_count" };
 		constexpr char ID_WEAPON_DAMAGE_OFFSET[]{ "weapon_damage_offset" };
 		constexpr char ID_MAGIC_DAMAGE_OFFSET[]{ "magic_damage_offset" };
 		constexpr char ID_MAGIC_COST_OFFSET[]{ "magic_cost_offset" };
+		constexpr char ID_ARMOR_DEFENSE_OFFSET[]{ "armor_defense_offset" };
 
 		constexpr char ID_WING_BOOTS_TIME_COUNT[]{ "wing_boots_time_count" };
 		constexpr char ID_WING_BOOTS_TIME_OFFSET[]{ "wing_boots_time_offset" };
@@ -57,6 +59,7 @@ namespace fv {
 		constexpr char CAT_RANK[]{ "Rank" };
 		constexpr char CAT_SPRITE[]{ "Sprite" };
 		constexpr char CAT_WEAPON[]{ "Weapon" };
+		constexpr char CAT_ARMOR[]{ "Armor" };
 		constexpr char CAT_DROP_TABLE[]{ "DropTable" };
 		constexpr char CAT_WINGBOOTS[]{ "WingBoots" };
 
@@ -69,6 +72,7 @@ namespace fv {
 		constexpr char FIELD_DAMAGE[]{ "Damage" };
 		constexpr char FIELD_COST[]{ "Cost" };
 		constexpr char FIELD_MAGIC_DEFENSE[]{ "MagicDefense" };
+		constexpr char FIELD_DEFENSE[]{ "Defense" };
 		constexpr char FIELD_SECONDS[]{ "Seconds" };
 
 		// where bread drops (an no longer coin drops) start

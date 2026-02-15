@@ -14,8 +14,8 @@ using byte = unsigned char;
 namespace fv {
 
 	enum class MiscType { Bit8, Binary8, Bit16, iString, String23, StringVar16 };
-	enum class MiscCategory { StatusString, ItemString, PasswordString, Rank, DropTable, Sprite, Weapon, Magic, WingBoots };
-	enum class MiscField { Text, DropIndex, XP, HP, Gold, Bread, Damage, MagicDefense, Cost, Seconds };
+	enum class MiscCategory { StatusString, ItemString, PasswordString, Rank, DropTable, Sprite, Weapon, Magic, Armor, WingBoots };
+	enum class MiscField { Text, DropIndex, XP, HP, Gold, Bread, Damage, Defense, MagicDefense, Cost, Seconds };
 
 	struct MiscMeta {
 		fv::MiscCategory category;
@@ -38,7 +38,7 @@ namespace fv {
 
 		std::size_t rank_string_length, status_string_count, item_string_count,
 			password_string_count, sprite_count, rank_count, weapon_count, magic_count,
-			wb_time_count;
+			armor_count, wb_time_count;
 
 		std::set<std::size_t> include_sprite_idx;
 		std::map<byte, std::string> sprite_labels,

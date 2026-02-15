@@ -15,6 +15,7 @@ fv::MiscWriter::MiscWriter(const std::vector<byte>& p_rom, const fe::Config& p_c
 	rank_count{ p_config.constant(c::ID_RANK_COUNT) },
 	weapon_count{ p_config.constant(c::ID_WEAPON_COUNT) },
 	magic_count{ p_config.constant(c::ID_MAGIC_COUNT) },
+	armor_count{ p_config.constant(c::ID_ARMOR_COUNT) },
 	wb_time_count{ p_config.constant(c::ID_WING_BOOTS_TIME_COUNT) },
 	sprite_labels{ p_config.bmap(c::ID_SPRITE_LABELS) },
 	iscript_chars{ p_config.bmap(c::ID_ISCRIPT_CHARS) }
@@ -54,6 +55,7 @@ fv::MiscWriter::MiscWriter(const std::vector<byte>& p_rom, const fe::Config& p_c
 	category_strings.insert(std::make_pair(fv::MiscCategory::Sprite, c::CAT_SPRITE));
 	category_strings.insert(std::make_pair(fv::MiscCategory::Weapon, c::CAT_WEAPON));
 	category_strings.insert(std::make_pair(fv::MiscCategory::Magic, c::CAT_MAGIC));
+	category_strings.insert(std::make_pair(fv::MiscCategory::Armor, c::CAT_ARMOR));
 	category_strings.insert(std::make_pair(fv::MiscCategory::DropTable, c::CAT_DROP_TABLE));
 	category_strings.insert(std::make_pair(fv::MiscCategory::WingBoots, c::CAT_WINGBOOTS));
 
@@ -65,6 +67,7 @@ fv::MiscWriter::MiscWriter(const std::vector<byte>& p_rom, const fe::Config& p_c
 	field_strings.insert(std::make_pair(fv::MiscField::DropIndex, c::FIELD_DROP_INDEX));
 	field_strings.insert(std::make_pair(fv::MiscField::Damage, c::FIELD_DAMAGE));
 	field_strings.insert(std::make_pair(fv::MiscField::MagicDefense, c::FIELD_MAGIC_DEFENSE));
+	field_strings.insert(std::make_pair(fv::MiscField::Defense, c::FIELD_DEFENSE));
 	field_strings.insert(std::make_pair(fv::MiscField::Cost, c::FIELD_COST));
 	field_strings.insert(std::make_pair(fv::MiscField::Seconds, c::FIELD_SECONDS));
 }
@@ -114,6 +117,9 @@ void fv::MiscWriter::load_rom(const std::vector<byte>& p_rom, const fe::Config& 
 
 	for (std::size_t i{ 0 }; i < weapon_count; ++i)
 		add_item(p_rom, p_config, fv::MiscCategory::Weapon, fv::MiscField::Damage, i);
+
+	for (std::size_t i{ 0 }; i < armor_count; ++i)
+		add_item(p_rom, p_config, fv::MiscCategory::Armor, fv::MiscField::Defense, i);
 
 	for (std::size_t i{ 0 }; i < wb_time_count; ++i)
 		add_item(p_rom, p_config, fv::MiscCategory::WingBoots, fv::MiscField::Seconds, i);
@@ -278,15 +284,15 @@ std::string fv::MiscWriter::get_category_string(fv::MiscCategory p_category, fv:
 
 	if (p_category == fv::MiscCategory::Sprite) {
 		if (p_field == fv::MiscField::XP)
-			result = "Experience points received for killing sprites";
+			result = "Experience points received for killing sprites (0-255)";
 		else if (p_field == fv::MiscField::DropIndex)
 			result = "Index into the drop table - indirectly determines what a sprite drops when killed (index values are 0-63, 255 means no drop)";
 		else if (p_field == fv::MiscField::Damage)
-			result = "Damage taken from sprites";
+			result = "Damage taken from sprites (0-255)";
 		else if (p_field == fv::MiscField::HP)
-			result = "Sprite health points";
+			result = "Sprite health points (0-255)";
 		else if (p_field == fv::MiscField::MagicDefense)
-			result = "Sprite magic defense (reduces magic damage taken by these amount)";
+			result = "Sprite magic damage reduction - 2 bits per magic type except Deluge";
 	}
 	else if (p_category == fv::MiscCategory::Weapon && p_field == fv::MiscField::Damage) {
 		result = "Weapon damages; dagger, long sword, giant blade and dragon slayer";
@@ -297,6 +303,9 @@ std::string fv::MiscWriter::get_category_string(fv::MiscCategory p_category, fv:
 	else if (p_category == fv::MiscCategory::Magic && p_field == fv::MiscField::Cost) {
 		result = "Magic mana cost; deluge, thunder, fire, death, tilte";
 	}
+	else if (p_category == fv::MiscCategory::Armor && p_field == fv::MiscField::Defense) {
+		result = "Defense multiplier per armor type; leather armor (probably ignored), studded mail, full plate and battle suit";
+	}
 	else if (p_category == fv::MiscCategory::StatusString)
 		result = "Player status strings - max 15 characters";
 	else if (p_category == fv::MiscCategory::ItemString)
@@ -306,15 +315,15 @@ std::string fv::MiscWriter::get_category_string(fv::MiscCategory p_category, fv:
 	else if (p_category == fv::MiscCategory::Rank && p_field == fv::MiscField::Text)
 		result = std::format("Rank name strings - max {} characters (used in iScripts as <title>)", rank_string_length);
 	else if (p_category == fv::MiscCategory::Rank && p_field == fv::MiscField::XP)
-		result = "Rank XP requirements";
+		result = "Rank XP requirements (0-65,535)";
 	else if (p_category == fv::MiscCategory::Rank && p_field == fv::MiscField::Gold)
-		result = "Starting gold per rank";
+		result = "Starting gold per rank (0-65,535)";
 	else if (p_category == fv::MiscCategory::DropTable && p_field == fv::MiscField::Gold)
-		result = "Enemy drop table; the first 48 entries are coin values";
+		result = "Enemy drop table; the first 48 entries are coin values (0-255)";
 	else if (p_category == fv::MiscCategory::DropTable && p_field == fv::MiscField::Bread)
-		result = "Enemy drop table; the last 16 entries are bread hp values";
+		result = "Enemy drop table; the last 16 entries are bread hp values (0-255)";
 	else if (p_category == fv::MiscCategory::WingBoots && p_field == fv::MiscField::Seconds)
-		result = "Number of seconds Wing Boots last (changes every 4 ranks)";
+		result = "Number of seconds Wing Boots last (changes every 4 ranks) - Higher values than 99 may not work";
 	else
 		result = "Unlabeled category";
 
@@ -442,6 +451,9 @@ std::size_t fv::MiscWriter::get_rom_offset(const fe::Config& p_config,
 	}
 	else if (p_category == fv::MiscCategory::Weapon) {
 		return p_config.constant(c::ID_WEAPON_DAMAGE_OFFSET) + p_index;
+	}
+	else if (p_category == fv::MiscCategory::Armor) {
+		return p_config.constant(c::ID_ARMOR_DEFENSE_OFFSET) + p_index;
 	}
 	else if (p_category == fv::MiscCategory::DropTable) {
 		return p_config.constant(c::ID_SPRITE_DROP_TABLE_OFFSET) + p_index;

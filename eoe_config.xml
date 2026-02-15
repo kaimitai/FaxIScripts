@@ -229,11 +229,13 @@
 		<const name="sprite_defense_offset" value="0x3b74b" />
 		<const name="sprite_defense_count" value="101" />
 		<!-- weapons and magic -->
+		<const name="armor_count" value="4" />
 		<const name="magic_count" value="5" />
 		<const name="weapon_count" value="4" />
 		<const name="magic_damage_offset" value="0x3b7b0" />
 		<const name="magic_cost_offset" value="0x3b7b9" />
 		<const name="weapon_damage_offset" value="0x3b7b5" />
+		<const name="armor_defense_offset" value="0x38ae8" />
 		<!-- wing boot timer -->
 		<const name="wing_boots_time_count" value="4" />
 		<const name="wing_boots_time_offset" value="0x3c5a9" />
