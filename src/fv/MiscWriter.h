@@ -15,7 +15,7 @@ namespace fv {
 
 	enum class MiscType { Bit8, Binary8, Bit16, iString, String23, StringVar16 };
 	enum class MiscCategory { StatusString, ItemString, PasswordString, Rank, DropTable, Sprite, Weapon, Magic, Armor, WingBoots };
-	enum class MiscField { Text, DropIndex, XP, HP, Gold, Bread, Damage, Defense, MagicDefense, Cost, Seconds };
+	enum class MiscField { Text, DropIndex, XP, HP, Gold, Bread, Damage, Glove, Defense, MagicDefense, Cost, Seconds };
 
 	struct MiscMeta {
 		fv::MiscCategory category;

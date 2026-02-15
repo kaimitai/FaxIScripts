@@ -235,6 +235,7 @@
 		<const name="magic_damage_offset" value="0x3b7b0" />
 		<const name="magic_cost_offset" value="0x3b7b9" />
 		<const name="weapon_damage_offset" value="0x3b7b5" />
+		<const name="weapon_glove_damage_offset" value="0x388d7" />
 		<const name="armor_defense_offset" value="0x38ae8" />
 		<!-- wing boot timer -->
 		<const name="wing_boots_time_count" value="4" />

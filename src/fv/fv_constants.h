@@ -45,6 +45,7 @@ namespace fv {
 		constexpr char ID_MAGIC_COUNT[]{ "magic_count" };
 		constexpr char ID_ARMOR_COUNT[]{ "armor_count" };
 		constexpr char ID_WEAPON_DAMAGE_OFFSET[]{ "weapon_damage_offset" };
+		constexpr char ID_WEAPON_GLOVE_DAMAGE_OFFSET[]{ "weapon_glove_damage_offset" };
 		constexpr char ID_MAGIC_DAMAGE_OFFSET[]{ "magic_damage_offset" };
 		constexpr char ID_MAGIC_COST_OFFSET[]{ "magic_cost_offset" };
 		constexpr char ID_ARMOR_DEFENSE_OFFSET[]{ "armor_defense_offset" };
@@ -70,6 +71,7 @@ namespace fv {
 		constexpr char FIELD_BREAD[]{ "Bread" };
 		constexpr char FIELD_DROP_INDEX[]{ "DropIndex" };
 		constexpr char FIELD_DAMAGE[]{ "Damage" };
+		constexpr char FIELD_GLOVE[]{ "Glove" };
 		constexpr char FIELD_COST[]{ "Cost" };
 		constexpr char FIELD_MAGIC_DEFENSE[]{ "MagicDefense" };
 		constexpr char FIELD_DEFENSE[]{ "Defense" };

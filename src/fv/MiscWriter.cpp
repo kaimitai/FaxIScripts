@@ -66,6 +66,7 @@ fv::MiscWriter::MiscWriter(const std::vector<byte>& p_rom, const fe::Config& p_c
 	field_strings.insert(std::make_pair(fv::MiscField::Bread, c::FIELD_BREAD));
 	field_strings.insert(std::make_pair(fv::MiscField::DropIndex, c::FIELD_DROP_INDEX));
 	field_strings.insert(std::make_pair(fv::MiscField::Damage, c::FIELD_DAMAGE));
+	field_strings.insert(std::make_pair(fv::MiscField::Glove, c::FIELD_GLOVE));
 	field_strings.insert(std::make_pair(fv::MiscField::MagicDefense, c::FIELD_MAGIC_DEFENSE));
 	field_strings.insert(std::make_pair(fv::MiscField::Defense, c::FIELD_DEFENSE));
 	field_strings.insert(std::make_pair(fv::MiscField::Cost, c::FIELD_COST));
@@ -115,8 +116,10 @@ void fv::MiscWriter::load_rom(const std::vector<byte>& p_rom, const fe::Config& 
 		add_item(p_rom, p_config, fv::MiscCategory::Magic, fv::MiscField::Cost, i);
 	}
 
-	for (std::size_t i{ 0 }; i < weapon_count; ++i)
+	for (std::size_t i{ 0 }; i < weapon_count; ++i) {
 		add_item(p_rom, p_config, fv::MiscCategory::Weapon, fv::MiscField::Damage, i);
+		add_item(p_rom, p_config, fv::MiscCategory::Weapon, fv::MiscField::Glove, i);
+	}
 
 	for (std::size_t i{ 0 }; i < armor_count; ++i)
 		add_item(p_rom, p_config, fv::MiscCategory::Armor, fv::MiscField::Defense, i);
@@ -297,6 +300,9 @@ std::string fv::MiscWriter::get_category_string(fv::MiscCategory p_category, fv:
 	else if (p_category == fv::MiscCategory::Weapon && p_field == fv::MiscField::Damage) {
 		result = "Weapon damages; dagger, long sword, giant blade and dragon slayer";
 	}
+	else if (p_category == fv::MiscCategory::Weapon && p_field == fv::MiscField::Glove) {
+		result = "Additional damage when using glove for; dagger, long sword, giant blade and dragon slayer";
+	}
 	else if (p_category == fv::MiscCategory::Magic && p_field == fv::MiscField::Damage) {
 		result = "Magic damages; deluge, thunder, fire, death, tilte";
 	}
@@ -450,7 +456,10 @@ std::size_t fv::MiscWriter::get_rom_offset(const fe::Config& p_config,
 			return p_config.constant(c::ID_MAGIC_COST_OFFSET) + p_index;
 	}
 	else if (p_category == fv::MiscCategory::Weapon) {
-		return p_config.constant(c::ID_WEAPON_DAMAGE_OFFSET) + p_index;
+		if (p_field == fv::MiscField::Damage)
+			return p_config.constant(c::ID_WEAPON_DAMAGE_OFFSET) + p_index;
+		else if (p_field == fv::MiscField::Glove)
+			return p_config.constant(c::ID_WEAPON_GLOVE_DAMAGE_OFFSET) + p_index;
 	}
 	else if (p_category == fv::MiscCategory::Armor) {
 		return p_config.constant(c::ID_ARMOR_DEFENSE_OFFSET) + p_index;
