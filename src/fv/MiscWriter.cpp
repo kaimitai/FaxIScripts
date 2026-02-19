@@ -7,6 +7,8 @@
 
 fv::MiscWriter::MiscWriter(const std::vector<byte>& p_rom, const fe::Config& p_config,
 	bool p_incl_all_sprites) :
+	title_screen_str_offset{ p_config.constant(c::ID_TITLE_STRING_OFFSET) },
+	title_screen_str_end_offset{ p_config.constant(c::ID_TITLE_STRING_END_OFFSET) },
 	rank_string_length{ p_config.constant(c::ID_RANK_STRING_LENGTH) },
 	status_string_count{ p_config.constant(c::ID_STATUS_STRING_COUNT) },
 	item_string_count{ p_config.constant(c::ID_ITEM_STRING_COUNT) },
@@ -34,7 +36,19 @@ fv::MiscWriter::MiscWriter(const std::vector<byte>& p_rom, const fe::Config& p_c
 	// add <q> as code for double quote in the mantra chr palette
 	mantra_chars.insert(std::make_pair(static_cast<byte>('"'), "<q>"));
 
+	// generate character map for the title screen which is not ascii-compatible
+	byte b{ 0xd6 };
+	for (char c{ '0' }; c <= '9'; ++c)
+		title_screen_chars.insert(std::make_pair(b++, std::string(1, c)));
+	b = 0xe0;
+	for (char c{ 'A' }; c <= 'Z'; ++c)
+		title_screen_chars.insert(std::make_pair(b++, std::string(1, c)));
+	title_screen_chars.insert(std::make_pair(0x20, " "));
+	// add the copyright symbol since we're being thorough ;)
+	title_screen_chars.insert(std::make_pair(0xfa, "<copyright>"));
+
 	// generate reverse maps for patching purposes
+	title_screen_chars_rev = klib::str::invert_map(title_screen_chars);
 	iscript_chars_rev = klib::str::invert_map(iscript_chars);
 	item_chars_rev = klib::str::invert_map(item_chars);
 	mantra_chars_rev = klib::str::invert_map(mantra_chars);
@@ -48,6 +62,7 @@ fv::MiscWriter::MiscWriter(const std::vector<byte>& p_rom, const fe::Config& p_c
 		if (p_incl_all_sprites || c::RELEVANT_SPRITE_CATS.contains(sprite_cats[i]))
 			include_sprite_idx.insert(i);
 
+	category_strings.insert(std::make_pair(fv::MiscCategory::TitleString, c::CAT_TITLE_STRING));
 	category_strings.insert(std::make_pair(fv::MiscCategory::StatusString, c::CAT_STATUS_STRING));
 	category_strings.insert(std::make_pair(fv::MiscCategory::ItemString, c::CAT_ITEM_STRING));
 	category_strings.insert(std::make_pair(fv::MiscCategory::PasswordString, c::CAT_PASSWORD_STRING));
@@ -74,6 +89,8 @@ fv::MiscWriter::MiscWriter(const std::vector<byte>& p_rom, const fe::Config& p_c
 }
 
 void fv::MiscWriter::load_rom(const std::vector<byte>& p_rom, const fe::Config& p_config) {
+
+	extract_title_screen_strings(p_rom);
 
 	for (std::size_t i{ 0 }; i < status_string_count; ++i)
 		add_item(p_rom, p_config, fv::MiscCategory::StatusString, fv::MiscField::Text, i);
@@ -132,13 +149,64 @@ int fv::MiscWriter::patch_rom(std::vector<byte>& p_rom, const fe::Config& p_conf
 	int result{ 0 };
 
 	for (const auto& kv : items)
-		for (const auto& itkv : kv.second) {
-			patch_item(p_rom, p_config, kv.first.first, kv.first.second,
-				itkv.first, itkv.second);
-			++result;
-		}
+		if (kv.first.first != fv::MiscCategory::TitleString)
+			for (const auto& itkv : kv.second) {
+				patch_item(p_rom, p_config, kv.first.first, kv.first.second,
+					itkv.first, itkv.second);
+				++result;
+			}
+
+	try {
+		result += patch_title_strings(p_rom);
+	}
+	catch (const std::runtime_error& ex) {
+		throw std::runtime_error(std::format("Failed to convert title screen strings: {}", ex.what()));
+	}
 
 	return result;
+}
+
+// special case - encode all title screen strings at once - they are not really individually static
+int fv::MiscWriter::patch_title_strings(std::vector<byte>& p_rom) {
+	int strcount{ 0 };
+	std::vector<byte> bytes;
+
+	std::map<std::size_t, fi::FaxString> faxstrings;
+	auto iter{ items.find(std::make_pair(fv::MiscCategory::TitleString, fv::MiscField::Text)) };
+
+	// return if no items at all
+	if (iter == end(items))
+		return 0;
+
+	for (const auto& itemkv : iter->second)
+		faxstrings.insert(std::make_pair(itemkv.first, itemkv.second.string_value));
+
+	// already sorted, but ensure the map is not sparse
+	for (std::size_t i{ 0 }; i < faxstrings.size(); ++i) {
+		const auto jter{ faxstrings.find(i) };
+		if (jter == end(faxstrings))
+			throw std::runtime_error(std::format("Missing title string with index {}", i));
+		else {
+			auto strbytes{ jter->second.to_bytes(title_screen_chars_rev) };
+			// change usual delimiter from 0xff to 0x00
+			strbytes.back() = 0x00;
+			bytes.insert(end(bytes), begin(strbytes), end(strbytes));
+		}
+	}
+
+	std::size_t max_byte_len{ title_screen_str_end_offset - title_screen_str_offset };
+	while (bytes.size() < max_byte_len)
+		bytes.push_back(0x00);
+
+	if (bytes.size() > max_byte_len)
+		throw std::runtime_error(std::format("Title screen string byte size is {}, but can not exceed {} bytes",
+			bytes.size(), max_byte_len));
+	else {
+		for (std::size_t i{ 0 }; i < bytes.size(); ++i)
+			p_rom.at(i + title_screen_str_offset) = bytes[i];
+	}
+
+	return static_cast<int>(faxstrings.size());
 }
 
 void fv::MiscWriter::patch_item(std::vector<byte>& p_rom, const fe::Config& p_config,
@@ -312,6 +380,9 @@ std::string fv::MiscWriter::get_category_string(fv::MiscCategory p_category, fv:
 	else if (p_category == fv::MiscCategory::Armor && p_field == fv::MiscField::Defense) {
 		result = "Defense multiplier per armor type; leather armor (probably ignored), studded mail, full plate and battle suit";
 	}
+	else if (p_category == fv::MiscCategory::TitleString)
+		result = std::format("Title screen strings, variable size - max {} characters across all strings",
+			title_screen_str_end_offset - title_screen_str_offset);
 	else if (p_category == fv::MiscCategory::StatusString)
 		result = "Player status strings - max 15 characters";
 	else if (p_category == fv::MiscCategory::ItemString)
@@ -477,7 +548,9 @@ std::size_t fv::MiscWriter::get_rom_offset(const fe::Config& p_config,
 }
 
 fv::MiscType fv::MiscWriter::get_type(fv::MiscCategory p_category, fv::MiscField p_field) const {
-	if (p_category == fv::MiscCategory::StatusString || p_category == fv::MiscCategory::ItemString)
+	if (p_category == fv::MiscCategory::TitleString)
+		return fv::MiscType::TitleString;
+	else if (p_category == fv::MiscCategory::StatusString || p_category == fv::MiscCategory::ItemString)
 		return fv::MiscType::StringVar16;
 	else if (p_category == fv::MiscCategory::PasswordString)
 		return fv::MiscType::String23;
@@ -504,7 +577,8 @@ std::string fv::MiscWriter::to_value_string(fv::MiscType p_type, const fv::MiscI
 		return std::format("%{}", klib::str::to_binary(static_cast<byte>(item.numeric_value)));
 	else if (p_type == MiscType::Bit16)
 		return std::to_string(item.numeric_value);
-	else if (p_type == MiscType::StringVar16 ||
+	else if (p_type == MiscType::TitleString ||
+		p_type == MiscType::StringVar16 ||
 		p_type == MiscType::String23 ||
 		p_type == MiscType::iString) {
 		return std::format("\"{}\"", item.string_value.get_string());
@@ -513,6 +587,32 @@ std::string fv::MiscWriter::to_value_string(fv::MiscType p_type, const fv::MiscI
 	throw std::runtime_error(
 		std::format("Could not turn misc data type into string")
 	);
+}
+
+// special case; variable length strings
+void fv::MiscWriter::extract_title_screen_strings(const std::vector<byte>& p_rom) {
+	auto cursor{ begin(p_rom) + title_screen_str_offset };
+	auto strings_end{ begin(p_rom) + title_screen_str_end_offset };
+	std::vector<fi::FaxString> faxstrings;
+
+	while (true) {
+		auto iter{ std::find(cursor, strings_end, 0x00) };
+		if (iter >= strings_end)
+			break;
+		else {
+			std::size_t stringlength{ static_cast<std::size_t>(iter - cursor) };
+			faxstrings.push_back(extract_fax_string(p_rom, cursor - begin(p_rom), title_screen_chars, stringlength,
+				false, false, 0x00));
+			cursor = iter + 1;
+		}
+	}
+
+	// pop empty strings at end - is possible nothing but padding
+	while (!faxstrings.empty() && faxstrings.back().get_string().empty())
+		faxstrings.pop_back();
+
+	for (std::size_t i{ 0 }; i < faxstrings.size(); ++i)
+		add_item(fv::MiscCategory::TitleString, fv::MiscField::Text, i, fv::MiscItem(0, faxstrings[i]));
 }
 
 fi::FaxString fv::MiscWriter::extract_fax_string(const std::vector<byte>& p_rom,

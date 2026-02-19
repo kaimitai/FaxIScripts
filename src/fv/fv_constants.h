@@ -13,6 +13,8 @@ namespace fv {
 
 		// xml identifiers
 		constexpr char ID_ISCRIPT_CHARS[]{ "iscript_string_characters" };
+		constexpr char ID_TITLE_STRING_OFFSET[]{ "title_string_offset" };
+		constexpr char ID_TITLE_STRING_END_OFFSET[]{ "title_string_end_offset" };
 		constexpr char ID_STATUS_STRING_COUNT[]{ "status_string_count" };
 		constexpr char ID_STATUS_STRING_OFFSET[]{ "status_string_offset" };
 		constexpr char ID_ITEM_STRING_COUNT[]{ "item_string_count" };
@@ -53,6 +55,7 @@ namespace fv {
 		constexpr char ID_WING_BOOTS_TIME_COUNT[]{ "wing_boots_time_count" };
 		constexpr char ID_WING_BOOTS_TIME_OFFSET[]{ "wing_boots_time_offset" };
 
+		constexpr char CAT_TITLE_STRING[]{ "TitleString" };
 		constexpr char CAT_STATUS_STRING[]{ "StatusString" };
 		constexpr char CAT_ITEM_STRING[]{ "ItemString" };
 		constexpr char CAT_PASSWORD_STRING[]{ "PasswordString" };

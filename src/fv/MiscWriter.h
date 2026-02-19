@@ -13,8 +13,8 @@ using byte = unsigned char;
 
 namespace fv {
 
-	enum class MiscType { Bit8, Binary8, Bit16, iString, String23, StringVar16 };
-	enum class MiscCategory { StatusString, ItemString, PasswordString, Rank, DropTable, Sprite, Weapon, Magic, Armor, WingBoots };
+	enum class MiscType { Bit8, Binary8, Bit16, iString, String23, StringVar16, TitleString };
+	enum class MiscCategory { TitleString, StatusString, ItemString, PasswordString, Rank, DropTable, Sprite, Weapon, Magic, Armor, WingBoots };
 	enum class MiscField { Text, DropIndex, XP, HP, Gold, Bread, Damage, Glove, Defense, MagicDefense, Cost, Seconds };
 
 	struct MiscMeta {
@@ -36,14 +36,15 @@ namespace fv {
 		std::map<std::string, fv::MiscField> string_field;
 		std::map<std::string, fv::MiscCategory> string_category;
 
-		std::size_t rank_string_length, status_string_count, item_string_count,
+		std::size_t title_screen_str_offset, title_screen_str_end_offset,
+			rank_string_length, status_string_count, item_string_count,
 			password_string_count, sprite_count, rank_count, weapon_count, magic_count,
 			armor_count, wb_time_count;
 
 		std::set<std::size_t> include_sprite_idx;
 		std::map<byte, std::string> sprite_labels,
-			iscript_chars, item_chars, mantra_chars;
-		std::map<std::string, byte> iscript_chars_rev, item_chars_rev, mantra_chars_rev;
+			title_screen_chars, iscript_chars, item_chars, mantra_chars;
+		std::map<std::string, byte> title_screen_chars_rev, iscript_chars_rev, item_chars_rev, mantra_chars_rev;
 		std::vector<byte> sprite_cats;
 
 		std::map<std::pair<fv::MiscCategory, fv::MiscField>,
@@ -71,6 +72,7 @@ namespace fv {
 		void patch_item(std::vector<byte>& p_rom, const fe::Config& p_config,
 			fv::MiscCategory p_category, fv::MiscField p_field,
 			std::size_t p_index, const fv::MiscItem item);
+		int patch_title_strings(std::vector<byte>& p_rom);
 
 		std::string get_magic_def_string(byte p_seed) const;
 		byte get_magic_defense(byte p_seed, byte p_weapon_no) const;
@@ -78,6 +80,8 @@ namespace fv {
 		MiscMeta parse_txt_key(const std::string& p_key, std::size_t p_line_no) const;
 
 		byte get_istring_padding(void) const;
+
+		void extract_title_screen_strings(const std::vector<byte>& p_rom);
 
 		fi::FaxString extract_fax_string(const std::vector<byte>& p_rom,
 			std::size_t p_offset,
