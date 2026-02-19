@@ -381,7 +381,7 @@ std::string fv::MiscWriter::get_category_string(fv::MiscCategory p_category, fv:
 		result = "Defense multiplier per armor type; leather armor (probably ignored), studded mail, full plate and battle suit";
 	}
 	else if (p_category == fv::MiscCategory::TitleString)
-		result = std::format("Title screen strings, variable size - max {} characters across all strings",
+		result = std::format("Title screen strings, variable size - {} characters across all strings",
 			title_screen_str_end_offset - title_screen_str_offset);
 	else if (p_category == fv::MiscCategory::StatusString)
 		result = "Player status strings - max 15 characters";
@@ -413,6 +413,10 @@ std::string fv::MiscWriter::get_line_comment(fv::MiscCategory p_category, fv::Mi
 
 	if (p_category == fv::MiscCategory::Sprite && sprite_labels.contains(static_cast<byte>(p_index)))
 		result = sprite_labels.at(static_cast<byte>(p_index));
+	else if (p_category == fv::MiscCategory::TitleString) {
+		const auto bytes{ p_item.string_value.to_bytes(title_screen_chars_rev) };
+		result = std::format("{} characters", bytes.size() - 1);
+	}
 
 	if (p_field == fv::MiscField::MagicDefense) {
 		result += std::format(" ({})", get_magic_def_string(static_cast<byte>(p_item.numeric_value)));
