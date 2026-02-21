@@ -48,6 +48,8 @@ namespace fv {
 		std::vector<byte> sprite_cats;
 
 		std::map<std::pair<fv::MiscCategory, fv::MiscField>,
+			std::pair<std::size_t, std::size_t>> index_ranges;
+		std::map<std::pair<fv::MiscCategory, fv::MiscField>,
 			std::map<std::size_t, MiscItem>> items;
 		void add_item(fv::MiscCategory p_category, fv::MiscField p_field,
 			std::size_t p_index, const fv::MiscItem item);

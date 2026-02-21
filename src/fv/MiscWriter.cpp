@@ -86,6 +86,28 @@ fv::MiscWriter::MiscWriter(const std::vector<byte>& p_rom, const fe::Config& p_c
 	field_strings.insert(std::make_pair(fv::MiscField::Defense, c::FIELD_DEFENSE));
 	field_strings.insert(std::make_pair(fv::MiscField::Cost, c::FIELD_COST));
 	field_strings.insert(std::make_pair(fv::MiscField::Seconds, c::FIELD_SECONDS));
+
+	index_ranges = {
+	{{fv::MiscCategory::StatusString, fv::MiscField::Text}, {0, status_string_count}},
+	{{fv::MiscCategory::ItemString, fv::MiscField::Text}, {0, item_string_count}},
+	{{fv::MiscCategory::PasswordString, fv::MiscField::Text}, {0, password_string_count}},
+	{{fv::MiscCategory::Rank, fv::MiscField::Text}, {0, rank_count}},
+	{{fv::MiscCategory::Rank, fv::MiscField::XP}, {1, rank_count}},
+	{{fv::MiscCategory::Rank, fv::MiscField::Gold}, {1, rank_count}},
+	{{fv::MiscCategory::DropTable, fv::MiscField::Gold}, {0, c::DROP_TABLE_CUTOFF}},
+	{{fv::MiscCategory::DropTable, fv::MiscField::Bread}, {c::DROP_TABLE_CUTOFF, p_config.constant(c::ID_SPRITE_DROP_TABLE_COUNT)}},
+	{{fv::MiscCategory::Sprite, fv::MiscField::DropIndex}, {0, p_config.constant(c::ID_SPRITE_DROP_IDX_COUNT)}},
+	{{fv::MiscCategory::Sprite, fv::MiscField::HP}, {0, p_config.constant(c::ID_SPRITE_HP_COUNT)}},
+	{{fv::MiscCategory::Sprite, fv::MiscField::XP}, {0, p_config.constant(c::ID_SPRITE_XP_COUNT)}},
+	{{fv::MiscCategory::Sprite, fv::MiscField::MagicDefense}, {0, p_config.constant(c::ID_SPRITE_DEFENSE_COUNT)}},
+	{{fv::MiscCategory::Sprite, fv::MiscField::Damage}, {0, p_config.constant(c::ID_SPRITE_DAMAGE_COUNT)}},
+	{{fv::MiscCategory::Magic, fv::MiscField::Damage}, {0, magic_count}},
+	{{fv::MiscCategory::Magic, fv::MiscField::Cost}, {0, magic_count}},
+	{{fv::MiscCategory::Weapon, fv::MiscField::Damage}, {0, weapon_count}},
+	{{fv::MiscCategory::Weapon, fv::MiscField::Glove}, {0, weapon_count}},
+	{{fv::MiscCategory::Armor, fv::MiscField::Defense}, {0, armor_count}},
+	{{fv::MiscCategory::WingBoots, fv::MiscField::Seconds}, {0, wb_time_count}}
+	};
 }
 
 void fv::MiscWriter::load_rom(const std::vector<byte>& p_rom, const fe::Config& p_config) {
@@ -212,6 +234,17 @@ int fv::MiscWriter::patch_title_strings(std::vector<byte>& p_rom) {
 void fv::MiscWriter::patch_item(std::vector<byte>& p_rom, const fe::Config& p_config,
 	fv::MiscCategory p_category, fv::MiscField p_field,
 	std::size_t p_index, const fv::MiscItem item) {
+
+	auto idx_iter{ index_ranges.find(std::make_pair(p_category, p_field)) };
+	if (idx_iter == end(index_ranges)) {
+		throw std::runtime_error("Can not validate index");
+	}
+
+	auto idx_range{ idx_iter->second };
+	if (p_index < idx_range.first || p_index >= idx_range.second)
+		throw std::runtime_error(
+			std::format("Invalid index {} - valid range is {}-{}", p_index, idx_range.first, idx_range.second - 1)
+		);
 
 	std::size_t offset{ get_rom_offset(p_config, p_category, p_field, p_index) };
 	auto itemtype{ get_type(p_category, p_field) };
