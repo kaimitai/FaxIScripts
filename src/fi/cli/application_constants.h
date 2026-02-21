@@ -13,6 +13,7 @@ namespace fi {
 		constexpr char APP_VERSION[]{ "0.7" };
 		constexpr char APP_URL[]{ "https://github.com/kaimitai/FaxIScripts" };
 		constexpr char CONFIG_XML[]{ "eoe_config.xml" };
+		constexpr char CONFIG_OVERRIDE_FILE_NAME[]{ "eoe_config_override.xml" };
 
 		inline const std::pair<std::string, std::string> CMD_EXTRACT{ "extract" , "x" };
 		inline const std::pair<std::string, std::string> CMD_BUILD{ "build" , "b" };

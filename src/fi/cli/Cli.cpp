@@ -102,7 +102,7 @@ fi::Cli::Cli(int argc, char** argv) :
 		parse_arguments(4, argc, argv);
 	}
 
-	m_config.load_definitions(appc::CONFIG_XML);
+	m_config.load_definitions(appc::CONFIG_XML, appc::CONFIG_OVERRIDE_FILE_NAME);
 
 	// we have the info we need to execute
 	// IScript dispatch
@@ -183,7 +183,7 @@ void fi::Cli::asm_to_nes(const std::string& p_asm_filename,
 		std::cout << "ROM region specified as '" << m_region << "'\n";
 	}
 
-	m_config.load_config_data(appc::CONFIG_XML);
+	m_config.load_config_data(appc::CONFIG_XML, appc::CONFIG_OVERRIDE_FILE_NAME);
 
 	std::cout << "Attempting to parse assembly file " << p_asm_filename << "\n";
 	reader.read_asm_file(m_config, p_asm_filename);
@@ -272,7 +272,7 @@ void fi::Cli::basm_to_nes(const std::string& p_basm_filename,
 		std::cout << "ROM region specified as '" << m_region << "'\n";
 	}
 
-	m_config.load_config_data(appc::CONFIG_XML);
+	m_config.load_config_data(appc::CONFIG_XML, appc::CONFIG_OVERRIDE_FILE_NAME);
 
 	fb::BScriptReader reader(m_config);
 	reader.read_asm_file(p_basm_filename, m_config);
@@ -336,7 +336,7 @@ void fi::Cli::masm_to_nes(const std::string& p_mml_filename,
 		std::cout << "ROM region specified as '" << m_region << "'\n";
 	}
 
-	m_config.load_config_data(appc::CONFIG_XML);
+	m_config.load_config_data(appc::CONFIG_XML, appc::CONFIG_OVERRIDE_FILE_NAME);
 
 	fm::MMLReader reader(m_config);
 
@@ -400,7 +400,7 @@ void fi::Cli::nes_to_asm(const std::string& p_nes_filename,
 		std::cout << "ROM region specified as '" << m_region << "\n";
 	}
 
-	m_config.load_config_data(appc::CONFIG_XML);
+	m_config.load_config_data(appc::CONFIG_XML, appc::CONFIG_OVERRIDE_FILE_NAME);
 
 	fi::IScriptLoader loader(rom_data);
 
@@ -442,7 +442,7 @@ void fi::Cli::nes_to_basm(const std::string& p_nes_filename,
 		std::cout << "ROM region specified as '" << m_region << "\n";
 	}
 
-	m_config.load_config_data(appc::CONFIG_XML);
+	m_config.load_config_data(appc::CONFIG_XML, appc::CONFIG_OVERRIDE_FILE_NAME);
 
 	fb::BScriptLoader loader(m_config, rom_data);
 
@@ -479,7 +479,7 @@ void fi::Cli::nes_to_masm(const std::string& p_nes_filename,
 		std::cout << "ROM region specified as '" << m_region << "\n";
 	}
 
-	m_config.load_config_data(appc::CONFIG_XML);
+	m_config.load_config_data(appc::CONFIG_XML, appc::CONFIG_OVERRIDE_FILE_NAME);
 
 	fm::MScriptLoader loader(m_config, rom_data);
 	loader.parse_rom();
@@ -655,7 +655,7 @@ std::vector<byte> fi::Cli::load_rom_and_determine_region(
 		std::cout << "ROM region specified as '" << m_region << "\n";
 	}
 
-	m_config.load_config_data(appc::CONFIG_XML);
+	m_config.load_config_data(appc::CONFIG_XML, appc::CONFIG_OVERRIDE_FILE_NAME);
 
 	return rom_data;
 }
