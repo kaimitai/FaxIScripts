@@ -34,7 +34,7 @@ The script code too is stored in one contiguous blob, following a pointer table.
 ##### Music Scripts (mScripts)
 The music script layer consists of four entrypoints for each song - one entrypoint for each channel. 
 
-##### Miscellaneous data
+##### Miscellaneous data text interface
 These are not scripts, but static data of various types that we provide a textual editing interface for.
 
 <hr>
@@ -841,7 +841,7 @@ For string data, the header comment says which characters are allowed to use in 
 
 Title Screen Strings are semi-static in the sense that their entire section is of static size and offset, but each individual string is of variable length. Stick with the original lengths (pad with spaces) to make sure they look correct on the title screen.
 
-Other strings types will be resized and padded individually, as each individual string is of fixed max length.
+Other strings types will be resized and padded automatically, as each individual string is of fixed max length.
 
 #### Rank XP and Gold
 

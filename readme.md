@@ -142,7 +142,7 @@ We prioritize fixing bugs if any are discovered, but here are some ideas for fut
        - Weapon and Magic damage
        - Armor defense
        - Wing Boot timers
-    * Added support for dynamic resizing of the interaction script pointer table, allowing the script count itself to be changed (although we still enforce a minimum count of 152 (game code has direct reference to index 151), and a maximum count of 255 (index 255 is an end-of-stream delimiter and can not be used in the game)
+    * Added support for dynamic resizing of the interaction script pointer table, allowing the script count itself to be changed (although we still enforce a minimum count of 152  - the game code has direct reference to index 151), and a maximum count of 255 (index 255 is an end-of-stream delimiter and can not be used in the game)
     * ROM loaders will now determine interaction script count and music track count from ROM data, rather than relying on external configuration
     * Added support for configuration file user overrides (eoe_config_override.xml) so that users who want overrides do not need to performa a config merge for each new release
 
