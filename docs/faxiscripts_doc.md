@@ -9,6 +9,8 @@ There are three types of scripts in the game:
 
 We provide assembly interfaces for all three script types, but for the music data we also provide an [MML interface](./faxiscripts_mml.md) providing a higher level of abstraction more suitable for music composition.
 
+In addition to the assemblers, we provide a textual interface for editing miscellaneous static data.
+
 All three script types were reverse engineered and documented by [ChipX86/Christian Hammond](http://chipx86.com/) as part of his [Faxanadu disassembly project](https://chipx86.com/faxanadu/). This application would not have been possible without his resources.
 
 <hr>
@@ -31,6 +33,19 @@ The script code too is stored in one contiguous blob, following a pointer table.
 
 ##### Music Scripts (mScripts)
 The music script layer consists of four entrypoints for each song - one entrypoint for each channel. 
+
+##### Miscellaneous data
+These are not scripts, but static data of various types that we provide a textual editing interface for.
+
+<hr>
+
+#### Number formats
+
+When the textual assembly files are parsed, numbers can be given in different bases. The disassembly will typically use a constant define, or whichever representation is the most suitable for any given data type - but generally the parsers will accept the following syntax (for value 200 in this example):
+
+* Decimal: ```200```
+* Hexadecimal: ```$c8``` or ```0xc8``` (not case-sensitive)
+* Binary: ```%11001000``` or ```0b11001000``` (not case-sensitive)
 
 <hr>
 
@@ -61,6 +76,7 @@ The music script layer consists of four entrypoints for each song - one entrypoi
 - [ **Music** ](#music)
   - [Music Assembly file contents](#music-assembly-file-contents)
     - [mScript opcodes](#mscript-opcodes)
+- [ **Miscellaneous Data** ](#miscellaneous-data)
 - [Behind the scenes](#behind-the-scenes)
 
 <hr>
@@ -150,7 +166,36 @@ To build a file we go in the opposite direction, and assemble. To build a file f
  There are also options when building mScripts. They are:
 
  * --source-rom (-s for short): This option takes an argument, which is a filename for the ROM you will use as a source for patching. If this option is not specified we will patch the file given as output file. Use this if you don't want to patch a ROM file directly.
- --region (-r for short): Override automatic ROM region deduction. The parameter specified must match a region defined in eoe_config.xml
+ * --region (-r for short): Override automatic ROM region deduction. The parameter specified must match a region defined in eoe_config.xml
+
+##### <u>"miscellaneous data" commands</u>
+
+For extracting and inserting miscellaneous data, the application is used in the following way:
+
+ To extract misc data from a file, called "Faxanadu (U).nes" for example, we run the following command from the command-line:
+
+ ```faxiscripts extract-misc "Faxanadu (U).nes" faxanadu.txt```
+
+  Quotes are only necessary if any of your arguments contain spaces. You can write "xmisc" instead of "extract-misc".
+
+ You can add options when extracting misc data. They are:
+
+* --force (-f for short): Overwrite existing misc txt-file if it already exists. We don't allow it by default because users might inadvertently overwrite their existing files if they aren't careful.
+
+To build a file we go in the opposite direction, and inject. To build a file faxanadu.txt and patch "Faxanadu (U).nes" with it, run the following command:
+
+ ```faxiscripts build-misc faxanadu.txt "Faxanadu (U).nes"```
+
+ You can write "bmisc" instead of "build-misc".
+
+ There are also options when building misc. data. They are:
+
+ * --source-rom (-s for short): This option takes an argument, which is a filename for the ROM you will use as a source for patching. If this option is not specified we will patch the file given as output file. Use this if you don't want to patch a ROM file directly.
+ * --region (-r for short): Override automatic ROM region deduction. The parameter specified must match a region defined in eoe_config.xml
+ * --original-size (-o for short): This option has a special meaning for miscellaneous data, and means we extract misc. data for all sprites - even sprites that are not bosses or enemies. It is unclear whether this is of any use.
+
+
+<hr>
 
 ## iScript Assembly file contents
 
@@ -266,7 +311,7 @@ Remember:
 
 #### .entrypoint &lt;value&gt;
 
-The entrypoint directive tells the assembler where each script will enter the code and start executing. After compilation the linker will resolve this address to an actual value. The important thing is that all 152 pointer table entries are known at linking time, so ensure you have 152 entrypoints, from 0 to 151, in your code. Several entrypoints can be at the same location - that just means several script indexes will run the same script - and in the original game there are lots of such cases.
+The entrypoint directive tells the assembler where each script will enter the code and start executing. After compilation the linker will resolve this address to an actual value. The important thing is that at least 152 pointer table entries are known at linking time, so ensure you have at least 152 entrypoints, from 0 to 151, in your code. Several entrypoints can be at the same location - that just means several script indexes will run the same script - and in the original game there are lots of such cases. We enforce a minimum entrypoint of 152 to be consistent with game code which references script with index 151 directly.
 
 #### .textbox &lt;value&gt;
 
@@ -433,13 +478,13 @@ Use comments and descriptive labels when coding to remember what you were workin
 
 ## Well-formed code
 
-For an asm-file to be valid, you need to specify all 152 entrypoints, and for each entrypoint the first instruction (or pseudo-instruction in this case) must be a textbox.
+For an asm-file to be valid, you need to specify at least 152 entrypoints, and for each entrypoint the first instruction (or pseudo-instruction in this case) must be a textbox.
 
-After that you need to make sure that we never hit another textbox while the code is executing, and that all possible branches execution flow can take ultimately end with the End-opcode (or EndGame). After assembly, the application will try to re-parse your code by entering at each entry point and simulate execution for all possible branches. If this fails, your ROM will not be patched and you need to fix your asm-file.
+After that you need to make sure that we never hit another textbox pseudor-opcode while the code is executing, and that all possible branches execution flow can take ultimately end with the End-opcode (or EndGame). After assembly, the application will try to re-parse your code by entering at each entry point and simulate execution for all possible branches. If this fails, your ROM will not be patched and you need to fix your asm-file.
 
 Check:
 
-* 152 distinct entrypoints numbered 0-151
+* At least 152 distinct entrypoints numbered 0-151
 * Each entrypoint is followed by a .textbox before any opcode
 * Code execution terminates in all branches it could possibly take, and it never hits another .textbox
 * All your code can actually be reached from an entrypoint. Unreachable code can not survive a round trip from asm to ROM and back to asm - the parser only looks for code the game could potentially reach.
@@ -777,6 +822,74 @@ Once we are past the channel entrypoints, we are ready to run regular opcodes an
 | `$FD`  | BeginLoop              | byte                | —          | Starts a counted loop with given iteration count. |
 | `$FE`  | PopAddr                | —                   | —          | Pops return address and jumps. |
 | `$FF`  | End                    | —                   | —          | Terminates the song. |
+
+<hr>
+
+## Miscellaneous Data
+
+The miscellaneous data interface was added in order to allow easy editing of data that does not fit anywhere else. It is of static size and ROM offsets, and could be edited with a hex editor. We group them all in one place for easy region-agnostic editing, and provide some abstractions.
+
+The commands for extracting and injecting a misc. data txt- file are ```xmisc``` and ```bmisc```. The flag ```-o``` can be used to extract all sprites' data, but it is unclear whether this is of any use. By default only sprite data for enemies and bosses are extracted.
+
+The extracted txt file will have a comment header for each data section, which explains what the data represents.
+
+Each entry in the txt file is on the form ```category<index>.field``` with a corresponding value. For example ```Sprite42.XP``` has category ```Sprite```, index ```42``` and field ```XP``` - and the value is therefore the XP received when killing enemy with index 42, which is the Monodron.
+
+For sprite data a comment is added to each line which gives the name of the sprite, defined in the configuration xml.
+
+For string data, the header comment says which characters are allowed to use in strings of that type. Any other character will make the data injection fail, although we have special syntax for arbitrary byte values, like we do for iScript strings. ```<n>``` will be translated to byte value n. Other special tokens are ```<q>``` and ```<copyright>``` which translate to double quotes and the copyright symbol, in some contexts. The header comments will be specific about this.
+
+Title Screen Strings are semi-static in the sense that their entire section is of static size and offset, but each individual string is of variable length. Stick with the original lengths (pad with spaces) to make sure they look correct on the title screen.
+
+Other strings types will be resized and padded individually, as each individual string is of fixed max length.
+
+#### Rank XP and Gold
+
+```Rank.XP``` defines how much XP is needed to get that rank, and ```Rank.Gold``` defines how much gold you start with for a given rank. These both start at index 1 - as no entry is defined for rank 0, which is the starting rank.
+
+#### Enemy Drops
+
+Enemy drops are not given directly per sprite, but instead given as indexes into a drop table. The drop table defines the drops and has 64 entries. The first 48 entries (indexes 0-47) are gold values, and are used by sprites which drop coins. Indexes 48-63 are used by enemies which drop bread, and the value is HP healed. (can wrap-around to negative for large values)
+
+The original data will for example contain ```DropTable9.Gold 59``` - this means that DropTable index 9 is a gold drop, and the gold value is 59.
+
+Combine with the entry ```Sprite42.DropIndex 9 	; Monodron``` we see that sprite 42 (Monodron) uses drop table index 9 - meaning it drops 59 gold.
+
+The entry ```Sprite71.DropIndex 50 	; Zozura``` tells us that Zozura uses drop table index 50. Since this index is >= 48, we know it drops a bread - and looking at entry 50 in the drop table we see ```DropTable50.Bread 8``` - which tells us that Zozura drops a bread that heals 8 health points.
+
+If you want an enemy to drop nothing, give it drop index 255 ($ff) - although any value >= 64 ($40) will have that effect.
+
+For example ```Sprite6.DropIndex 255 	; Zombie``` tells us that Zombie drops nothing.
+
+Enemies that are bosses will drop multiple coins or breads.
+
+#### Enemy Magic Defense
+
+Enemies can be resistent to magic spells, with a 50% or 100% reduction. The first spell, Deluge, can not be resisted. The other 4 can, however, and to understand how this works it is easiest to look at these values as binary constants - and the misc. extraction will automatically output binary values here.
+
+The 4 spells that can be resisted are, in order; Thunder, Fire, Death and Tilte. Two bits are used for each spell when defining magic defense. The first (highest) two bits define Thunder defense, then comes Fire defense, then Death and finally Tilte.
+
+The blocks of bits have the following meaning:
+
+   * 00 - No defense
+   * 01 - 50% defense
+   * 10 or 11 - 100% defense
+
+Let us consider a concrete example from the original data:
+
+```Sprite6.MagicDefense %00001100 	; Zombie (Thunder=0% Fire=0% Death=100% Tilte=0%)```
+
+Binary values are prefixed with %, so we know this is a binary constant, and the blocks are 00, 00, 11 and 00. This means the Zombie resists the Death spell completely, but has no resistance to other magics. The extraction will add this to the comments automatically.
+
+You could also write ```Sprite6.MagicDefense 12``` or ```Sprite6.MagicDefense $0c```, but the binary representation is the clearest in this case.
+
+A value of ```%11111111``` would mean 100% resistance to all magics - except Deluge which can never be resisted.
+
+#### Wing Boot times
+
+There are four values which define the duration (in seconds) of Wing Boots. Using values higher than 99 might glitch - at the very least the timer in-game expects 2 digits.
+
+In the original game the duration of Wing Boots gets lower as your rank gets higher. There are 16 ranks, and 4 durations - meaning the first duration (index 0) is the duration for the first 4 ranks, the next duration is for the next 4 ranks, and so on.
 
 <hr>
 

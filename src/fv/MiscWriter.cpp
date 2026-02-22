@@ -414,16 +414,16 @@ std::string fv::MiscWriter::get_category_string(fv::MiscCategory p_category, fv:
 		result = "Defense multiplier per armor type; leather armor (probably ignored), studded mail, full plate and battle suit";
 	}
 	else if (p_category == fv::MiscCategory::TitleString)
-		result = std::format("Title screen strings, variable size - {} characters across all strings",
+		result = std::format("Title screen strings, variable size ({} chars total), but keep each length as-is (A-Z,0-9,space,<copyright>)",
 			title_screen_str_end_offset - title_screen_str_offset);
 	else if (p_category == fv::MiscCategory::StatusString)
-		result = "Player status strings - max 15 characters";
+		result = "Player status strings - max 15 characters (A-Z,0-9,space,colon)";
 	else if (p_category == fv::MiscCategory::ItemString)
-		result = "Item strings - max 15 characters";
+		result = "Item strings - max 15 characters (A-Z, 0-9, space, colon)";
 	else if (p_category == fv::MiscCategory::PasswordString)
-		result = "Password screen strings - max 23 characters";
+		result = "Password screen strings - max 23 characters (A-Z,a-z,0-9,space,!_-.,?,<q> for double quotes)";
 	else if (p_category == fv::MiscCategory::Rank && p_field == fv::MiscField::Text)
-		result = std::format("Rank name strings - max {} characters (used in iScripts as <title>)", rank_string_length);
+		result = std::format("Rank name strings - max {} characters (follows iScript string rules, and is used in iScripts strings as <title>)", rank_string_length);
 	else if (p_category == fv::MiscCategory::Rank && p_field == fv::MiscField::XP)
 		result = "Rank XP requirements (0-65,535)";
 	else if (p_category == fv::MiscCategory::Rank && p_field == fv::MiscField::Gold)

@@ -1,5 +1,7 @@
 # FaxIScripts - Assembler and Disassembler for scripting in Faxanadu (NES)
 
+<hr>
+
 Welcome to the FaxIScripts code repository and release page. The code is standard C++20, and the project files were created using Microsoft Visual Studio Community 2022. You can compile the application from source, or get the latest precompiled Windows x64 build under the [repository releases](https://github.com/kaimitai/FaxIScripts/releases/).
 
 This tool is used for extracting data from Faxanadu (NES) ROMs - scripts and music - which can be edited in text editors and injected back into the ROM.
@@ -7,6 +9,12 @@ This tool is used for extracting data from Faxanadu (NES) ROMs - scripts and mus
 The aim of this assembler is to extract script code to human-readable formats reminiscent of assembly code. We aim to stay at the highest possible layer of abstraction without losing any extracted information.
 
 Make sure to read the [documentation](./docs/faxiscripts_doc.md) for a detailed overview of the syntax and structure of the assembly files we will be editing, as well as a list of all available opcodes.
+
+<hr>
+
+This application has a natural companion in [Echoes of Eolis](https://github.com/kaimitai/faxedit/), which is a graphical editor that can patch the other dynamically sized data portions in Faxanadu. To see, or change, which NPCs in Faxanadu are connected to a given interactions script, for example, Echoes of Eolis can can be used.
+
+Echoes of Eolis will always be bundled with the latest version of this application.
 
 <hr>
 
@@ -53,7 +61,9 @@ An example of the beginning of an extracted tune:
 
 <hr>
 
-This application has a natural companion in [Echoes of Eolis](https://github.com/kaimitai/faxedit/), which is a graphical editor that can patch the other dynamically sized data portions in Faxanadu. To see, or change, which NPCs in Faxanadu are connected to a given interactions script, for example, Echoes of Eolis can can be used.
+**Miscellaneous static data**
+
+While not an assembly format, the application also has a mode to extract miscellaneous data to a textual format which can be re-injected to ROM after editing. This allows users to change strings, enemy, weapon and magic parameters and such. The mode is region-agnostic, and abstracts away the complexity of different string formats having different character palettes for example, so it should be a good alternative to a hex editor.
 
 <hr>
 
@@ -66,7 +76,7 @@ The assembler has the following features:
 * Extracted iScript asm-files can show shop contents as comments wherever they are used as operands
 * Strict-mode; where we don't patch a ROM if we spend more bytes than the original ROM did, tightly packed in one section (applies to iScripts and bScripts)
 * For iScripts and bScripts, we provide a smart static linker; The shop data and code stream starts within the first safe region, and if we overflow the static linker redirects code to the second region while patching all required labels, jumps, pointer table entries and instruction offsets. This is done without inserting a synthetic jump-node. bScripts too can be extended in this way with a tail end code relocation, although it is in its entirety a code section.
-* Automatic ROM region deduction, ensuring that the assembly code is extracted from, and injected to, the correct ROM locations.
+* Automatic ROM region deduction, ensuring that the assembly code is extracted from, and injected to, the correct ROM locations. Assembly fails if data sections get too big, so no ROM file will be corrupted.
 
 <hr>
 
@@ -98,22 +108,43 @@ The command `faxiscripts bmml faxanadu.mml "Faxanadu (U).nes"` will patch "Faxan
 
 We also have commands for rendering Faxanadu music as midi files, both directly from ROM or from an MML file. In addition to that, we can export MML files, or music directly from ROM, to the [LilyPond](https://lilypond.org/) format, which can provide musical scores.
 
+The command `faxiscripts xmisc "Faxanadu (U).nes" faxanadu.txt` will extract miscellaneous data from file "Faxanadu (U).nes" and write it to file faxanadu.txt.
+
+Another instruction will translate the textual data and patch it back to ROM.
+
+The command `faxiscripts bmisc faxanadu.txt "Faxanadu (U).nes"` will patch "Faxanadu (U).nes" with the misc data from faxanadu.txt.
+
+
 <hr>
 
 ### Roadmap
 
 We prioritize fixing bugs if any are discovered, but here are some ideas for future features:
 
-* We might do more static analysis to help users identify problems in their code
 * Add an option to let the linker insert a jump-instruction to bridge the gap between the safe ROM regions for iScripts and bScripts. This could potentially save some bytes over the current bridging strategy.
 * Allow Japanese characters directly in strings for the jp region
 * Emit more statistics from MML compilation; like for example total fractional drift (if any) and byte size per channel.
-* Allow adding new iScripts beyond the original count of 152, if possible. Requires patching a pointer-to-pointer, but needs to be investigated.
 * Create Notepad++ syntax highlighting definition files for bScripts, mScripts and MML
 
 <hr>
 
 ### Version History
+
+* 2026-02-22: version 0.7
+    * Added new miscellaneous data interface for changing static data:
+       - Title Screen strings
+       - Player Status strings
+       - Item strings
+       - Rank strings
+       - XP requirement per rank
+       - Starting gold per rank
+       - Enemy XP, health, damage, magic defense, drops (coin values, bread healing values, nothing)
+       - Weapon and Magic damage
+       - Armor defense
+       - Wing Boot timers
+    * Added support for dynamic resizing of the interaction script pointer table, allowing the script count itself to be changed (although we still enforce a minimum count of 152 (game code has direct reference to index 151), and a maximum count of 255 (index 255 is an end-of-stream delimiter and can not be used in the game)
+    * ROM loaders will now determine interaction script count and music track count from ROM data, rather than relying on external configuration
+    * Added support for configuration file user overrides (eoe_config_override.xml) so that users who want overrides do not need to performa a config merge for each new release
 
 * 2026-02-04: version 0.6
     * Added support for behavior script extraction and patching. The assembler now handles all three script types!
