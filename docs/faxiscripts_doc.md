@@ -66,6 +66,7 @@ When the textual assembly files are parsed, numbers can be given in different ba
   - [A concrete example](#a-concrete-example)
   - [Editing Tips](#editing-tips)
   - [Well-formed code](#well-formed-code)
+  - [Known bugs](#known-bugs)
   - [A highly technical note on Quests](#a-highly-technical-note-on-quests)
 - [ **bScripts** ](#bscripts)
   - [ bScript Assembly file contents ](#bscript-assembly-file-contents)
@@ -489,6 +490,32 @@ Check:
 * Code execution terminates in all branches it could possibly take, and it never hits another .textbox
 * All your code can actually be reached from an entrypoint. Unreachable code can not survive a round trip from asm to ROM and back to asm - the parser only looks for code the game could potentially reach.
 
+<hr>
+
+### Known Bugs
+
+After building the iScripts, there is a chance that when you get a mantra from a Guru, the mantra will not insert a newline at the correct location if the mantra spans more than one line.
+
+This is due to a highly esoteric bug in the game engine, described [here](https://notes.chipx86.com/Projects/Reverse-Engineering+Projects/Faxanadu+Disassembly/Bugs#Bad+Memory+Reads+During+Guru+Password+Display).
+
+To work around this, you need to ensure that any message string displayed to the player just before the ShowMantra-opcode does not land on a bad address. To mimimize the chance of this happening, add all unique strings that are displayed just before ShowMantra to the list of reserved strings in the assembly file, and use a low index. This bug is not dangerous, so this fix can be applied at the end of a project when all strings are finalized.
+
+For the original game data, the reserved section would look like this after applying this fix:
+
+```
+[reserved_strings]
+1: "You need peace<n>of mind.<n>I will meditate<n>with you." ; This is new!
+3: "This is not<n>enough Golds."
+6: "You can't carry<n>any more."
+16: "Come here<n>to buy.<n>Come here<n>to sell."
+18: "You have<n>nothing to buy."
+19: "Which one would<n>like to sell?"
+20: "What<n>would you like?"
+```
+
+Here we added the only string shown before ShowMantra to the lowest unreserved index, which is 1.
+
+<hr>
 
 ### A highly technical note on Quests
 
@@ -862,6 +889,10 @@ If you want an enemy to drop nothing, give it drop index 255 ($ff) - although an
 For example ```Sprite6.DropIndex 255 	; Zombie``` tells us that Zombie drops nothing.
 
 Enemies that are bosses will drop multiple coins or breads.
+
+#### Enemy HP
+
+The enemy HP values shown are the values from ROM, but enemies will still be alive at 0 HP. The value has to go into the negatives for the enemy to actually die.
 
 #### Enemy Magic Defense
 
