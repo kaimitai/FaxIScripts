@@ -85,6 +85,12 @@
     <Filter Include="Source Files\fv">
       <UniqueIdentifier>{231abf33-fc64-400d-baa1-6ba5c2cb6668}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\mantra">
+      <UniqueIdentifier>{33940371-c881-436b-8391-5df9098fbfe5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\mantra">
+      <UniqueIdentifier>{6847a90f-1e3f-4675-bcdb-52679488c901}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp">
@@ -197,6 +203,15 @@
     </ClCompile>
     <ClCompile Include="src\fv\MiscWriter.cpp">
       <Filter>Source Files\fv</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mantra\Mantra.cpp">
+      <Filter>Source Files\mantra</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mantra\mantra_math.cpp">
+      <Filter>Source Files\mantra</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mantra\MantraCli.cpp">
+      <Filter>Source Files\mantra</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -334,6 +349,21 @@
     </ClInclude>
     <ClInclude Include="src\fv\fv_constants.h">
       <Filter>Header Files\fv</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mantra\Mantra.h">
+      <Filter>Header Files\mantra</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mantra\mantra_constants.h">
+      <Filter>Header Files\mantra</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mantra\mantra_math.h">
+      <Filter>Header Files\mantra</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mantra\MantraCli.h">
+      <Filter>Header Files\mantra</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mantra\MantraCli_constants.h">
+      <Filter>Header Files\mantra</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

@@ -166,6 +166,9 @@
     <ClCompile Include="src\fm\song\Tokenizer.cpp" />
     <ClCompile Include="src\fv\MiscWriter.cpp" />
     <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\mantra\Mantra.cpp" />
+    <ClCompile Include="src\mantra\MantraCli.cpp" />
+    <ClCompile Include="src\mantra\mantra_math.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\common\klib\Kfile.h" />
@@ -213,6 +216,11 @@
     <ClInclude Include="src\fm\song\Tokenizer.h" />
     <ClInclude Include="src\fv\fv_constants.h" />
     <ClInclude Include="src\fv\MiscWriter.h" />
+    <ClInclude Include="src\mantra\Mantra.h" />
+    <ClInclude Include="src\mantra\MantraCli.h" />
+    <ClInclude Include="src\mantra\MantraCli_constants.h" />
+    <ClInclude Include="src\mantra\mantra_constants.h" />
+    <ClInclude Include="src\mantra\mantra_math.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
