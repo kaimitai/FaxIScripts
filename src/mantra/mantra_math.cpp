@@ -103,7 +103,7 @@ std::string fman::fm_math::bin_to_str(const std::vector<int>& p_bin) const {
 }
 
 int fman::fm_math::bits_needed(int p_count) const {
-	if (p_count <= 1 || p_count >= 256)
+	if (p_count <= 1 || p_count > 256)
 		return 1;
 
 	int bits = 0;

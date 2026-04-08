@@ -1597,6 +1597,7 @@ To play the exact same music with different tempos the music has to be duplicate
   - Your channel is in an infinite loop but not emitting any notes or rests. This causes the program counter to get corrupted in Faxanadu's music engine. Some examples:
      - A channel only consisting of !restart
      - An infinite loop [ ... ] with no notes or rests inside.
+- If MML extracted from ROM contains lots of garbage bytes, it means the composer took advantage of the fact that !restart applies to all channels simultaneously, and did not add an !end or !restart to the other channels. This works, but the MML decompiler has no hope of detecting this, and will extract all data for each channel individually until it hits an !end or infinite loop.
 
 ---
 

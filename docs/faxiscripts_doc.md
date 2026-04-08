@@ -1,6 +1,6 @@
 # FaxIScripts - User Documentation
 
-This is the user documentation for FaxIScripts (v0.6), an assembler for the internal scripting languages used by Faxanadu for the NES. The application code and binaries can be found on its [GitHub repository](https://github.com/kaimitai/faxiscripts/). It is assumed that users are somewhat acquainted with Faxanadu on the NES.
+This is the user documentation for FaxIScripts (v0.8), an assembler for the internal scripting languages used by Faxanadu for the NES. The application code and binaries can be found on its [GitHub repository](https://github.com/kaimitai/faxiscripts/). It is assumed that users are somewhat acquainted with Faxanadu on the NES.
 
 There are three types of scripts in the game:
   * Interaction Scripts (iScripts)
@@ -10,6 +10,8 @@ There are three types of scripts in the game:
 We provide assembly interfaces for all three script types, but for the music data we also provide an [MML interface](./faxiscripts_mml.md) providing a higher level of abstraction more suitable for music composition.
 
 In addition to the assemblers, we provide a textual interface for editing miscellaneous static data.
+
+On top of this, we also provide a mantra encoder and decoder which takes spawn point count into account. (currently only supports the original US version of the game)
 
 All three script types were reverse engineered and documented by [ChipX86/Christian Hammond](http://chipx86.com/) as part of his [Faxanadu disassembly project](https://chipx86.com/faxanadu/). This application would not have been possible without his resources.
 
@@ -78,6 +80,7 @@ When the textual assembly files are parsed, numbers can be given in different ba
   - [Music Assembly file contents](#music-assembly-file-contents)
     - [mScript opcodes](#mscript-opcodes)
 - [ **Miscellaneous Data** ](#miscellaneous-data)
+- [ **Mantra Encoder** ](#mantra-encoder)
 - [Behind the scenes](#behind-the-scenes)
 
 <hr>
@@ -523,7 +526,7 @@ The game holds one byte in RAM which stores information on whether a quest is co
 
 When we use opcode IfQuest and SetQuest, the number we give as input is not a bitmask to be compared with the quest byte, for some reason. In actuality the number we pass in to the function is used as an index into a lookup table hard coded in the game logic, and this lookup table has 3 entries - in the game's script code only the three springs are checked. Other quest flags are queried directly within the game code itself. Each entry is a power of two; 1, 2 and 4 - and this is finally used as a bitmask in comparisons with the quest byte in RAM.
 
-The area in ROM where this 3-byte lookup table is stored is in the middle of the action handler code used by the scripting engine. One thing we did to get more state branching into our code, was to scan the 255 bytes forward from the quest lookup table and see if we could find more perfect powers of two, and in fact there were two of them. Then we looked to see if there was any byte value which did not have overlapping bits turned on for any of the 5 quest flag indexes we had found, and there were three such values. We used one of them, called it QUEST_EXTRA, and let it represent a sixth unique state. QUEST_EXTRA will set more than one quest flag, but they will not overlap any of the 5 "clean quest flags" so it can be used independently.
+The area in ROM where this 3-byte lookup table is stored is in the middle of the action handler code used by the scripting engine. One thing we did to get more state branching into our code, was to scan the 255 bytes forward from the quest lookup table and see if we could find more perfect powers of two, and in fact there were two of them. Then we looked to see if there was any byte value which did not have overlapping bits turned on for any of the 5 quest flag indexes we had found, and there were three such values. We used one of them, called it QUEST_EXTRA, and let it represent a sixth unique state. QUEST_EXTRA will set more than one quest flag, but they will not overlap any of the 5 "clean quest flags" so it can be used independently. It does however overlap the quest bit used by the Stone Dropper Wing Boots, so the constant might as well have been called QUEST_STONE_DROPPER_WINGBOOTS.
 
 You can extend this exploitation of going out of the original bounds of the lookup table even further; you can map all distinct values in the "extended lookup table" and use them as bitmasks where the value will be used as an OR when passed to IfQuest, and as an AND when passed to SetQuest, effectively querying or setting multiple quest flags at once.
 
@@ -921,6 +924,143 @@ A value of ```%11111111``` would mean 100% resistance to all magics - except Del
 There are four values which define the duration (in seconds) of Wing Boots. Using values higher than 99 might glitch - at the very least the timer in-game expects 2 digits.
 
 In the original game the duration of Wing Boots gets lower as your rank gets higher. There are 16 ranks, and 4 durations - meaning the first duration (index 0) is the duration for the first 4 ranks, the next duration is for the next 4 ranks, and so on.
+
+<hr>
+
+### Mantra Encoder
+
+The application also comes with an interface for encoding and decoding mantras. Currently these only work for the US version of the game.
+
+[Echoes of Eolis](https://github.com/kaimitai/faxedit) will allow you to add more spawn points than the original game, which has eight spawns in total. The mantra encodes the spawn value (0-7) in three bits, but EoE will widen this field to allow the game to encode and decode mantras correctly. Our mantra encoder also allows users to specify a total spawn count, allowing the creation of mantras for ROMs modified with more than 8 spawn points.
+
+The spawn points are set with the iScript-opcode ```SetSpawn```, and these scripts are then set to a guru inside a guru room in the game. In the original game SetSpawn only took values from zero to seven, but we can use values up to 255 in theory. But whenever the spawn point count passes a new power of two, the mantra field for encoding the spawn point widens by one bit.
+
+To encode or decode a mantra, we use the command **m** followed by parameters.
+
+The flag -m, for example, decodes a mantra string. For example, to decode the mantra string **8qB?3??8TgCNQukz3kK8**, the following command can be run:
+
+```faxiscripts m -m 8qB?3??8TgCNQukz3kK8```
+
+which will output
+
+```
+Mantra: CIgP??390OwAKNToy
+Checksum: 8
+Character count: 17
+
+Location: Eolis (0 of 8)
+Rank: Novice
+
+Equipped weapon: Giant Blade
+Equipped armor: Battle Suit
+Equipped shield: Battle Helm
+Equipped magic: Death
+Equipped item: Key Jo
+
+Stored weapons (3): Giant Blade, Dragon Slayer, Hand Dagger
+Stored armors (0): (none)
+Stored shields (0): (none)
+Stored magics (0): (none)
+Stored items (5): Demon's Ring, Rod, Book, Black Potion, Elixir
+
+Special items (8): Ring of Elf, Ring of Ruby, Ring of Dworf, Demon's Ring, Elixir, Magical Rod, Pendant, Black Onix
+Gamestate flags (8): Unknown 1, Unknown 2, Path to Mascon, Wyvern Mattock, Stone Dropper Wing Boots, Dungeon Spring, Sky Spring, Tower Spring
+```
+
+The output starts with the mantra restated in canonical format, which should match what the game generates. The same game state can be encoded in different ways, but we use the same algorithm as the game and should match it exactly. The next parts of the output are the checksum and character count, which are stored inside the mantra itself and used for validation. If the checksum and character count don't match what the game expects for a given mantra, it will not be accepted by the game.
+
+Then comes the location and rank, followed by equipped and stored items, weapons, shields, magics and items. Finally come the special items and quest flags.
+
+To encode a password, we use other flags with parameters. They are as follows:
+
+* -t: Terse output. Only gives the mantra, and no report on its contents. (this can also be used when decoding mantra, if you just want a mantra on canonical form)
+* -sc &lt;n&gt;: Spawn count. Defaults to 8 which is what is in the original game. If you have a modified ROM with fewer or more spawn points, you need to specify this parameter or else the generated mantra could be invalid. Whenever the spawn point count passes a new power of two (&gt;2, &gt;4, &gt;8, &gt;16, &gt;32, &gt;64, &gt;128) one more bit is needed to encode the password. Also note that this is the count of spawn points, not the highest index. So if the spawn points are indexed by 0-15 for example, the count is 16. The count is always one more than the highest index (counting from 0) that is used in your ROM. This parameter must also be given when decoding a mantra, if that mantra was generated by a ROM with a modified spawn point count.
+
+The other flags and parameters define the contents of the mantra itself:
+
+- Meta (takes 1 parameter)
+  - -r: Rank
+  - -l: Location
+
+- Equipped (takes 1 parameter)
+  - -ew: Equipped weapon
+  - -ea: Equipped armor
+  - -es: Equipped shield
+  - -em: Equipped magic
+  - -ei: Equipped item
+
+- Stored (inventory)
+  - -sw: Stored weapons (max 4 parameters)
+  - -sa: Stored armors (max 4 parameters)
+  - -ss: Stored shields (max 4 parameters)
+  - -sm: Stored magics (max 4 parameters)
+  - -si: Stored items (max 8 parameters)
+
+- Other
+  - -s: Special items (max 8 parameters)
+  - -g: Game flags aka quest bits (max 8 parameters)
+
+Those flags which take multiple parameters take comma-separated lists. There must be no spaces between these commas, otherwise parsing will fail.
+
+Possible parameter values follow. The full string is not needed if there is no ambiguity. For example ```-r m``` will match rank Myrmidon since only one rank starts with m. ```-r a``` on the other hand will fail with error message ```Ambigous value for parameter -r and value a. Matches: aspirant, adept```.
+
+Ranks: ```"novice", "aspirant", "battler", "fighter", "adept", "chevalier", "veteran", "warrior", "swordman", "hero", "soldier", "myrmidon", "champion", "superhero", "paladin", "lord"```
+
+Locations: ```"eolis", "apolune", "forepaw", "mascon", "victim", "conflate", "daybreak", "dartmoor"```
+
+Locations can be given as a number instead, for example ```-l 0``` and ```-l eolis``` and ```-l e``` are all equivalent. If you use a location with index higher than 7, in other words a non-standard location, you have to specify it by number.
+
+Weapons (stored and equipped): ```"handdagger", "longsword", "giantblade", "dragonslayer"```
+
+Armors (stored and equipped): ```"leatherarmor", "studdedmail", "fullplate", "battlesuit"```
+
+An armor should always be equipped. In the original game you start wearing the leather armor. If you make a mantra with no equipped armor there will be severe visual glitches.
+
+Shields (stored and equipped): ```"smallshield", "largeshield", "magicshield", "battlehelm"```
+
+Magics (stored and equipped): ```"deluge", "thunder", "fire", "death", "tilte", "elfring", "rubyring", "dworfring"```
+
+Items (stored and equipped): ```"elfring", "rubyring", "dworfring", "demonsring", "ace", "king", "queen", "jack", "joker", "mattock", "rod", "crystal", "lamp", "hourglass", "book", "wingboots", "redpotion", "blackpotion", "elixir", "pendant", "blackonix", "firecrystal", "g0", "g1", "g2", "g3", "g4", "g5", "g6", "g7", "g8", "g9"```
+
+The special items will cause glitches if used as carried items or as magics, but it is possible. The values g0-g9 are also there for completeness' sake, but they result in garbage items in the standard ROM.
+
+Special items: ```"elfring", "rubyring", "dworfring", "demonsring", "elixir", "magicalrod", "pendant", "blackonix"```
+
+Gamestate aka Quests: ```"u1", "u2", "masconpath", "mattock", "wingboots", "dungeonspring", "skyspring", "towerspring"```
+
+u1 and u2 are unknown quest bits. They are not used in the original game.
+
+One example of a mantra generation, using short-hand for some constants:
+
+```faxiscripts m -ew giant -ea full -es mag -ei jo -sw hand -sm death,deluge,fire -si red,red,matt,ace,king,wing -s elix,black,elf -g sky,mascon,wing```
+
+will generate the following mantra and output (location and rank were not given so they defaulted to 0):
+
+```
+Mantra: n5gIkq2yggDYTQgkhXg
+Checksum: 159
+Character count: 19
+
+Location: Eolis (0 of 8)
+Rank: Novice
+
+Equipped weapon: Giant Blade
+Equipped armor: Full Plate
+Equipped shield: Magic Shield
+Equipped magic: (none)
+Equipped item: Key Jo
+
+Stored weapons (1): Hand Dagger
+Stored armors (0): (none)
+Stored shields (0): (none)
+Stored magics (3): Death, Deluge, Fire
+Stored items (6): Red Potion, Red Potion, Mattock, Key A, Key K, Wing Boots
+
+Special items (3): Ring of Elf, Elixir, Black Onix
+Gamestate flags (3): Path to Mascon, Stone Dropper Wing Boots, Sky Spring
+```
+
+If you had a ROM with 27 spawn points and you wanted to start at location 18, you would have ```-sc 27 -l 18``` somewhere in your command.
 
 <hr>
 
