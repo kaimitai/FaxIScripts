@@ -1,6 +1,6 @@
 <!-- Configuration file used by Echoes of Eolis and FaxIScripts (https://github.com/kaimitai/faxedit) -->
 <!-- Do not make changes to this file - user overrides should reside in eoe_config_override.xml (see the documentation for details) -->
-<eoe_config app_version="beta-5.3">
+<eoe_config app_version="beta-6.2">
 	<regions>
 		<!-- determine region by ROM signature - will take first match -->
 		<!-- make sure to use identifiers that will not change via ROM editing -->
@@ -41,6 +41,16 @@
 		<pointer name="sprite_ptr" value="0x2c220" zero_addr="0x24010" />
 		<pointer name="sameworld_trans_ptr" value="0x3ea47" zero_addr="0x30010" />
 		<pointer name="otherworld_trans_ptr" value="0x3eaac" zero_addr="0x30010" />
+		<!-- palette to music ptrs: palette list and music list -->
+		<pointer name="pal2mus_palette_ptr" value="0x3e55f" zero_addr="0x30010" />
+		<pointer name="pal2mus_music_ptr" value="0x3e569" zero_addr="0x30010" />
+		<!-- spawn point ptrs to lookup tables -->
+		<pointer name="spawn_screen_ptr" value="0x3dd75" zero_addr="0x30010" />
+		<pointer name="spawn_stage_ptr" value="0x3dd7a" zero_addr="0x30010" />
+		<pointer name="spawn_x_pos_ptr" value="0x3dd80" zero_addr="0x30010" />
+		<pointer name="spawn_y_pos_ptr" value="0x3dd85" zero_addr="0x30010" />
+		<pointer name="spawn_sprite_set_ptr" value="0x3dd8a" zero_addr="0x30010" />
+		<pointer name="spawn_world_ptr" value="0x3dd90" zero_addr="0x30010" />
 		<!-- ROM offset of iScript pointer table lo bytes; this will not be changed by the assembler (start of hi might, however) -->
 		<pointer name="iscript_ptr_lo" region="jp,en-transl" value="0x32377" zero_addr="0x28010" />
 		<pointer name="iscript_ptr_lo" region="us,randum" value="0x31f7b" zero_addr="0x28010" />
@@ -50,6 +60,23 @@
 		<!-- ROM offset to music data - ptr table -->
 		<pointer name="music_ptr" region="us,randum,jp,en-transl,us-rev-a" value="0x14f0b" zero_addr="0xc010" />
 		<pointer name="music_ptr" region="eu" value="0x14f5a" zero_addr="0xc010" />
+		<!-- npc/ui sprite data ptrs -->
+		<pointer name="gfx_npc_bank6_chr_ptr" value="0x18010" zero_addr="0x18010" />
+		<pointer name="gfx_npc_bank7_chr_ptr" value="0x1c010" zero_addr="0x1c010" />
+		<pointer name="gfx_npc_anim_frame_ptr" value="0x1c016" zero_addr="0x1c010" />
+		<pointer name="gfx_common_chr_data_ptr" value="0x20018" zero_addr="0x20010" />
+		<!-- player sprite data ptrs -->
+		<pointer name="gfx_player_anim_frame_ptr" value="0x1c018" zero_addr="0x1c010" />
+		<pointer name="gfx_player_tile_index_table_ptr" value="0x20010" zero_addr="0x20010" />
+		<pointer name="gfx_weapon_tile_index_table_ptr" value="0x20012" zero_addr="0x20010" />
+		<pointer name="gfx_shield_tile_index_table_ptr" value="0x2001c" zero_addr="0x20010" />
+		<pointer name="gfx_player_chr_data_ptr" value="0x20014" zero_addr="0x20010" />
+		<pointer name="gfx_weapon_chr_data_ptr" value="0x20016" zero_addr="0x20010" />
+		<pointer name="gfx_shield_chr_data_ptr" value="0x2001a" zero_addr="0x20010" />
+		<!-- portrait data ptrs - chr data, ppu load lists and anim frames -->
+		<pointer name="gfx_portrait_anim_frame_ptr" value="0x1c01a" zero_addr="0x1c010" />
+		<pointer name="gfx_portrait_tile_index_table_ptr" value="0x2001e" zero_addr="0x20010" />
+		<pointer name="gfx_portrait_chr_data_ptr" value="0x20020" zero_addr="0x20010" />
 	</pointers>
 	<!-- contant addresses and counts -->
 	<!-- data end offsets will point to the first byte after the end, so data size is (end - start) -->
@@ -61,16 +88,6 @@
 		<!-- end offsets for dynamic data -->
 		<const name="metadata_end" value="0x10010" />
 		<const name="sprite_data_end" value="0x30010" />
-		<!-- randumizer uses free space for functions, we need to keep the original limits -->
-		<!-- if these constants are defined for a region we keep original limits -->
-		<!-- otherwise we use transition_data_start and transition_data_end -->
-		<const name="sameworld_trans_data_end" region="randum" value="0x3ea60" />
-		<const name="otherworld_trans_data_end" region="randum" value="0x3eb3f" />
-		<!-- we combine same-world and other-world transition data if we use the bank 15 free space -->
-		<const name="transition_data_start" region="en-transl" value="0x3fe0a" />
-		<const name="transition_data_start" region="jp" value="0x3fdc2" />
-		<const name="transition_data_start" region="eu,us,us-rev-a" value="0x3fcdd" />
-		<const name="transition_data_end" value="0x3fff0" />
 		<!-- palettes -->
 		<const name="palette_offset" value="0x2c010" />
 		<const name="palette_count" value="31" />
@@ -88,8 +105,15 @@
 		<const name="spawn_loc_data_start" value="0x3ddbd" />
 		<const name="mattock_animations_offset" value="0x3c69f" />
 		<const name="jump_on_animation_offset" value="0x3d6ff" />
-		<const name="palette_to_music_offset" value="0x3e579" />
-		<const name="palette_to_music_slots" value="7" />
+		<const name="pal2mus_entry_count_offset" value="0x3e55b" />
+		<!-- default spawn point count, can be overridden front-end (can not be deduced from rom with certainty) -->
+		<const name="spawn_count" value="8" />
+		<!-- offsets to the constants saying how many bits the spawn point uses when stored in a mantra -->
+		<const name="spawn_bit_count_decode_offset" region="us,us-rev-a,eu,randum" value="0x31607" />
+		<const name="spawn_bit_count_decode_offset" region="jp" value="0x31a03" />
+		<const name="spawn_bit_count_encode_offset" region="us,randum" value="0x31780" />
+		<const name="spawn_bit_count_encode_offset" region="us-rev-a,eu" value="0x317c4" />
+		<const name="spawn_bit_count_encode_offset" region="jp" value="0x31b93" />
 		<!-- path to mascon line-drawing constants -->
 		<const name="ptm_stage_no_offset" value="0x3d782" />
 		<const name="ptm_screen_no_offset" value="0x3d788" />
@@ -101,6 +125,7 @@
 		<const name="ptm_cover_pos_offset" value="0x3ef8a" />
 		<!-- counts -->
 		<const name="sprite_count" value="101" />
+		<const name="command_byte_count" value="3" />
 		<!-- minimum number of iScripts we require when assembling; hard-coded ref to index #151 in game code -->
 		<const name="iscript_min_count" value="152" />
 		<const name="string_data_start" region="eu,us,randum,us-rev-a" value="0x34310" />
@@ -197,6 +222,17 @@
 		<!-- some gfx needed for chr tile pool adjustment for the title screen -->
 		<const name="alphabet_chr_offset" value="0x28250" />
 		<const name="numeric_chr_offset" value="0x28450" />
+		<!-- gfx constants: player -->
+		<const name="gfx_player_tile_count_offset" value="0x3eda5" />
+		<const name="gfx_weapon_tile_count_offset" value="0x3edd1" />
+		<const name="gfx_shield_frame_idx_offset" value="0x3b9e5" />
+		<!-- gfx constants: npcs -->
+		<!-- sprite index defining the cut-off for chr-tiles (bank 6, or 7) - all 3 values must agree -->
+		<const name="gfx_npc_chr_cutoff_ref1" value="0x3c292" />
+		<const name="gfx_npc_chr_cutoff_ref2" value="0x3cda3" />
+		<const name="gfx_npc_chr_cutoff_ref3" value="0x3cda7" />
+		<const name="gfx_npc_ppu_tile_count_offset" value="0x3ce2b" />
+		<const name="gfx_npc_anim_index_offset" value="0x38caf" />
 		<!-- misc data offset -->
 		<!-- title screen strings - variable length with $00-delimiters -->
 		<const name="title_string_offset" region="us,randum" value="0x31dcd" />
@@ -248,6 +284,8 @@
 		<!-- wing boot timer -->
 		<const name="wing_boots_time_count" value="4" />
 		<const name="wing_boots_time_offset" value="0x3c5a9" />
+		<!-- offset of sprite update handler ptr table -->
+		<const name="sprite_update_handlers_offset" value="0x38097" />
 	</consts>
 	<!-- value sets -->
 	<sets>
@@ -257,8 +295,15 @@
 		<!-- ppu-indexed chr-tiles which are part of the fog animation -->
 		<!-- should be considered read-only on bmp import -->
 		<set name="reserved_fog_chr_indexes" values="$80,$82,$84,$86" />
+		<!-- sprites connected to these update handlers use common sprite chr, rather than their own chr-bank -->
+		<set name="common_gfx_sprite_update_handlers"
+		values="0,1,2,3,4,45,48,49,50,51,65" />
 	</sets>
-
+	<!-- boolean flags -->
+	<bools>
+		<!-- disable pal2mus patching for the randomizer as there may or may not be relocation -->
+		<bool name="disable_pal2mus" value="true" region="randum" />
+	</bools>
 	<!-- map from string byte value to symbols - will be used when translating to and from strings used by script engine -->
 	<!-- symbols in strings not defined here will cause the assembly to fail, unless it is a generic byte constant &lt;numeric value&gt; -->
 	<!-- &lt; is less-than and &gt; is greater-than - used here for escaping xml syntax -->
@@ -337,7 +382,7 @@
 			<entry byte="$07" str="Hornet" />
 			<entry byte="$08" str="Bihoruda" />
 			<entry byte="$09" str="Lilith" />
-			<entry byte="$0a" str="Magic Effect #1" />
+			<entry byte="$0a" str="Magic (Ripasheiku/Grieve)" />
 			<entry byte="$0b" str="Yuinaru" />
 			<entry byte="$0c" str="Snowman" />
 			<entry byte="$0d" str="Nash" />
@@ -345,9 +390,9 @@
 			<entry byte="$0f" str="Ishiisu" />
 			<entry byte="$10" str="Execution Hood" />
 			<entry byte="$11" str="Rokusutahn" />
-			<entry byte="$12" str="Unused $12" />
-			<entry byte="$13" str="Enemy Death" />
-			<entry byte="$14" str="Lightning Ball" />
+			<entry byte="$12" str="Unused Snake" />
+			<entry byte="$13" str="Enemy Death (by weapon)" />
+			<entry byte="$14" str="Enemy Death (by magic)" />
 			<entry byte="$15" str="Charron" />
 			<entry byte="$16" str="Invisble, Stationary" />
 			<entry byte="$17" str="Geributa" />
@@ -356,21 +401,21 @@
 			<entry byte="$1a" str="Giant Bees" />
 			<entry byte="$1b" str="Myconid" />
 			<entry byte="$1c" str="Naga" />
-			<entry byte="$1d" str="Unused $1d" />
+			<entry byte="$1d" str="Unused Sword-Wielder" />
 			<entry byte="$1e" str="Giant Strider" />
 			<entry byte="$1f" str="Sir Gawaine" />
 			<entry byte="$20" str="Maskman" />
 			<entry byte="$21" str="Wolfman" />
 			<entry byte="$22" str="Yareeka" />
 			<entry byte="$23" str="Magman" />
-			<entry byte="$24" str="Unused $24" />
+			<entry byte="$24" str="Unused Spear-Wielder" />
 			<entry byte="$25" str="Invisible, Stationary #2" />
 			<entry byte="$26" str="Ikeda" />
-			<entry byte="$27" str="Unused $27" />
+			<entry byte="$27" str="Unused Blue Monster" />
 			<entry byte="$28" str="Lamprey" />
 			<entry byte="$29" str="Invisible, stationary #3" />
 			<entry byte="$2a" str="Monodron" />
-			<entry byte="$2b" str="Unused $2b" />
+			<entry byte="$2b" str="Unused Winged Monster" />
 			<entry byte="$2c" str="Tamazutsu" />
 			<entry byte="$2d" str="Ripasheiku" />
 			<entry byte="$2e" str="Zoradohna" />
@@ -408,10 +453,10 @@
 			<entry byte="$4e" str="Ointment" />
 			<entry byte="$4f" str="Invisible Dialogue" />
 			<entry byte="$50" str="Mattock" />
-			<entry byte="$51" str="Magic Effect #2" />
+			<entry byte="$51" str="Magic (Star)" />
 			<entry byte="$52" str="Final Fountain" />
-			<entry byte="$53" str="Magic Effect #3" />
-			<entry byte="$54" str="Magic Effect #4" />
+			<entry byte="$53" str="Magic (Shadow Eura)" />
+			<entry byte="$54" str="Magic (Player)" />
 			<entry byte="$55" str="Wing Boots" />
 			<entry byte="$56" str="Hour Glass" />
 			<entry byte="$57" str="Magical Rod" />
@@ -498,6 +543,38 @@
 			<entry byte="$00" str="Final Spring Opening" />
 			<entry byte="$01" str="Boss Room" />
 			<entry byte="$02" str="End-Game Room" />
+		</byte_to_string_map>
+		<!-- blocks of free space in bank 15, half open ranges [start, end) -->
+		<byte_to_string_map name="bank15_free_space" region="eu,us,us-rev-a">
+			<entry byte="$00" str="0x3e579:0x3e587" />
+			<entry byte="$01" str="0x3ea57:0x3ea60" />
+			<entry byte="$02" str="0x3eabc:0x3eb3f" />
+			<entry byte="$03" str="0x3ddbd:0x3dded" />
+			<entry byte="$04" str="0x3fcdd:0x3fff0" />
+		</byte_to_string_map>
+		<byte_to_string_map name="bank15_free_space" region="jp">
+			<entry byte="$00" str="0x3e579:0x3e587" />
+			<entry byte="$01" str="0x3ea57:0x3ea60" />
+			<entry byte="$02" str="0x3eabc:0x3eb3f" />
+			<entry byte="$03" str="0x3ddbd:0x3dded" />
+			<entry byte="$04" str="0x3fdc2:0x3fff0" />
+		</byte_to_string_map>
+		<byte_to_string_map name="bank15_free_space" region="en-transl">
+			<entry byte="$00" str="0x3e579:0x3e587" />
+			<entry byte="$01" str="0x3ea57:0x3ea60" />
+			<entry byte="$02" str="0x3eabc:0x3eb3f" />
+			<entry byte="$03" str="0x3ddbd:0x3dded" />
+			<entry byte="$04" str="0x3fe0a:0x3fff0" />
+		</byte_to_string_map>
+		<byte_to_string_map name="bank15_free_space" region="randum">
+			<entry byte="$00" str="0x3dfa9:0x3dfd5" />
+			<entry byte="$01" str="0x3ddbd:0x3dded" />
+			<entry byte="$02" str="0x3ea57:0x3ea60" />
+			<entry byte="$03" str="0x3eabc:0x3eb3f" />
+		</byte_to_string_map>
+		<!-- mapping from world no to door destination index subtract value (default: 0) -->
+		<byte_to_string_map name="door_dest_index_sub">
+			<entry byte="$03" str="$20" />
 		</byte_to_string_map>
 		<!-- world tilemaps bank ROM offsets -->
 		<byte_to_string_map name="tilemap_bank_offsets">
@@ -1243,6 +1320,234 @@
 			<entry byte="$02" str="RAM_SPRITE_FLAGS:$02dc" />
 			<entry byte="$03" str="RAM_SPRITE_HIT_COUNTER:$034c" />
 			<entry byte="$04" str="RAM_SPRITE_VALUES:$036c" />
+		</byte_to_string_map>
+		<!-- bank14 cpu addresses of the sprite handlers - unfortunately the only kind of key we can use -->
+		<byte_to_string_map name="sprite_update_handler_cpu_addr">
+			<!-- enemy death (by weapon) -->
+			<entry byte="$00" str="$822d" />
+			<!-- boss death -->
+			<entry byte="$01" str="$8278" />
+			<!-- enemy death (by magic) -->
+			<entry byte="$02" str="$828a" />
+			<!-- invisible -->
+			<entry byte="$03" str="$8c97" />
+			<!-- coin -->
+			<entry byte="$04" str="$8d6d" />
+			<!-- raiden -->
+			<entry byte="$05" str="$8d7f" />
+			<!-- necron aides -->
+			<entry byte="$06" str="$8e43" />
+			<!-- zombie -->
+			<entry byte="$07" str="$8e56" />
+			<!-- hornet -->
+			<entry byte="$08" str="$8ec1" />
+			<!-- bihoruda -->
+			<entry byte="$09" str="$8f17" />
+			<!-- lilith -->
+			<entry byte="$0a" str="$8fd8" />
+			<!-- yuinaru -->
+			<entry byte="$0b" str="$9032" />
+			<!-- snowman -->
+			<entry byte="$0c" str="$9043" />
+			<!-- nash -->
+			<entry byte="$0d" str="$90de" />
+			<!-- fire giant -->
+			<entry byte="$0e" str="$910e" />
+			<!-- ishiisu -->
+			<entry byte="$0f" str="$918d" />
+			<!-- execution hood -->
+			<entry byte="$10" str="$921e" />
+			<!-- charron -->
+			<entry byte="$11" str="$9260" />
+			<!-- geributa -->
+			<entry byte="$12" str="$9286" />
+			<!-- sugata -->
+			<entry byte="$13" str="$929e" />
+			<!-- grimlock -->
+			<entry byte="$14" str="$92af" />
+			<!-- giant bees -->
+			<entry byte="$15" str="$93ab" />
+			<!-- myconid -->
+			<entry byte="$16" str="$93bc" />
+			<!-- naga -->
+			<entry byte="$17" str="$9441" />
+			<!-- unused sword-wielder -->
+			<entry byte="$18" str="$9452" />
+			<!-- giant strider -->
+			<entry byte="$19" str="$947c" />
+			<!-- sir gawaine -->
+			<entry byte="$1a" str="$9512" />
+			<!-- maskman -->
+			<entry byte="$1b" str="$951b" />
+			<!-- wolman -->
+			<entry byte="$1c" str="$9534" />
+			<!-- yareeka -->
+			<entry byte="$1d" str="$95ad" />
+			<!-- magman -->
+			<entry byte="$1e" str="$961a" />
+			<!-- unused spear-wielder -->
+			<entry byte="$1f" str="$96e9" />
+			<!-- ikeda -->
+			<entry byte="$20" str="$9703" />
+			<!-- unused blue monster -->
+			<entry byte="$21" str="$975d" />
+			<!-- lamprey -->
+			<entry byte="$22" str="$976f" />
+			<!-- monodron -->
+			<entry byte="$23" str="$979a" />
+			<!-- unused winged monster -->
+			<entry byte="$24" str="$9852" />
+			<!-- tamazutsu -->
+			<entry byte="$25" str="$98b2" />
+			<!-- rokusatahn -->
+			<entry byte="$26" str="$990a" />
+			<!-- unused snake boss -->
+			<entry byte="$27" str="$9adb" />
+			<!-- ripasheiku -->
+			<entry byte="$28" str="$9c50" />
+			<!-- zoradohna -->
+			<entry byte="$29" str="$9c7a" />
+			<!-- borabohra -->
+			<entry byte="$2a" str="$9ccf" />
+			<!-- pakukame -->
+			<entry byte="$2b" str="$9d93" />
+			<!-- zorugeriru -->
+			<entry byte="$2c" str="$9e4e" />
+			<!-- zorugeriru rock -->
+			<entry byte="$2d" str="$9ee3" />
+			<!-- king grieve -->
+			<entry byte="$2e" str="$9fc3" />
+			<!-- shadow eura -->
+			<entry byte="$2f" str="$a06d" />
+			<!-- star magic -->
+			<entry byte="$30" str="$a0e7" />
+			<!-- wyveren/grieve magic -->
+			<entry byte="$31" str="$a11f" />
+			<!-- shadow eura magic -->
+			<entry byte="$32" str="$a1c1" />
+			<!-- player magic -->
+			<entry byte="$33" str="$a1f4" />
+			<!-- walking man #1 -->
+			<entry byte="$34" str="$a26a" />
+			<!-- blue lady -->
+			<entry byte="$35" str="$a289" />
+			<!-- child -->
+			<entry byte="$36" str="$a28c" />
+			<!-- armor salesman -->
+			<entry byte="$37" str="$a28f" />
+			<!-- martial arts -->
+			<entry byte="$38" str="$a29f" />
+			<!-- guru -->
+			<entry byte="$39" str="$a2ae" />
+			<!-- king -->
+			<entry byte="$3a" str="$a2bd" />
+			<!-- magic teacher / spring wise man -->
+			<entry byte="$3b" str="$a2d7" />
+			<!-- key salesman++ -->
+			<entry byte="$3c" str="$a2e6" />
+			<!-- tavern dining man -->
+			<entry byte="$3d" str="$a2f6" />
+			<!-- meat vendor++ -->
+			<entry byte="$3e" str="$a2fd" />
+			<!-- eyeball/zozura -->
+			<entry byte="$3f" str="$a303" />
+			<!-- items -->
+			<entry byte="$40" str="$a309" />
+			<!-- bread -->
+			<entry byte="$41" str="$a312" />
+			<!-- final spring -->
+			<entry byte="$42" str="$a334" />
+			<!-- special items -->
+			<entry byte="$43" str="$a34a" />
+			<!-- springs -->
+			<entry byte="$44" str="$a5d1" />
+		</byte_to_string_map>
+		<!-- how many frames an update handler uses - if not given assumed to be one -->
+		<!-- this is kept in config since it is not feasible to deduce it from the game logic -->
+		<byte_to_string_map name="sprite_update_handler_anim_frame_counts">
+			<entry byte="$00" str="4" />
+			<entry byte="$01" str="4" />
+			<entry byte="$02" str="4" />
+			<entry byte="$04" str="2" />
+			<entry byte="$05" str="4" />
+			<entry byte="$06" str="2" />
+			<entry byte="$07" str="3" />
+			<entry byte="$08" str="2" />
+			<entry byte="$09" str="2" />
+			<entry byte="$0a" str="2" />
+			<entry byte="$0b" str="2" />
+			<entry byte="$0c" str="2" />
+			<entry byte="$0d" str="3" />
+			<entry byte="$0e" str="3" />
+			<entry byte="$0f" str="4" />
+			<entry byte="$10" str="2" />
+			<entry byte="$11" str="3" />
+			<entry byte="$12" str="3" />
+			<entry byte="$13" str="2" />
+			<entry byte="$14" str="4" />
+			<entry byte="$15" str="2" />
+			<entry byte="$16" str="2" />
+			<entry byte="$17" str="2" />
+			<entry byte="$18" str="4" />
+			<entry byte="$19" str="3" />
+			<entry byte="$1a" str="3" />
+			<entry byte="$1b" str="5" />
+			<entry byte="$1c" str="3" />
+			<entry byte="$1d" str="2" />
+			<entry byte="$1e" str="2" />
+			<entry byte="$1f" str="4" />
+			<entry byte="$20" str="3" />
+			<entry byte="$21" str="2" />
+			<entry byte="$22" str="4" />
+			<entry byte="$23" str="3" />
+			<entry byte="$24" str="2" />
+			<entry byte="$25" str="7" />
+			<entry byte="$26" str="4" />
+			<entry byte="$27" str="5" />
+			<entry byte="$28" str="4" />
+			<entry byte="$29" str="4" />
+			<entry byte="$2a" str="8" />
+			<entry byte="$2b" str="3" />
+			<entry byte="$2c" str="6" />
+			<entry byte="$2d" str="6" />
+			<entry byte="$2e" str="3" />
+			<entry byte="$2f" str="10" />
+			<entry byte="$30" str="2" />
+			<entry byte="$31" str="2" />
+			<entry byte="$32" str="3" />
+			<entry byte="$33" str="20" />
+			<entry byte="$34" str="3" />
+			<entry byte="$35" str="3" />
+			<entry byte="$36" str="3" />
+			<entry byte="$37" str="2" />
+			<entry byte="$38" str="2" />
+			<entry byte="$39" str="2" />
+			<entry byte="$3a" str="4" />
+			<entry byte="$3b" str="2" />
+			<entry byte="$3c" str="2" />
+			<entry byte="$3d" str="2" />
+			<entry byte="$3e" str="2" />
+			<entry byte="$3f" str="2" />
+			<entry byte="$42" str="7" />
+			<entry byte="$44" str="7" />
+		</byte_to_string_map>
+		<!-- an update handler applies a delta to the frame tile idxs -->
+		<byte_to_string_map name="frame_idx_translations">
+			<entry byte="49" str="$80" />
+		</byte_to_string_map>
+		<!-- adjustmens to render npc animations in the GUI, keyed by handler -->
+		<byte_to_string_map name="sprite_update_handler_gui">
+			<!-- hide "scantily clad woman" within maskman -->
+			<entry byte="27" str="hide_frames:2,3" />
+			<!-- stack snake body parts -->
+			<entry byte="39" str="stack" />
+			<!-- zorugeriruk; hide non-rock frames -->
+			<entry byte="44" str="hide_frames:3,4,5" />
+			<!-- zorugeriru rock; use zorugeriru chr-bank and hide non-rock frames -->
+			<entry byte="45" str="hide_frames:0,1,2;chr_bank_from:44" />
+			<!-- add +8 to x-offset for all springs (done in bScripts) -->
+			<entry byte="66" str="add_x_offset:8" />
+			<entry byte="68" str="add_x_offset:8" />
 		</byte_to_string_map>
 	</byte_to_string_maps>
 </eoe_config>

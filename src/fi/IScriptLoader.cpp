@@ -8,12 +8,20 @@ fi::IScriptLoader::IScriptLoader(const std::vector<byte>& p_rom) :
 {
 }
 
+void fi::IScriptLoader::reset(void) {
+	ptr_table.clear();
+	m_instructions.clear();
+	m_shops.clear();
+	m_jump_targets.clear();
+	m_shop_addresses.clear();
+	m_strings.clear();
+}
+
 void fi::IScriptLoader::parse_rom(const fe::Config& p_config) {
+	reset();
+
 	// parse strings
 	parse_strings(p_config);
-
-	// parse IScript blob
-	ptr_table.clear();
 
 	// extract vals we need from config
 	std::size_t l_iscript_hi_ref{ p_config.constant(c::ID_ISCRIPT_PTR_HI_REF_OFFSET) };
@@ -31,6 +39,8 @@ void fi::IScriptLoader::parse_rom(const fe::Config& p_config) {
 
 	for (const auto offset : ptr_table)
 		parse_blob_from_entrypoint(offset, l_iscript_ptr.second, true);
+
+	normalize_shop_indexes();
 }
 
 void fi::IScriptLoader::parse_strings(const fe::Config& p_config) {
@@ -162,5 +172,49 @@ void fi::IScriptLoader::parse_blob_from_entrypoint(size_t offset,
 		if (op.ends_stream)
 			break;
 
+	}
+}
+
+void fi::IScriptLoader::normalize_shop_indexes() {
+	if (m_shop_addresses.size() != m_shops.size())
+		throw std::runtime_error("Shop normalization failed: inconsistent shop count");
+	else if (m_shops.empty())
+		return;
+
+	// (shop ROM address, old shop index)
+	std::vector<std::pair<std::size_t, std::size_t>> shops_by_addr;
+	shops_by_addr.reserve(m_shop_addresses.size());
+
+	for (const auto& [addr, old_index] : m_shop_addresses)
+		shops_by_addr.emplace_back(addr, old_index);
+
+	std::sort(begin(shops_by_addr), end(shops_by_addr));
+
+	// old index -> new index
+	std::vector<std::size_t> old_to_new(m_shops.size());
+
+	std::vector<fi::Shop> reordered_shops;
+	reordered_shops.reserve(m_shops.size());
+
+	for (std::size_t new_index{ 0 }; new_index < shops_by_addr.size(); ++new_index) {
+		const auto [addr, old_index] = shops_by_addr[new_index];
+		old_to_new[old_index] = new_index;
+		reordered_shops.push_back(m_shops[old_index]);
+		m_shop_addresses[addr] = new_index;
+	}
+
+	m_shops = std::move(reordered_shops);
+
+	// remap instruction operands for shop-reading opcodes
+	for (auto& [offset, instr] : m_instructions) {
+		if (instr.type == fi::Instruction_type::OpCode) {
+			auto opcode_it = opcodes.find(instr.opcode_byte);
+			if (opcode_it != opcodes.end() &&
+				opcode_it->second.flow == Flow::Read &&
+				instr.operand.has_value()) {
+				instr.operand = static_cast<uint16_t>(
+					old_to_new.at(static_cast<std::size_t>(instr.operand.value())));
+			}
+		}
 	}
 }

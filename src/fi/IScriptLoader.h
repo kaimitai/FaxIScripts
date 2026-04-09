@@ -32,10 +32,12 @@ namespace fi {
 		// we parse shops when we see them and assign an index if it is unique
 		std::map<std::size_t, std::size_t> m_shop_addresses;
 
+		void reset(void);
 		void parse_rom(const fe::Config& p_config);
 		void parse_strings(const fe::Config& p_config);
 		void parse_blob_from_entrypoint(size_t offset, size_t zeroaddr,
 			bool at_entrypoint);
+		void normalize_shop_indexes(void);
 
 		byte read_byte(std::size_t& offset) const;
 		uint16_t read_short(std::size_t& offset) const;

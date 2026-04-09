@@ -218,6 +218,9 @@ void fman::Mantra::set_rank(int p_rank) {
 
 void fman::Mantra::set_location(int p_location) {
 	set_int_value(m_location, p_location, c::MAX_LOCATION);
+
+	if (m_location >= m_spawn_count)
+		m_spawn_count = m_location + 1;
 }
 
 void fman::Mantra::set_gamestate_flag(std::size_t p_idx, bool p_value) {

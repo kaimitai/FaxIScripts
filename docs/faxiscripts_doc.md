@@ -1032,17 +1032,17 @@ u1 and u2 are unknown quest bits. They are not used in the original game.
 
 One example of a mantra generation, using short-hand for some constants:
 
-```faxiscripts m -ew giant -ea full -es mag -ei jo -sw hand -sm death,deluge,fire -si red,red,matt,ace,king,wing -s elix,black,elf -g sky,mascon,wing```
+```faxiscripts m -ew giant -ea full -es mag -ei jo -sw hand -sm death,deluge,fire -si red,red,matt,ace,king,wing -s elix,black,elf -g sky,mascon,wing -l 4 -r myrmidon```
 
-will generate the following mantra and output (location and rank were not given so they defaulted to 0):
+will generate the following mantra and output:
 
 ```
-Mantra: n5gIkq2yggDYTQgkhXg
-Checksum: 159
+Mantra: 65y4kq2yggDYTQgkhXg
+Checksum: 235
 Character count: 19
 
-Location: Eolis (0 of 8)
-Rank: Novice
+Location: Victim (4 of 8)
+Rank: Myrmidon
 
 Equipped weapon: Giant Blade
 Equipped armor: Full Plate
@@ -1060,7 +1060,33 @@ Special items (3): Ring of Elf, Elixir, Black Onix
 Gamestate flags (3): Path to Mascon, Stone Dropper Wing Boots, Sky Spring
 ```
 
-If you had a ROM with 27 spawn points and you wanted to start at location 18, you would have ```-sc 27 -l 18``` somewhere in your command.
+This assumes the ROM had 8 spawn points. If you want a mantra for a ROM with 17 spawn points, for example, you would add ```-sc 17``` to the command above, which would give the output:
+
+```
+Mantra: y5kuJKtsoIA2E0IJIV4
+Checksum: 203
+Character count: 19
+
+Location: Victim (4 of 17)
+Rank: Myrmidon
+
+Equipped weapon: Giant Blade
+Equipped armor: Full Plate
+Equipped shield: Magic Shield
+Equipped magic: (none)
+Equipped item: Key Jo
+
+Stored weapons (1): Hand Dagger
+Stored armors (0): (none)
+Stored shields (0): (none)
+Stored magics (3): Death, Deluge, Fire
+Stored items (6): Red Potion, Red Potion, Mattock, Key A, Key K, Wing Boots
+
+Special items (3): Ring of Elf, Elixir, Black Onix
+Gamestate flags (3): Path to Mascon, Stone Dropper Wing Boots, Sky Spring
+```
+
+The entire gamestate was the same, but the mantra changed because five bits were used to encode the location, instead of three in the first example. This causes a ripple effect in the password string.
 
 <hr>
 

@@ -8,6 +8,8 @@ This tool is used for extracting data from Faxanadu (NES) ROMs - scripts and mus
 
 The aim of this assembler is to extract script code to human-readable formats reminiscent of assembly code. We aim to stay at the highest possible layer of abstraction without losing any extracted information.
 
+The application is compatible out of the box with the following ROM regions: US, US Revision A, EU, JP and a well-known [English Translation Hack](https://www.romhacking.net/translations/4281/).
+
 Make sure to read the [documentation](./docs/faxiscripts_doc.md) for a detailed overview of the syntax and structure of the assembly files we will be editing, as well as a list of all available opcodes.
 
 <hr>
@@ -129,6 +131,13 @@ We prioritize fixing bugs if any are discovered, but here are some ideas for fut
 <hr>
 
 ### Version History
+
+* 2026-04-09: version 0.8
+    * Full mantra encoding and decoding 
+       - The CLI now supports encoding and decoding mantras. This includes full compatibility with ROMs that use extended spawn‑point counts.
+       - Arguments used when encoding a mantra support unambiguous prefix matching.
+    * Shop indexes assigned during iScript disassembly now based on ROM address, not order of discovery
+       - This means that if you disassemble a script section you previously assembled, you will get the same indexes you used in the first place
 
 * 2026-02-22: version 0.7
     * Added new miscellaneous data interface for changing static data:
