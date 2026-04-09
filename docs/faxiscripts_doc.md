@@ -944,26 +944,26 @@ The flag -m, for example, decodes a mantra string. For example, to decode the ma
 which will output
 
 ```
-Mantra: CIgP??390OwAKNToy
-Checksum: 8
-Character count: 17
+Mantra: 8qB?3??8TgCNQukz3kK8
+Checksum: 242
+Character count: 20
 
 Location: Eolis (0 of 8)
-Rank: Novice
+Rank: Warrior
 
-Equipped weapon: Giant Blade
+Equipped weapon: Dragon Slayer
 Equipped armor: Battle Suit
 Equipped shield: Battle Helm
-Equipped magic: Death
-Equipped item: Key Jo
+Equipped magic: Deluge
+Equipped item: Key J
 
-Stored weapons (3): Giant Blade, Dragon Slayer, Hand Dagger
+Stored weapons (0): (none)
 Stored armors (0): (none)
 Stored shields (0): (none)
-Stored magics (0): (none)
-Stored items (5): Demon's Ring, Rod, Book, Black Potion, Elixir
+Stored magics (4): Death, Fire, Tilte, Thunder
+Stored items (7): Mattock, Key Q, Wing Boots, Wing Boots, Key A, Key K, Wing Boots
 
-Special items (8): Ring of Elf, Ring of Ruby, Ring of Dworf, Demon's Ring, Elixir, Magical Rod, Pendant, Black Onix
+Special items (7): Ring of Elf, Ring of Ruby, Ring of Dworf, Demon's Ring, Elixir, Magical Rod, Black Onix
 Gamestate flags (8): Unknown 1, Unknown 2, Path to Mascon, Wyvern Mattock, Stone Dropper Wing Boots, Dungeon Spring, Sky Spring, Tower Spring
 ```
 
