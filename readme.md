@@ -69,6 +69,10 @@ While not an assembly format, the application also has a mode to extract miscell
 
 <hr>
 
+There is also a mantra-mode, which can encode and decode mantra strings.
+
+<hr>
+
 ## Assembler Capabilities
 The assembler has the following features:
 
@@ -116,6 +120,9 @@ Another instruction will translate the textual data and patch it back to ROM.
 
 The command `faxiscripts bmisc faxanadu.txt "Faxanadu (U).nes"` will patch "Faxanadu (U).nes" with the misc data from faxanadu.txt.
 
+There is also an instruction which will encode and decode mantras. This functionality works with a non-standard number of spawn points in the game; to be used if you added new spawn locations with [Echoes of Eolis](https://github.com/kaimitai/faxedit) for example.
+
+The command ```faxiscripts m <argument list>``` will encode or decode a mantra based on the argument list. The possible arguments are too numerous to mention here, but they are [documented](https://github.com/kaimitai/FaxIScripts/blob/master/docs/faxiscripts_doc.md#mantra-encoder).
 
 <hr>
 
