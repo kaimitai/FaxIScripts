@@ -178,11 +178,17 @@ void fi::AsmReader::parse_section_shops() {
 
 
 std::string fi::AsmReader::strip_comment(const std::string& line) const {
-	size_t pos = line.find(';');
-	if (pos != std::string::npos)
-		return line.substr(0, pos);
-	else
-		return line;
+	bool in_string = false;
+
+	for (size_t i{ 0 }; i < line.size(); ++i) {
+		if (line[i] == '"')
+			in_string = !in_string;
+
+		if (!in_string && line[i] == ';')
+			return line.substr(0, i);
+	}
+
+	return line;
 }
 
 std::string fi::AsmReader::trim(const std::string& line) const {

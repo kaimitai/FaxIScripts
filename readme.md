@@ -139,6 +139,9 @@ We prioritize fixing bugs if any are discovered, but here are some ideas for fut
 
 ### Version History
 
+* 2026-05-02: version 0.81
+   * Fixed a bug where semicolons inside strings were incorrectly treated as comment delimiters. While semicolons are not supported in the original iScript strings, this change allows custom ROMs with custom character mappings to use them without issues.
+
 * 2026-04-09: version 0.8
     * Full mantra encoding and decoding 
        - The CLI now supports encoding and decoding mantras. This includes full compatibility with ROMs that use extended spawn‑point counts.
@@ -202,6 +205,9 @@ Another special thanks to [Jessica](https://www.romhacking.net/community/9037/) 
 
 <hr>
 
-You can also find me on the **Faxanadu Randomizer & Romhacking** Discord server, the main hub for all things Faxanadu.
+* You can find me on the **Faxanadu Randomizer & Romhacking** Discord server, the main hub for all things Faxanadu.
 
-[![Discord](https://img.shields.io/badge/Faxanadu%20Randomizer%20%26%20Romhacking-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/K65uxXhA)
+  [![Discord](https://img.shields.io/badge/Faxanadu%20Randomizer%20%26%20Romhacking-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/AyJErR8kyV)
+
+* Dont't miss [Root of Decay](https://www.okimpala.net/faxanadu-root-of-decay) - An upcoming Faxanadu ROM hack by Ok Impala!
+* Check out [Jessica's Alternate Soundtrack hack](https://www.romhacking.net/hacks/9396/), a full music replacement hack for Faxanadu!
