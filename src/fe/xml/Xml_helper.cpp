@@ -1,16 +1,18 @@
 #include "Xml_helper.h"
 #include "Xml_constants.h"
+#include "./../Config.h"
 #include <format>
 #include <stdexcept>
 
 using byte = unsigned char;
 
 void fe::xml::load_configuration(const std::string& p_config_xml,
-	const std::string& p_region_name,
+	const fe::ConfigRegion& p_region,
 	std::map<std::string, std::size_t>& p_constants,
 	std::map<std::string, std::pair<std::size_t, std::size_t>>& p_pointers,
 	std::map<std::string, std::vector<byte>>& p_sets,
 	std::map<std::string, std::map<byte, std::string>>& p_byte_maps,
+	std::map<std::string, bool>& p_bools,
 	bool p_throw_on_file_not_exists) {
 	pugi::xml_document l_doc;
 
@@ -45,8 +47,7 @@ void fe::xml::load_configuration(const std::string& p_config_xml,
 		for (auto n_const{ n_consts.child(c::TAG_CONSTANT) }; n_const;
 			n_const = n_const.next_sibling(c::TAG_CONSTANT)) {
 
-			if (!n_const.attribute(c::TAG_REGION) ||
-				region_match(p_region_name, n_const.attribute(c::TAG_REGION).as_string())) {
+			if (matches_config_region(n_const, p_region)) {
 
 				std::string l_name{ n_const.attribute(c::ATTR_NAME).as_string() };
 
@@ -64,8 +65,7 @@ void fe::xml::load_configuration(const std::string& p_config_xml,
 		for (auto n_ptr{ n_ptrs.child(c::TAG_POINTER) }; n_ptr;
 			n_ptr = n_ptr.next_sibling(c::TAG_POINTER)) {
 
-			if (!n_ptr.attribute(c::TAG_REGION) ||
-				region_match(p_region_name, n_ptr.attribute(c::TAG_REGION).as_string())) {
+			if (matches_config_region(n_ptr, p_region)) {
 
 				std::string l_name{ n_ptr.attribute(c::ATTR_NAME).as_string() };
 
@@ -86,8 +86,7 @@ void fe::xml::load_configuration(const std::string& p_config_xml,
 		for (auto n_set{ n_sets.child(c::TAG_SET) }; n_set;
 			n_set = n_set.next_sibling(c::TAG_SET)) {
 
-			if (!n_set.attribute(c::TAG_REGION) ||
-				region_match(p_region_name, n_set.attribute(c::TAG_REGION).as_string())) {
+			if (matches_config_region(n_set, p_region)) {
 
 				std::string l_name{ n_set.attribute(c::ATTR_NAME).as_string() };
 
@@ -99,14 +98,31 @@ void fe::xml::load_configuration(const std::string& p_config_xml,
 		}
 	}
 
+	// bools
+	auto n_bools{ n_root.child(c::TAG_BOOLS) };
+	if (n_bools) {
+		for (auto n_bool{ n_bools.child(c::TAG_BOOL) }; n_bool;
+			n_bool = n_bool.next_sibling(c::TAG_BOOL)) {
+
+			if (matches_config_region(n_bool, p_region)) {
+
+				std::string l_name{ n_bool.attribute(c::ATTR_NAME).as_string() };
+
+				if (p_bools.find(l_name) == end(p_bools))
+					p_bools.insert(std::make_pair(l_name,
+						n_bool.attribute(c::ATTR_VALUE).as_bool()
+					));
+			}
+		}
+	}
+
 	// maps byte -> string (labels, char maps etc)
 	auto n_bmaps{ n_root.child(c::TAG_BYTE_TO_STR_MAPS) };
 	if (n_bmaps) {
 		for (auto n_bmap{ n_bmaps.child(c::TAG_BYTE_TO_STR_MAP) }; n_bmap;
 			n_bmap = n_bmap.next_sibling(c::TAG_BYTE_TO_STR_MAP)) {
 
-			if (!n_bmap.attribute(c::TAG_REGION) ||
-				region_match(p_region_name, n_bmap.attribute(c::TAG_REGION).as_string())) {
+			if (matches_config_region(n_bmap, p_region)) {
 
 				std::string l_name{ n_bmap.attribute(c::ATTR_NAME).as_string() };
 
@@ -170,6 +186,14 @@ std::vector<fe::RegionDefinition> fe::xml::load_region_defs(const std::string& p
 			l_region.m_name = n_region.attribute(c::ATTR_NAME).as_string();
 			if (n_region.attribute(c::ATTR_FILE_SIZE))
 				l_region.m_filesize = parse_numeric(n_region.attribute(c::ATTR_FILE_SIZE).as_string());
+
+			if (n_region.attribute(c::ATTR_COMPATIBLE_REGIONS)) {
+
+				for (const auto& reg : split_csv(n_region.attribute(
+					c::ATTR_COMPATIBLE_REGIONS).as_string())) {
+					l_region.m_compatible_regions.insert(reg);
+				}
+			}
 
 			for (auto n_sig{ n_region.child(c::TAG_SIGNATURE) }; n_sig;
 				n_sig = n_sig.next_sibling(c::TAG_SIGNATURE)) {
@@ -278,19 +302,75 @@ std::vector<byte> fe::xml::parse_byte_list(const std::string& input) {
 	return result;
 }
 
-bool fe::xml::region_match(const std::string& current_region, const std::string& region_list) {
+bool fe::xml::region_match(const fe::ConfigRegion& current_region, const std::string& region_list,
+	bool exact_match_only) {
 	size_t start = 0;
 	size_t end;
 
 	while ((end = region_list.find(',', start)) != std::string::npos) {
 		std::string token = region_list.substr(start, end - start);
 		token = trim_whitespace(token);
-		if (token == current_region) return true;
+		if (token == current_region.region)
+			return true;
+
+		if (!exact_match_only &&
+			current_region.compatible_regions.contains(token))
+			return true;
+
 		start = end + 1;
 	}
 
 	// Handle final token
-	std::string token = region_list.substr(start);
-	token = trim_whitespace(token);
-	return token == current_region;
+	std::string token{ trim_whitespace(region_list.substr(start)) };
+
+	if (token == current_region.region)
+		return true;
+
+	if (!exact_match_only &&
+		current_region.compatible_regions.contains(token))
+		return true;
+
+	return false;
+}
+
+bool fe::xml::matches_config_region(const pugi::xml_node& p_node,
+	const fe::ConfigRegion& p_region) {
+	if (!p_node.attribute(c::TAG_REGION))
+		return true;
+
+	bool exact_match_only{
+		p_node.attribute(c::ATTR_EXACT_MATCH_ONLY).as_bool(false)
+	};
+
+	return region_match(
+		p_region,
+		p_node.attribute(c::TAG_REGION).as_string(),
+		exact_match_only
+	);
+}
+
+std::vector<std::string> fe::xml::split_csv(const std::string& p_values) {
+	std::vector<std::string> result;
+
+	std::size_t start = 0;
+
+	while (start < p_values.size()) {
+
+		std::size_t end = p_values.find(',', start);
+
+		if (end == std::string::npos)
+			end = p_values.size();
+
+		std::string token{
+			trim_whitespace(
+				p_values.substr(start, end - start)
+			)
+		};
+
+		if (!token.empty())
+			result.push_back(token);
+		start = end + 1;
+	}
+
+	return result;
 }

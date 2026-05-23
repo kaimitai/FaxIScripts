@@ -146,6 +146,9 @@ fi::Cli::Cli(int argc, char** argv) :
 		misc_to_nes(m_in_file, m_out_file, m_source_rom.empty() ? m_out_file : m_source_rom);
 	else if (m_script_mode == fi::ScriptMode::MiscExtract)
 		nes_to_misc(m_in_file, m_out_file, m_overwrite);
+	// debug
+	else if (m_script_mode == fi::ScriptMode::DumpConfig)
+		dump_config(m_in_file, m_out_file);
 	// can't really happen
 	else
 		throw(std::runtime_error("Invalid script mode"));
@@ -397,7 +400,7 @@ void fi::Cli::nes_to_asm(const std::string& p_nes_filename,
 	}
 	else {
 		m_config.set_region(m_region);
-		std::cout << "ROM region specified as '" << m_region << "\n";
+		std::cout << "ROM region specified as '" << m_region << "'\n";
 	}
 
 	m_config.load_config_data(appc::CONFIG_XML, appc::CONFIG_OVERRIDE_FILE_NAME);
@@ -439,7 +442,7 @@ void fi::Cli::nes_to_basm(const std::string& p_nes_filename,
 	}
 	else {
 		m_config.set_region(m_region);
-		std::cout << "ROM region specified as '" << m_region << "\n";
+		std::cout << "ROM region specified as '" << m_region << "'\n";
 	}
 
 	m_config.load_config_data(appc::CONFIG_XML, appc::CONFIG_OVERRIDE_FILE_NAME);
@@ -476,7 +479,7 @@ void fi::Cli::nes_to_masm(const std::string& p_nes_filename,
 	}
 	else {
 		m_config.set_region(m_region);
-		std::cout << "ROM region specified as '" << m_region << "\n";
+		std::cout << "ROM region specified as '" << m_region << "'\n";
 	}
 
 	m_config.load_config_data(appc::CONFIG_XML, appc::CONFIG_OVERRIDE_FILE_NAME);
@@ -618,6 +621,14 @@ void fi::Cli::save_lilypond_files(fm::MMLSongCollection& coll,
 	}
 }
 
+void fi::Cli::dump_config(const std::string& p_nes_filename,
+	const std::string& p_dump_filename) {
+	const auto rom_data{ load_rom_and_determine_region(p_nes_filename) };
+
+	klib::file::write_string_to_file(m_config.to_string(), p_dump_filename);
+	std::cout << "Wrote resolved configuration dump to " << p_dump_filename << "!\n";
+}
+
 void fi::Cli::parse_arguments(int arg_start, int argc, char** argv) {
 	for (int i{ arg_start }; i < argc; ++i) {
 		std::string argvi{ argv[i] };
@@ -652,7 +663,7 @@ std::vector<byte> fi::Cli::load_rom_and_determine_region(
 	}
 	else {
 		m_config.set_region(m_region);
-		std::cout << "ROM region specified as '" << m_region << "\n";
+		std::cout << "ROM region specified as '" << m_region << "'\n";
 	}
 
 	m_config.load_config_data(appc::CONFIG_XML, appc::CONFIG_OVERRIDE_FILE_NAME);
@@ -724,6 +735,9 @@ void fi::Cli::set_mode(const std::string& p_mode) {
 	}
 	else if (check_mode(p_mode, appc::CMD_EXTRACT_MISC)) {
 		m_script_mode = fi::ScriptMode::MiscExtract;
+	}
+	else if (check_mode(p_mode, appc::CMD_DUMP_CONFIG)) {
+		m_script_mode = fi::ScriptMode::DumpConfig;
 	}
 	else throw std::runtime_error("Unknown commad " + p_mode);
 }

@@ -14,7 +14,8 @@ namespace fi {
 		MmlToLilyPond, RomToLilyPond,
 		MScriptBuild, MScriptExtract,
 		BScriptBuild, BScriptExtract,
-		MiscBuild, MiscExtract
+		MiscBuild, MiscExtract,
+		DumpConfig
 	};
 
 	class Cli {
@@ -87,6 +88,10 @@ namespace fi {
 		void nes_to_misc(const std::string& p_nes_filename,
 			const std::string& p_txt_filename,
 			bool p_overwrite);
+
+		// debug
+		void dump_config(const std::string& p_nes_filename,
+			const std::string& p_dump_filename);
 
 		// common
 		std::vector<byte> load_rom_and_determine_region(const std::string& p_nes_filename);

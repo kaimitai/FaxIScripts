@@ -10,7 +10,7 @@ namespace fi {
 	namespace appc {
 
 		constexpr char APP_NAME[]{ "FaxIScripts" };
-		constexpr char APP_VERSION[]{ "0.81" };
+		constexpr char APP_VERSION[]{ "0.82" };
 		constexpr char APP_URL[]{ "https://github.com/kaimitai/FaxIScripts" };
 		constexpr char CONFIG_XML[]{ "eoe_config.xml" };
 		constexpr char CONFIG_OVERRIDE_FILE_NAME[]{ "eoe_config_override.xml" };
@@ -29,6 +29,7 @@ namespace fi {
 		inline const std::pair<std::string, std::string> CMD_BUILD_BSCRIPTS{ "build-bscript" , "bb" };
 		inline const std::pair<std::string, std::string> CMD_EXTRACT_MISC{ "extract-misc" , "xmisc" };
 		inline const std::pair<std::string, std::string> CMD_BUILD_MISC{ "build-misc" , "bmisc" };
+		inline const std::pair<std::string, std::string> CMD_DUMP_CONFIG{ "dump-config" , "dc" };
 
 		inline const std::vector<std::pair<std::string, std::string>> CLI_FLAGS{
 			{"--no-shop-comments", "-p"},

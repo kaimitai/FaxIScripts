@@ -4,6 +4,7 @@
 #include <map>
 #include <string>
 #include <optional>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 #include "./../../common/pugixml/pugixml.hpp"
@@ -16,21 +17,25 @@ namespace fe {
 	struct RegionDefinition {
 		std::optional<std::size_t> m_filesize;
 		std::string m_name;
+		std::unordered_set<std::string> m_compatible_regions;
 
 		// vector of pairs {ROM offset -> vector of values matching at that offset}
 		std::vector<std::pair<std::size_t, std::vector<byte>>> m_defs;
 	};
+
+	struct ConfigRegion;
 
 	namespace xml {
 
 		std::vector<RegionDefinition> load_region_defs(const std::string& p_xml_file,
 			bool p_throw_on_file_not_exists = true);
 		void load_configuration(const std::string& p_config_xml,
-			const std::string& p_region_name,
+			const fe::ConfigRegion& p_region,
 			std::map<std::string, std::size_t>& p_constants,
 			std::map<std::string, std::pair<std::size_t, std::size_t>>& p_pointers,
 			std::map<std::string, std::vector<byte>>& p_sets,
 			std::map<std::string, std::map<byte, std::string>>& p_byte_maps,
+			std::map<std::string, bool>& p_bools,
 			bool p_throw_on_file_not_exists = true);
 
 		// utility
@@ -42,7 +47,12 @@ namespace fe {
 		byte parse_numeric_byte(const std::string& p_token);
 		std::string byte_to_hex(byte p_byte);
 
-		bool region_match(const std::string& current_region, const std::string& region_list);
+		bool region_match(const fe::ConfigRegion& current_region, const std::string& region_list,
+			bool exact_match_only);
+		bool matches_config_region(const pugi::xml_node& p_node,
+			const fe::ConfigRegion& p_region);
+
+		std::vector<std::string> split_csv(const std::string& p_values);
 	}
 
 }
