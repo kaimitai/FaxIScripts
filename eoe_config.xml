@@ -1,9 +1,15 @@
 <!-- Configuration file used by Echoes of Eolis and FaxIScripts (https://github.com/kaimitai/faxedit) -->
 <!-- Do not make changes to this file - user overrides should reside in eoe_config_override.xml (see the documentation for details) -->
-<eoe_config app_version="beta-6.3">
+<eoe_config app_version="beta-7">
 	<regions>
 		<!-- determine region by ROM signature - will take first match -->
 		<!-- make sure to use identifiers that will not change via ROM editing -->
+		<region name="ng+1.08" file_size="524304" compatible_regions="en-transl">
+			<!-- look for "Dialogue" left behind after dialogue section relocation -->
+			<signature no="0" offset="0x35f50" values="$44,$69,$61,$6c,$6f,$67,$75,$65" />
+			<!-- look for code near the end of bank 15 -->
+			<signature no="0" offset="0x3ffd0" values="$03,$ce,$c3,$03,$4c,$7d,$ff,$ad,$be,$03,$d0,$f8,$f0,$e6" />
+		</region>
 		<region name="en-transl" file_size="524304">
 			<!-- look for "Dialogue" left behind after dialogue section relocation -->
 			<signature no="0" offset="0x35f50" values="$44,$69,$61,$6c,$6f,$67,$75,$65" />
@@ -82,6 +88,10 @@
 		<pointer name="gfx_portrait_anim_frame_ptr" value="0x1c01a" zero_addr="0x1c010" />
 		<pointer name="gfx_portrait_tile_index_table_ptr" value="0x2001e" zero_addr="0x20010" />
 		<pointer name="gfx_portrait_chr_data_ptr" value="0x20020" zero_addr="0x20010" />
+		<!-- cinematic animations -->
+		<pointer name="gfx_cinematic_anim_frame_ptr_lo" region="us,randum" value="0x32b27" zero_addr="0x28010" />
+		<pointer name="gfx_cinematic_anim_frame_ptr_lo" region="eu,us-rev-a" value="0x32b72" zero_addr="0x28010" />
+		<pointer name="gfx_cinematic_anim_frame_ptr_lo" region="jp,en-transl" value="0x32f23" zero_addr="0x28010" />
 	</pointers>
 	<!-- contant addresses and counts -->
 	<!-- data end offsets will point to the first byte after the end, so data size is (end - start) -->
@@ -128,6 +138,9 @@
 		<const name="ptm_pos_delta_offset" value="0x3d7b3" />
 		<const name="ptm_tile_no_offset" value="0x3d7bf" />
 		<const name="ptm_cover_pos_offset" value="0x3ef8a" />
+		<!-- special case for door destination index normalization -->
+		<const name="door_dest_sub_world_offset" value="0x3e847" />
+		<const name="door_dest_sub_value_offset" value="0x3e84c" />
 		<!-- counts -->
 		<const name="sprite_count" value="101" />
 		<const name="command_byte_count" value="3" />
@@ -288,6 +301,59 @@
 		<const name="wing_boots_time_offset" value="0x3c5a9" />
 		<!-- offset of sprite update handler ptr table -->
 		<const name="sprite_update_handlers_offset" value="0x38097" />
+		<!-- cinematics (intro/outro animations) -->
+		<const name="cinematic_sprite_chr_offset" value="0x29bb0" />
+		<const name="cinematic_sprite_chr_count" value="$90" />
+		<const name="cinematic_min_anim_frame_count" value="32" />
+		<const name="cinematic_palette_cutoff" value="12" />
+		<!-- cinematic data for region US -->
+		<const name="cinematic_frame_ptr_hi_ref_offset" region="us,randum" value="0x32aab" />
+		<const name="cinematic_waterfall_x_offset" region="us,randum" value="0x32a7d" />
+		<const name="cinematic_waterfall_y_offset" region="us,randum" value="0x32a82" />
+		<const name="cinematic_ripple_data_offset" region="us,randum" value="0x329a4" />
+		<const name="cinematic_intro_player_x_offset" region="us,randum" value="0x32824" />
+		<const name="cinematic_intro_player_y_offset" region="us,randum" value="0x32829" />
+		<const name="cinematic_intro_vel_x_offset" region="us,randum" value="0x3283c" />
+		<const name="cinematic_intro_vel_y_offset" region="us,randum" value="0x32841" />
+		<const name="cinematic_intro_threshold_offset" region="us,randum" value="0x32869" />
+		<const name="cinematic_outro_player_x_offset" region="us,randum" value="0x32847" />
+		<const name="cinematic_outro_player_y_offset" region="us,randum" value="0x3284c" />
+		<const name="cinematic_outro_vel_x_offset" region="us,randum" value="0x3285f" />
+		<const name="cinematic_outro_vel_y_offset" region="us,randum" value="0x32864" />
+		<const name="cinematic_outro_threshold_offset" region="us,randum" value="0x32876" />
+		<const name="cinematic_outro_terminal_threshold_offset" region="us,randum" value="0x32970" />
+		<!-- cinematic data for region EU / US rev A -->
+		<const name="cinematic_frame_ptr_hi_ref_offset" region="eu,us-rev-a" value="0x32af6" />
+		<const name="cinematic_waterfall_x_offset" region="eu,us-rev-a" value="0x32ac8" />
+		<const name="cinematic_waterfall_y_offset" region="eu,us-rev-a" value="0x32acd" />
+		<const name="cinematic_ripple_data_offset" region="eu,us-rev-a" value="0x329ef" />
+		<const name="cinematic_intro_player_x_offset" region="eu,us-rev-a" value="0x3286f" />
+		<const name="cinematic_intro_player_y_offset" region="eu,us-rev-a" value="0x32874" />
+		<const name="cinematic_intro_vel_x_offset" region="eu,us-rev-a" value="0x32887" />
+		<const name="cinematic_intro_vel_y_offset" region="eu,us-rev-a" value="0x3288c" />
+		<const name="cinematic_intro_threshold_offset" region="eu,us-rev-a" value="0x328b4" />
+		<const name="cinematic_outro_player_x_offset" region="eu,us-rev-a" value="0x32892" />
+		<const name="cinematic_outro_player_y_offset" region="eu,us-rev-a" value="0x32897" />
+		<const name="cinematic_outro_vel_x_offset" region="eu,us-rev-a" value="0x328aa" />
+		<const name="cinematic_outro_vel_y_offset" region="eu,us-rev-a" value="0x328af" />
+		<const name="cinematic_outro_threshold_offset" region="eu,us-rev-a" value="0x328c1" />
+		<const name="cinematic_outro_terminal_threshold_offset" region="eu,us-rev-a" value="0x329bb" />
+		<!-- cinematic data for region JP / en-transl -->
+		<const name="cinematic_frame_ptr_hi_ref_offset" region="jp,en-transl" value="0x32ea7" />
+		<const name="cinematic_waterfall_x_offset" region="jp,en-transl" value="0x32e79" />
+		<const name="cinematic_waterfall_y_offset" region="jp,en-transl" value="0x32e7e" />
+		<const name="cinematic_ripple_data_offset" region="jp,en-transl" value="0x32da0" />
+		<const name="cinematic_intro_player_x_offset" region="jp,en-transl" value="0x32c20" />
+		<const name="cinematic_intro_player_y_offset" region="jp,en-transl" value="0x32c25" />
+		<const name="cinematic_intro_vel_x_offset" region="jp,en-transl" value="0x32c38" />
+		<const name="cinematic_intro_vel_y_offset" region="jp,en-transl" value="0x32c3d" />
+		<const name="cinematic_intro_threshold_offset" region="jp,en-transl" value="0x32c65" />
+		<const name="cinematic_outro_player_x_offset" region="jp,en-transl" value="0x32c43" />
+		<const name="cinematic_outro_player_y_offset" region="jp,en-transl" value="0x32c48" />
+		<const name="cinematic_outro_vel_x_offset" region="jp,en-transl" value="0x32c5b" />
+		<const name="cinematic_outro_vel_y_offset" region="jp,en-transl" value="0x32c60" />
+		<const name="cinematic_outro_threshold_offset" region="jp,en-transl" value="0x32c72" />
+		<const name="cinematic_outro_terminal_threshold_offset" region="jp,en-transl" value="0x32d6c" />
 	</consts>
 	<!-- value sets -->
 	<sets>
@@ -555,6 +621,15 @@
 			<entry byte="$04" str="0x3ddbd:0x3dded" />
 			<entry byte="$05" str="0x3fcdd:0x3fff0" />
 		</byte_to_string_map>
+		<byte_to_string_map name="bank15_free_space" region="ng+1.08">
+			<entry byte="$00" str="0x3e60f:0x3e637" />
+			<entry byte="$01" str="0x3e579:0x3e587" />
+			<entry byte="$02" str="0x3ea57:0x3ea60" />
+			<entry byte="$03" str="0x3eabc:0x3eb3f" />
+			<entry byte="$04" str="0x3ddbd:0x3dded" />
+			<entry byte="$05" str="0x3ffde:0x3fff0" />
+			<entry byte="$06" str="0x3dfa9:0x3dfd5" />
+		</byte_to_string_map>
 		<byte_to_string_map name="bank15_free_space" region="jp">
 			<entry byte="$00" str="0x3e60f:0x3e637" />
 			<entry byte="$01" str="0x3e579:0x3e587" />
@@ -577,10 +652,6 @@
 			<entry byte="$02" str="0x3ddbd:0x3dded" />
 			<entry byte="$03" str="0x3ea57:0x3ea60" />
 			<entry byte="$04" str="0x3eabc:0x3eb3f" />
-		</byte_to_string_map>
-		<!-- mapping from world no to door destination index subtract value (default: 0) -->
-		<byte_to_string_map name="door_dest_index_sub">
-			<entry byte="$03" str="$20" />
 		</byte_to_string_map>
 		<!-- world tilemaps bank ROM offsets -->
 		<byte_to_string_map name="tilemap_bank_offsets">

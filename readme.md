@@ -143,6 +143,7 @@ We prioritize fixing bugs if any are discovered, but here are some ideas for fut
    * Added support for sparse region configuration inheritance. Regions may now declare compatibility with another region and inherit unresolved config values from it, significantly reducing duplication in configuration definitions.
    * Added a new command for dumping the fully resolved runtime configuration constants for a given ROM file. This serializes the exact constants used internally by the assembler after region resolution and inheritance have been applied.
    * The config dump functionality is intended both for advanced users defining custom regions/configurations and for users interested in inspecting differences between supported ROM regions.
+   * Added configuration for [New Game+](https://github.com/UnsavoryMaggot/Faxanadu-Retranslation)
 
 * 2026-05-02: version 0.81
    * Fixed a bug where semicolons inside strings were incorrectly treated as comment delimiters. While semicolons are not supported in the original iScript strings, this change allows custom ROMs with custom character mappings to use them without issues.
