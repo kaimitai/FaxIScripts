@@ -139,6 +139,11 @@ We prioritize fixing bugs if any are discovered, but here are some ideas for fut
 
 ### Version History
 
+* 2026-05-25: version 0.82
+   * Added support for sparse region configuration inheritance. Regions may now declare compatibility with another region and inherit unresolved config values from it, significantly reducing duplication in configuration definitions.
+   * Added a new command for dumping the fully resolved runtime configuration constants for a given ROM file. This serializes the exact constants used internally by the assembler after region resolution and inheritance have been applied.
+   * The config dump functionality is intended both for advanced users defining custom regions/configurations and for users interested in inspecting differences between supported ROM regions.
+
 * 2026-05-02: version 0.81
    * Fixed a bug where semicolons inside strings were incorrectly treated as comment delimiters. While semicolons are not supported in the original iScript strings, this change allows custom ROMs with custom character mappings to use them without issues.
 
@@ -205,9 +210,14 @@ Another special thanks to [Jessica](https://www.romhacking.net/community/9037/) 
 
 <hr>
 
+**ROM Hack Project Links**
+
 * You can find me on the **Faxanadu Randomizer & Romhacking** Discord server, the main hub for all things Faxanadu.
 
   [![Discord](https://img.shields.io/badge/Faxanadu%20Randomizer%20%26%20Romhacking-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/AyJErR8kyV)
 
+<hr>
+
 * Dont't miss [Root of Decay](https://www.okimpala.net/faxanadu-root-of-decay) - An upcoming Faxanadu ROM hack by Ok Impala!
 * Check out [Jessica's Alternate Soundtrack hack](https://www.romhacking.net/hacks/9396/), a full music replacement hack for Faxanadu!
+* Songbirder's [Faxanadu 40th Anniversary edition](https://fax40.net/) ROM hack (currently in beta) is available!

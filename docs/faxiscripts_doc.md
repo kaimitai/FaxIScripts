@@ -1,6 +1,6 @@
 # FaxIScripts - User Documentation
 
-This is the user documentation for FaxIScripts (v0.8), an assembler for the internal scripting languages used by Faxanadu for the NES. The application code and binaries can be found on its [GitHub repository](https://github.com/kaimitai/faxiscripts/). It is assumed that users are somewhat acquainted with Faxanadu on the NES.
+This is the user documentation for FaxIScripts (v0.82), an assembler for the internal scripting languages used by Faxanadu for the NES. The application code and binaries can be found on its [GitHub repository](https://github.com/kaimitai/faxiscripts/). It is assumed that users are somewhat acquainted with Faxanadu on the NES.
 
 There are three types of scripts in the game:
   * Interaction Scripts (iScripts)
@@ -198,6 +198,19 @@ To build a file we go in the opposite direction, and inject. To build a file fax
  * --region (-r for short): Override automatic ROM region deduction. The parameter specified must match a region defined in eoe_config.xml
  * --original-size (-o for short): This option has a special meaning for miscellaneous data, and means we extract misc. data for all sprites - even sprites that are not bosses or enemies. It is unclear whether this is of any use.
 
+ <hr>
+
+##### ROM region configuraiton
+
+The assembler allows you to dump all region constants to a serialized text file, with a command like
+
+```
+faxiscripts dump-config faxanadu-jp.nes faxanadu-jp-config.txt
+```
+
+You can write **dc** instead of **dump-config**.
+
+This will load a nes rom, resolve its ROM region, and then write all constants to file. This can be useful to inspect the differences between ROM regions, and for debugging if you set up your own regions based on custom ROM-hacks.
 
 <hr>
 
