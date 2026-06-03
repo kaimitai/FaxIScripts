@@ -1,6 +1,6 @@
 # FaxIScripts - User Documentation
 
-This is the user documentation for FaxIScripts (v0.82), an assembler for the internal scripting languages used by Faxanadu for the NES. The application code and binaries can be found on its [GitHub repository](https://github.com/kaimitai/faxiscripts/). It is assumed that users are somewhat acquainted with Faxanadu on the NES.
+This is the user documentation for FaxIScripts (v0.83), an assembler for the internal scripting languages used by Faxanadu for the NES. The application code and binaries can be found on its [GitHub repository](https://github.com/kaimitai/faxiscripts/). It is assumed that users are somewhat acquainted with Faxanadu on the NES.
 
 There are three types of scripts in the game:
   * Interaction Scripts (iScripts)
