@@ -82,6 +82,7 @@ When the textual assembly files are parsed, numbers can be given in different ba
 - [ **Miscellaneous Data** ](#miscellaneous-data)
 - [ **Mantra Encoder** ](#mantra-encoder)
 - [Behind the scenes](#behind-the-scenes)
+- [Changelog](#changelog)
 
 <hr>
 
@@ -1135,3 +1136,72 @@ This was not trivial to get right before I made the decision to link pointer tab
 To squeeze out even more bytes here you can insert an unconditional jump to bridge the code stream at the very last moment you overflow (but only if the last safe instruction is not already stream-ending) but you need to ensure that the jump itself completely fits in the region - and now all reference indexes after the jump shift by one. It is perfectly doable, but I opted not to do it since it will change the assembly code of the user - but we might make this optional in a future release.
 
 The reason for the application name being FaxIScripts was that originally this was supposed to only handle iScripts. Only later on was it extended to also handle bScripts and mScripts.
+
+<hr>
+
+### Changelog
+
+* 2026-06-07: version 0.83
+   * Configuration constants can now be conditionally enabled based on ROM data values, allowing fine-grained control within ROM regions
+
+* 2026-05-25: version 0.82
+   * Added support for sparse region configuration inheritance. Regions may now declare compatibility with another region and inherit unresolved config values from it, significantly reducing duplication in configuration definitions.
+   * Added a new command for dumping the fully resolved runtime configuration constants for a given ROM file. This serializes the exact constants used internally by the assembler after region resolution and inheritance have been applied.
+   * The config dump functionality is intended both for advanced users defining custom regions/configurations and for users interested in inspecting differences between supported ROM regions.
+   * Added configuration for [New Game+](https://github.com/UnsavoryMaggot/Faxanadu-Retranslation)
+
+* 2026-05-02: version 0.81
+   * Fixed a bug where semicolons inside strings were incorrectly treated as comment delimiters. While semicolons are not supported in the original iScript strings, this change allows custom ROMs with custom character mappings to use them without issues.
+
+* 2026-04-09: version 0.8
+    * Full mantra encoding and decoding 
+       - The CLI now supports encoding and decoding mantras. This includes full compatibility with ROMs that use extended spawn‑point counts.
+       - Arguments used when encoding a mantra support unambiguous prefix matching.
+    * Shop indexes assigned during iScript disassembly now based on ROM address, not order of discovery
+       - This means that if you disassemble a script section you previously assembled, you will get the same indexes you used in the first place
+
+* 2026-02-22: version 0.7
+    * Added new miscellaneous data interface for changing static data:
+       - Title Screen strings
+       - Player Status strings
+       - Item strings
+       - Rank strings
+       - XP requirement per rank
+       - Starting gold per rank
+       - Enemy XP, health, damage, magic defense, drops (coin values, bread healing values, nothing)
+       - Weapon and Magic damage
+       - Armor defense
+       - Wing Boot timers
+    * Added support for dynamic resizing of the interaction script pointer table, allowing the script count itself to be changed (although we still enforce a minimum count of 152  - the game code has direct reference to index 151), and a maximum count of 255 (index 255 is an end-of-stream delimiter and can not be used in the game)
+    * ROM loaders will now determine interaction script count and music track count from ROM data, rather than relying on external configuration
+    * Added support for configuration file user overrides (eoe_config_override.xml) so that users who want overrides do not need to performa a config merge for each new release
+
+* 2026-02-04: version 0.6
+    * Added support for behavior script extraction and patching. The assembler now handles all three script types!
+    * Improved the [MML (music macro language) documentation](./docs/faxiscripts_mml.md) and added example MMLs graciously provided by [Jessica](https://www.romhacking.net/community/9037/)
+
+* 2026-01-18: version 0.51
+    * Added support for exporting music from MML files, or music directly from ROM, to the [LilyPond](https://lilypond.org/) format. This can be used to engrave your music and provides an alternative way to convert music to midi. Some new directives were added to the MML format so that composers can set time signatures for their songs, or set clefs per channel, in the LilyPond output. There is also an option for adding a drum staff for the percussion channel.
+    * Fixed a subtle bug where the MML bytecode generator would emit two set-length commands in a row.
+
+* 2026-01-12: version 0.5
+    * Added support for extracting Faxanadu's music layer as MML files, which raises the level of abstraction and makes music editing easier for composers.
+    * Added support for using binary constants in iScripts. Prefix binary constants with 0b or % - for example 0b00100110.
+
+* 2025-12-20: version 0.4
+    * Added support for extracting the music layer as an assembly file in the context of Faxanadu's music engine (mScripts). 
+
+* 2025-11-22: version 0.3
+    * Added configuration xml file with necessary constants for the major ROM regions as well as for two ROM hacks. This configuration file is also compatible with [Echoes of Eolis](https://github.com/kaimitai/faxedit/).
+    * Added command-line option (-r) for overriding the automatic ROM region deduction
+
+* 2025-11-13: version 0.2
+    * Use inline strings for both disassembly and assembly. The assembler will deduplicate all strings in the code, and allocate string indexes automatically during builds. Reserved strings will retain their indexes
+    * A consequence of the assembler allocating strings is that unused strings (strings not referenced in code and reserved strings) will be discarded. In the original game data we save 460 bytes by deduplicating strings and discarding unreferenced ones
+    * Include [IScript syntax highlighting for Notepad++](./util/FaxIScript.xml), in a new util-folder
+    * Opcode EndGame will be treated as end-of-stream
+    * Added better error messages in places
+    * Removed "extended ROM mode" as it had no reasonable use case
+
+* 2025-11-09: version 0.1
+  * Initial release

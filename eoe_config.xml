@@ -1,6 +1,6 @@
 <!-- Configuration file used by Echoes of Eolis and FaxIScripts (https://github.com/kaimitai/faxedit) -->
 <!-- Do not make changes to this file - user overrides should reside in eoe_config_override.xml (see the documentation for details) -->
-<eoe_config app_version="beta-7">
+<eoe_config app_version="beta-7.2">
 	<regions>
 		<!-- determine region by ROM signature - will take first match -->
 		<!-- make sure to use identifiers that will not change via ROM editing -->
@@ -8,7 +8,7 @@
 			<!-- look for "Dialogue" left behind after dialogue section relocation -->
 			<signature no="0" offset="0x35f50" values="$44,$69,$61,$6c,$6f,$67,$75,$65" />
 			<!-- look for code near the end of bank 15 -->
-			<signature no="0" offset="0x3ffd0" values="$03,$ce,$c3,$03,$4c,$7d,$ff,$ad,$be,$03,$d0,$f8,$f0,$e6" />
+			<signature no="1" offset="0x3ffd0" values="$03,$ce,$c3,$03,$4c,$7d,$ff,$ad,$be,$03,$d0,$f8,$f0,$e6" />
 		</region>
 		<region name="en-transl" file_size="524304">
 			<!-- look for "Dialogue" left behind after dialogue section relocation -->
@@ -371,6 +371,8 @@
 	<bools>
 		<!-- disable pal2mus patching for the randomizer as there may or may not be relocation -->
 		<bool name="disable_pal2mus" value="true" region="randum" />
+		<!-- detect the randomizer sameworld door to stage door hack -->
+		<bool name="randomizer_doors" condition="0x3e575=$4c,$00,$fe 0x3e85c=$20,$40,$fe" region="randum" />
 	</bools>
 	<!-- map from string byte value to symbols - will be used when translating to and from strings used by script engine -->
 	<!-- symbols in strings not defined here will cause the assembly to fail, unless it is a generic byte constant &lt;numeric value&gt; -->
@@ -415,6 +417,31 @@
 			<entry byte="$0c" str="OW/Return" />
 			<entry byte="$0d" str="OW/Return (fg)" />
 		</byte_to_string_map>
+		<!-- labels for door requirements (randomizer) -->
+		<byte_to_string_map name="door_requirement_labels" region="randum">
+			<entry byte="$00" str="None" />
+			<entry byte="$01" str="Key A" />
+			<entry byte="$02" str="Key K" />
+			<entry byte="$03" str="Key Q" />
+			<entry byte="$04" str="Key J" />
+			<entry byte="$05" str="Key Jo" />
+			<entry byte="$06" str="Ring of Elf" />
+			<entry byte="$07" str="Ring of Dwarf" />
+			<entry byte="$08" str="Demon's Ring" />
+			<entry byte="$09" str="Extra Requirement" />
+		</byte_to_string_map>
+		<!-- item gfx for door requirements - used to draw door icon overlays (randomizer) -->
+		<byte_to_string_map name="door_requirement_item_gfx" region="randum">
+			<entry byte="$01" str="21" />
+			<entry byte="$02" str="22" />
+			<entry byte="$03" str="23" />
+			<entry byte="$04" str="24" />
+			<entry byte="$05" str="25" />
+			<entry byte="$06" str="17" />
+			<entry byte="$07" str="19" />
+			<entry byte="$08" str="20" />
+			<entry byte="$09" str="3" />
+		</byte_to_string_map>
 		<!-- labels for door requirements -->
 		<byte_to_string_map name="door_requirement_labels">
 			<entry byte="$00" str="None" />
@@ -434,9 +461,56 @@
 			<entry byte="$03" str="23" />
 			<entry byte="$04" str="24" />
 			<entry byte="$05" str="25" />
-			<entry byte="$06" str="19" />
-			<entry byte="$07" str="17" />
+			<entry byte="$06" str="17" />
+			<entry byte="$07" str="19" />
 			<entry byte="$08" str="20" />
+		</byte_to_string_map>
+		<!-- script item index to item gfx entry index -->
+		<byte_to_string_map name="script_item_gfx">
+			<!-- weapons -->
+			<entry byte="$00" str="0" />
+			<entry byte="$01" str="1" />
+			<entry byte="$02" str="2" />
+			<entry byte="$03" str="3" />
+			<!-- armors -->
+			<entry byte="$20" str="4" />
+			<entry byte="$21" str="5" />
+			<entry byte="$22" str="6" />
+			<entry byte="$23" str="7" />
+			<!-- shields -->
+			<entry byte="$40" str="8" />
+			<entry byte="$41" str="9" />
+			<entry byte="$42" str="10" />
+			<entry byte="$43" str="11" />
+			<!-- magics -->
+			<entry byte="$60" str="12" />
+			<entry byte="$61" str="13" />
+			<entry byte="$62" str="14" />
+			<entry byte="$63" str="15" />
+			<entry byte="$64" str="16" />
+			<!-- items -->
+			<entry byte="$80" str="17" />
+			<entry byte="$81" str="18" />
+			<entry byte="$82" str="19" />
+			<entry byte="$83" str="20" />
+			<entry byte="$84" str="21" />
+			<entry byte="$85" str="22" />
+			<entry byte="$86" str="23" />
+			<entry byte="$87" str="24" />
+			<entry byte="$88" str="25" />
+			<entry byte="$89" str="26" />
+			<entry byte="$8a" str="27" />
+			<entry byte="$8b" str="28" />
+			<entry byte="$8c" str="29" />
+			<entry byte="$8d" str="30" />
+			<entry byte="$8e" str="31" />
+			<entry byte="$8f" str="32" />
+			<entry byte="$90" str="33" />
+			<entry byte="$91" str="34" />
+			<entry byte="$92" str="35" />
+			<entry byte="$93" str="36" />
+			<entry byte="$94" str="37" />
+			<entry byte="$95" str="38" />
 		</byte_to_string_map>
 		<!-- labels for sprites -->
 		<byte_to_string_map name="sprite_labels">
