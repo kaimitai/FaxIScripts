@@ -3,6 +3,7 @@
 #include "./../common/klib/Kstring.h"
 #include "./../fi/cli/application_constants.h"
 #include "fb_constants.h"
+#include <cstdint>
 #include <format>
 #include <map>
 #include <vector>

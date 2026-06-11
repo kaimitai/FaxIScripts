@@ -1,6 +1,7 @@
 #ifndef FB_BSCRIPTLOADER_H
 #define FB_BSCRIPTLOADER_H
 
+#include <cstdint>
 #include <map>
 #include <set>
 #include <vector>

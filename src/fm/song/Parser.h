@@ -6,7 +6,7 @@
 #include "Tokenizer.h"
 #include "MMLSong.h"
 #include "MMLChannel.h"
-#include "MmlEvent.h"   // variant + event structs
+#include "MMLEvent.h"   // variant + event structs
 #include "MMLSongCollection.h"
 #include "mml_constants.h"
 
