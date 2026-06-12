@@ -4,7 +4,7 @@ Welcome to the FaxIScripts code repository and release page.
 
 FaxIScripts is a command-line assembler and disassembler for Faxanadu. It supports extracting scripts, music, and miscellaneous game data from ROM files into human-readable text formats, allowing users to edit the data and inject it back into the game.
 
-The assembler aims to provide the highest practical level of abstraction while preserving all information present in the original data. Extracted scripts resemble assembly language, while music can be edited either as assembly or as MML (Music Macro Language).
+The assembler aims to provide the highest practical level of abstraction while preserving all information present in the original data. Extracted scripts resemble assembly language, while music can be edited either as music script bytecode or as MML (Music Macro Language).
 
 Precompiled Windows x64 builds are available on the [repository releases](https://github.com/kaimitai/FaxIScripts/releases/) page. The project can also be built from source on Windows, Linux, and macOS using CMake.
 
@@ -100,7 +100,7 @@ An example of an extracted iScript:
 
 Behavior scripts define how sprites behave in the game, including NPCs, enemies, items, and other interactive objects. Faxanadu contains 101 behavior scripts, one for each sprite type.
 
-The assembler extracts these scripts into a human-readable assembly-like format that can be modified and assembled back into the ROM. This allows users to customize enemy AI, NPC behavior, item interactions, and other gameplay mechanics.
+The assembler extracts these scripts into a human-readable assembly-like format that can be modified and assembled back into the ROM. This allows users to customize enemy AI, NPC behavior, and to some degree item interactions.
 
 ![bScript example](./docs/img/bscript042_monodron.png)
 
@@ -128,7 +128,7 @@ In addition to scripts and music, FaxIScripts can extract various game data into
 
 This mode can be used to modify strings, enemy parameters, weapon statistics, magic data, and other gameplay-related values. The format is region-agnostic and abstracts away ROM-specific details such as differing character encodings and text palettes, making it a practical alternative to manual hex editing.
 
-FaxIScripts also includes a mantra mode capable of encoding and decoding mantra strings, including support for ROM hacks with custom spawn point configurations.
+FaxIScripts also includes a mantra mode capable of encoding and decoding mantra strings, including support for ROM hacks with custom spawn point counts.
 
 <hr>
 
