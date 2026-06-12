@@ -1,63 +1,120 @@
-# FaxIScripts - Assembler and Disassembler for scripting in Faxanadu (NES)
+# FaxIScripts - Assembler and Disassembler for Faxanadu (NES)
+
+Welcome to the FaxIScripts code repository and release page.
+
+FaxIScripts is a command-line assembler and disassembler for Faxanadu. It supports extracting scripts, music, and miscellaneous game data from ROM files into human-readable text formats, allowing users to edit the data and inject it back into the game.
+
+The assembler aims to provide the highest practical level of abstraction while preserving all information present in the original data. Extracted scripts resemble assembly language, while music can be edited either as assembly or as MML (Music Macro Language).
+
+Precompiled Windows x64 builds are available on the [repository releases](https://github.com/kaimitai/FaxIScripts/releases/) page. The project can also be built from source on Windows, Linux, and macOS using CMake.
+
+The application supports all major Faxanadu ROM regions, including US, US Revision A, EU, JP, and the [English Translation Hack](https://www.romhacking.net/translations/4281/).
+
+FaxIScripts has a natural companion in [Echoes of Eolis](https://github.com/kaimitai/faxedit/), a graphical editor capable of modifying many of the dynamically-sized game data structures that are not handled through the assembler.
+
+See the [documentation](./docs/faxiscripts_doc.md) for a detailed overview of the supported formats, assembly syntax, available opcodes, and command-line options.
+
+See the [changelog](./docs/faxiscripts_doc.md#changelog) for version history.
 
 <hr>
 
-Welcome to the FaxIScripts code repository and release page. The code is standard C++20, and the project files were created using Microsoft Visual Studio Community 2022. You can compile the application from source, or get the latest precompiled Windows x64 build under the [repository releases](https://github.com/kaimitai/FaxIScripts/releases/).
+## Quick Links
 
-This tool is used for extracting data from Faxanadu (NES) ROMs - scripts and music - which can be edited in text editors and injected back into the ROM.
-
-The aim of this assembler is to extract script code to human-readable formats reminiscent of assembly code. We aim to stay at the highest possible layer of abstraction without losing any extracted information.
-
-The application is compatible out of the box with the following ROM regions: US, US Revision A, EU, JP and a well-known [English Translation Hack](https://www.romhacking.net/translations/4281/).
-
-Make sure to read the [documentation](./docs/faxiscripts_doc.md) for a detailed overview of the syntax and structure of the assembly files we will be editing, as well as a list of all available opcodes.
-
-See the [Changelog](./docs/faxiscripts_doc.md#changelog) for version history.
-
-<hr>
-
-This application has a natural companion in [Echoes of Eolis](https://github.com/kaimitai/faxedit/), which is a graphical editor that can patch the other dynamically sized data portions in Faxanadu. To see, or change, which NPCs in Faxanadu are connected to a given interactions script, for example, Echoes of Eolis can can be used.
-
-Echoes of Eolis will always be bundled with the latest version of this application.
+* [Documentation](./docs/faxiscripts_doc.md)
+* [MML Documentation](./docs/faxiscripts_mml.md)
+* [Changelog](./docs/faxiscripts_doc.md#changelog)
+* [Building from Source](#building-from-source)
+* [Interaction Scripts (iScripts)](#interaction-scripts-iscripts)
+* [Behavior Scripts (bScripts)](#behavior-scripts-bscripts)
+* [Music Scripts (mScripts)](#music-scripts-mscripts)
+* [Miscellaneous Data](#miscellaneous-data)
+* [Quick Start](#quick-start)
+* [Assembler Capabilities](#assembler-capabilities)
+* [Credits](#credits)
+* [Community & Related Projects](#community--related-projects)
 
 <hr>
 
-**The interaction script (iScript) layer**
+## Building from Source
 
-Interaction scripts are used for several things; interacting with NPCs and shops - and some scripts are called on certain events - like dying and picking up or using items.
+FaxIScripts has no external dependencies and can be built using any standard C++20 compiler together with CMake and Ninja.
 
-This scripting layer contains strings, shop data and actual code. The strings are stored in a separate section, but the shop data and code live together in one combined section. The shop data gets moved to its own section in our assembly files, and any opcode referencing a shop uses its index - which is only resolved to an actual address during linking. This provides a zero-cost abstraction - no extra bytes, no layout penalties.
+### Linux
 
-There are two ROM sections we can use when patching, and users can choose between different patching modes.
+Install the required packages:
+
+```bash
+sudo apt update
+sudo apt install build-essential cmake ninja-build
+```
+
+From the repository root:
+
+```bash
+mkdir build
+cd build
+
+cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Release
+ninja
+```
+
+### macOS
+
+Install the required dependencies:
+
+```bash
+brew install cmake ninja
+```
+
+From the repository root:
+
+```bash
+mkdir build
+cd build
+
+cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Release
+ninja
+```
+
+**Note:** `eoe_config.xml` must be located in the same directory as the executable when loading ROM files.
+
+<hr>
+
+## Interaction Scripts (iScripts)
+
+Interaction scripts control NPC conversations, shops, item usage and other game interactions.
+
+The assembler extracts these scripts into a human-readable assembly-like format while preserving all information from the original ROM. Strings, shop data, and script code are presented in a form that is easier to edit and maintain than their original binary representation.
+
+Users may freely modify script logic, dialogue, and shop contents before assembling the data back into the ROM.
 
 An example of an extracted iScript:
 
-![IScript example](./docs/img/script067_full_plate_gift.png)
+![iScript example](./docs/img/script067_full_plate_gift.png)
 
-#### Faxanadu iScript #67 - Free full plate from a man in the Victim pub, if your rank is Soldier or higher
-
-<hr>
-
-**The behavior script (bScript) layer**
-
-This layer contains the scripts which define sprite behavior - for both NPCs, enemies and items. There are 101 entries, one for each sprite in the game.
-
-Here too, there are two ROM sections we can use when patching, and the users can choose between different patching modes.
-
-![IScript example](./docs/img/bscript042_monodron.png)
-
-#### Faxanadu bScript #42 - Monodron behavior
+#### Faxanadu interaction script #67 - A villager in the Victim pub gives the player a Full Plate if their rank is Soldier or higher
 
 <hr>
 
-**The music (mScript) layer**
+## Behavior Scripts (bScripts)
 
-We also support extracting and patching the music layer of Faxanadu - both at the assembly level, and at a higher level of abstraction - as MML (music macro language) files.
+Behavior scripts define how sprites behave in the game, including NPCs, enemies, items, and other interactive objects. Faxanadu contains 101 behavior scripts, one for each sprite type.
 
-For MML editing there is a separate [documentation](./docs/faxiscripts_mml.md) for a detailed overview of the syntax and structure of the file format - as well as the necessary technical information needed to compose music effectively.
+The assembler extracts these scripts into a human-readable assembly-like format that can be modified and assembled back into the ROM. This allows users to customize enemy AI, NPC behavior, item interactions, and other gameplay mechanics.
 
-The assembly format is provided for completeness' sake, and because the MML compiler needs it. For actual music composition we recommend using MML over mScript assembly.
+![bScript example](./docs/img/bscript042_monodron.png)
 
+#### Faxanadu behavior script #42 - Monodron behavior
+
+<hr>
+
+## Music Scripts (mScripts)
+
+FaxIScripts supports extracting and patching the music layer of Faxanadu, both as assembly and as MML (Music Macro Language).
+
+For music composition, we strongly recommend using MML. The separate [MML documentation](./docs/faxiscripts_mml.md) describes the syntax, structure, and technical details required to compose music effectively.
+
+The assembly representation is provided for completeness and as an intermediate format used by the MML compiler, but most users will find MML significantly easier to work with.
 
 An example of the beginning of an extracted tune:
 
@@ -65,96 +122,109 @@ An example of the beginning of an extracted tune:
 
 <hr>
 
-**Miscellaneous static data**
+## Miscellaneous Data
 
-While not an assembly format, the application also has a mode to extract miscellaneous data to a textual format which can be re-injected to ROM after editing. This allows users to change strings, enemy, weapon and magic parameters and such. The mode is region-agnostic, and abstracts away the complexity of different string formats having different character palettes for example, so it should be a good alternative to a hex editor.
+In addition to scripts and music, FaxIScripts can extract various game data into a human-readable text format that can be edited and re-injected into the ROM.
+
+This mode can be used to modify strings, enemy parameters, weapon statistics, magic data, and other gameplay-related values. The format is region-agnostic and abstracts away ROM-specific details such as differing character encodings and text palettes, making it a practical alternative to manual hex editing.
+
+FaxIScripts also includes a mantra mode capable of encoding and decoding mantra strings, including support for ROM hacks with custom spawn point configurations.
 
 <hr>
 
-There is also a mantra-mode, which can encode and decode mantra strings.
+## Quick Start
+
+FaxIScripts extracts game data from a Faxanadu ROM into human-readable text formats, allowing you to edit the data and assemble it back into the ROM.
+
+### Interaction Scripts (iScripts)
+
+Extract interaction scripts:
+
+```bash
+faxiscripts x "Faxanadu (U).nes" faxanadu.asm
+```
+
+Assemble and patch interaction scripts:
+
+```bash
+faxiscripts b faxanadu.asm "Faxanadu (U).nes"
+```
+
+Use `xb` and `bb` instead of `x` and `b` for behavior scripts (bScripts).
+
+### Music (MML)
+
+Extract music:
+
+```bash
+faxiscripts xmml "Faxanadu (U).nes" faxanadu.mml
+```
+
+Assemble and patch music:
+
+```bash
+faxiscripts bmml faxanadu.mml "Faxanadu (U).nes"
+```
+
+FaxIScripts can also export music to MIDI and LilyPond formats.
+
+### Miscellaneous Data
+
+Extract miscellaneous game data:
+
+```bash
+faxiscripts xmisc "Faxanadu (U).nes" faxanadu.txt
+```
+
+Assemble and patch miscellaneous data:
+
+```bash
+faxiscripts bmisc faxanadu.txt "Faxanadu (U).nes"
+```
+
+### Mantra Encoder
+
+Encode or decode mantras:
+
+```bash
+faxiscripts m <arguments>
+```
+
+The full list of supported arguments is available in the documentation.
+
+Before patching a ROM, the assembler validates all reachable code paths and fails safely if the assembled data exceeds the available ROM space.
 
 <hr>
 
 ## Assembler Capabilities
-The assembler has the following features:
 
-* Byte-fidelity with respect to size and functionality will be retained when extracting and patching content; for both strings, shops, music and script code. There is no change to game code itself, just a clean patching of dynamically sized data.
-* When extracting an assembly file from ROM, the constant defines will be populated automatically and used in the code
-* For iScripts, strings will be inlined in the code and can be used as operands directly. The assembler will discard all duplicates and ensure that all string-calling functions point to the correct index. Reserved string indexes (six strings which are used by index directly from the action handlers, even if no scripts reference them) are defined in the asm automatically when extracting, and the assembler will not consider these for re-indexing or discarding.
-* Extracted iScript asm-files can show shop contents as comments wherever they are used as operands
-* Strict-mode; where we don't patch a ROM if we spend more bytes than the original ROM did, tightly packed in one section (applies to iScripts and bScripts)
-* For iScripts and bScripts, we provide a smart static linker; The shop data and code stream starts within the first safe region, and if we overflow the static linker redirects code to the second region while patching all required labels, jumps, pointer table entries and instruction offsets. This is done without inserting a synthetic jump-node. bScripts too can be extended in this way with a tail end code relocation, although it is in its entirety a code section.
-* Automatic ROM region deduction, ensuring that the assembly code is extracted from, and injected to, the correct ROM locations. Assembly fails if data sections get too big, so no ROM file will be corrupted.
+The assembler provides the following features:
 
-<hr>
-
-## How it works
-
-The application can disassemble - that is extract - the scripting or music layer data into text files - from a Faxanadu NES rom. These files can then be modified by the user via our internal assembly languages.
-
-A command-line instruction will extract and disassemble the scripting layer data from ROM.
-
-The command `faxiscripts x "Faxanadu (U).nes" faxanadu.asm` will extract the interaction script data from file "Faxanadu (U).nes" and write it to file faxanadu.asm.
-
-Another instruction will pack your data and assemble your code, and patch it back to ROM.
-
-Using the command ```xb``` instead of ```x``` will extract behavior scripts instead.
-
-The command `faxiscripts b faxanadu.asm "Faxanadu (U).nes"` will patch "Faxanadu (U).nes" with the interaction script code from faxanadu.asm as long as the code was valid.
-
-Using the command ```bb``` instead of ```b``` will assemble behavior scripts instead.
-
-The asm-files may look a little daunting at first, but I am sure it will be very manageable for most people who have an interest in editing scripts. The documentation is detailed and contains concrete examples you can follow.
-
-There is little static code analysis available for the time being, but before actually patching the ROM we ensure the code is good by trying to traverse all code paths from all entry points to verify that the code the game can potentially use can actually be parsed.
-
-The command `faxiscripts xmml "Faxanadu (U).nes" faxanadu.mml` will extract the music layer from file "Faxanadu (U).nes" and write it to file faxanadu.mml.
-
-Another instruction will pack your music, and patch it back to ROM.
-
-The command `faxiscripts bmml faxanadu.mml "Faxanadu (U).nes"` will patch "Faxanadu (U).nes" with the music from faxanadu.mml.
-
-We also have commands for rendering Faxanadu music as midi files, both directly from ROM or from an MML file. In addition to that, we can export MML files, or music directly from ROM, to the [LilyPond](https://lilypond.org/) format, which can provide musical scores.
-
-The command `faxiscripts xmisc "Faxanadu (U).nes" faxanadu.txt` will extract miscellaneous data from file "Faxanadu (U).nes" and write it to file faxanadu.txt.
-
-Another instruction will translate the textual data and patch it back to ROM.
-
-The command `faxiscripts bmisc faxanadu.txt "Faxanadu (U).nes"` will patch "Faxanadu (U).nes" with the misc data from faxanadu.txt.
-
-There is also an instruction which will encode and decode mantras. This functionality works with a non-standard number of spawn points in the game; to be used if you added new spawn locations with [Echoes of Eolis](https://github.com/kaimitai/faxedit) for example.
-
-The command ```faxiscripts m <argument list>``` will encode or decode a mantra based on the argument list. The possible arguments are too numerous to mention here, but they are [documented](https://github.com/kaimitai/FaxIScripts/blob/master/docs/faxiscripts_doc.md#mantra-encoder).
+  * Byte fidelity - Extracted and reassembled content preserves both size and functionality for scripts, strings, shops, music, and other supported data. No game code is modified; only dynamically sized data sections are patched.
+  * Automatic symbol generation - Constant definitions are extracted from the ROM and emitted automatically for use in assembly source files.
+  * String abstraction - iScript strings are inlined directly in the assembly source and can be used as operands. Duplicate strings are removed automatically, while reserved engine strings retain their original indices.
+  * Shop abstraction - Shop contents are extracted into a dedicated section and can be displayed as comments wherever referenced by script code.
+  * Strict mode - Prevents patching if the assembled data exceeds the space available in the original ROM section.
+  * Smart static linker - If the primary safe region overflows, the linker can automatically relocate code and patch all required labels, jumps, pointer table entries, and offsets without introducing synthetic jump nodes.
+  * Automatic ROM region detection - The correct data locations are selected automatically for all supported ROM regions. Assembly fails safely if data exceeds the available space, preventing ROM corruption.
 
 <hr>
 
-### Roadmap
+## Credits
 
-We prioritize fixing bugs if any are discovered, but here are some ideas for future features:
-
-* Add an option to let the linker insert a jump-instruction to bridge the gap between the safe ROM regions for iScripts and bScripts. This could potentially save some bytes over the current bridging strategy.
-* Allow Japanese characters directly in strings for the jp region
-* Emit more statistics from MML compilation; like for example total fractional drift (if any) and byte size per channel.
-* Create Notepad++ syntax highlighting definition files for bScripts, mScripts and MML
+  * [ChipX86/Christian Hammond](http://chipx86.com/) - For mapping out the scripting languages and the music engine in his [Faxanadu disassembly](https://chipx86.com/faxanadu/) - and for coining the terms iScript, bScript and mScript. This project would not have existed without his resources.
+  * [Jessica](https://www.romhacking.net/community/9037/) - For testing out the MML compiler, improving the MML documentation, and providing example music files which were also added to the docs.
 
 <hr>
 
-### Credits
-
-Special thanks to [ChipX86/Christian Hammond](http://chipx86.com/) - For entirely mapping out the scripting languages and the music engine in his [Faxanadu disassembly](https://chipx86.com/faxanadu/) - and for coining the terms iScript, bScript and mScript. This project would not have existed without his resources.
-
-Another special thanks to [Jessica](https://www.romhacking.net/community/9037/) for testing out the MML compiler and improving the [MML documentation](./docs/faxiscripts_mml.md) - and for providing example music files which were also added to the docs.
-
-<hr>
-
-**ROM Hack Project Links**
+## Community & Related Projects
 
 * You can find me on the **Faxanadu Randomizer & Romhacking** Discord server, the main hub for all things Faxanadu.
 
-  [![Discord](https://img.shields.io/badge/Faxanadu%20Randomizer%20%26%20Romhacking-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/AyJErR8kyV)
+[![Discord](https://img.shields.io/badge/Faxanadu%20Randomizer%20%26%20Romhacking-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/AyJErR8kyV)
 
-<hr>
+Notable community projects include:
 
-* Dont't miss [Root of Decay](https://www.okimpala.net/faxanadu-root-of-decay) - An upcoming Faxanadu ROM hack by Ok Impala!
-* Check out [Jessica's Alternate Soundtrack hack](https://www.romhacking.net/hacks/9396/), a full music replacement hack for Faxanadu!
-* Songbirder's [Faxanadu 40th Anniversary edition](https://fax40.net/) ROM hack (currently in beta) is available!
+* [Root of Decay](https://www.okimpala.net/faxanadu-root-of-decay) - An upcoming Faxanadu ROM hack by Ok Impala.
+* [Jessica's Alternate Soundtrack hack](https://www.romhacking.net/hacks/9396/) - A full music replacement hack for Faxanadu.
+* [Faxanadu 40th Anniversary edition](https://fax40.net/) - Songbirder's enhancement project, currently in beta.
