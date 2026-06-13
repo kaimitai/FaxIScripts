@@ -25,12 +25,12 @@ void fm::MMLSongCollection::extract_bytecode_collection(MScriptLoader& p_loader)
 		bytesong.tempo = tempo;
 		bytesong.index = static_cast<int>(i + 1);
 
-		for (std::size_t i{ 0 }; i < 4; ++i) {
+		for (std::size_t channel_idx{ 0 }; channel_idx < 4; ++channel_idx) {
 			fm::MMLChannel bytechannel(tempo);
 
-			bytechannel.channel_type = c::CHANNEL_TYPES[i];
+			bytechannel.channel_type = c::CHANNEL_TYPES[channel_idx];
 
-			auto chandata{ normalize_bytecode_channel(song.at(i)) };
+			auto chandata{ normalize_bytecode_channel(song.at(channel_idx)) };
 
 			bytechannel.parse_bytecode(chandata.instrs, chandata.start, chandata.jump_targets);
 
@@ -338,18 +338,18 @@ std::string fm::MMLSongCollection::integral_notes(void) const {
 		};
 
 	const auto f2s = [&int_tix](std::size_t p_idx, int p_num, int p_dem) -> std::string {
-		std::string result;
+		std::string l_result;
 
 		int status{ int_tix[p_idx].at(fm::Fraction(p_num, p_dem)) };
 
 		if (status == 0)
-			result = " Y ";
+			l_result = " Y ";
 		else if (status == 1)
-			result = " N ";
+			l_result = " N ";
 		else
-			result = " X ";
+			l_result = " X ";
 
-		return result;
+		return l_result;
 		};
 
 	for (std::size_t i{ 0 }; i < int_tix.size(); ++i) {

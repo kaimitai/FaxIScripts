@@ -134,7 +134,7 @@ fm::Token fm::Tokenizer::create_tempo_set() {
 	tok.line = line;
 	tok.column = column;
 
-	char c = advance(); // consume 't' or 'T'
+	advance(); // consume 't' or 'T'
 
 	while (!at_end()) {
 		char c = peek();
@@ -606,7 +606,7 @@ fm::Token fm::Tokenizer::create_string(void) {
 
 	while (!at_end()) {
 		char d = advance();
-		if (d=='\"') {
+		if (d == '\"') {
 			break;
 		}
 		else {
