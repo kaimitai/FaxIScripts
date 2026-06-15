@@ -187,6 +187,7 @@ void fi::Cli::asm_to_nes(const std::string& p_asm_filename,
 	}
 
 	m_config.load_config_data(appc::CONFIG_XML, appc::CONFIG_OVERRIDE_FILE_NAME, rom);
+	fi::load_iscript_opcodes_from_config(m_config.bmap(fi::c::ID_ISCRIPT_OPCODES));
 
 	std::cout << "Attempting to parse assembly file " << p_asm_filename << "\n";
 	reader.read_asm_file(m_config, p_asm_filename);
@@ -364,6 +365,7 @@ void fi::Cli::masm_to_nes(const std::string& p_mml_filename,
 void fi::Cli::misc_to_nes(const std::string& p_txt_filename,
 	const std::string& p_nes_filename,
 	const std::string& p_source_rom_filename) {
+	constexpr char ID_DUPLICATE_STATIC_BANK[]{ "duplicate_static_bank" };
 
 	auto rom{ load_rom_and_determine_region(p_source_rom_filename) };
 	fv::MiscWriter reader(rom, m_config);
@@ -373,6 +375,19 @@ void fi::Cli::misc_to_nes(const std::string& p_txt_filename,
 
 	std::cout << "Attempting to ptach " << p_nes_filename << "\n";
 	int itemcnt{ reader.patch_rom(rom, m_config) };
+
+	// only the misc interface can mutate bank 15
+	// for expanded ROMs we may need to copy bank 15 to bank 31 post-patch
+	if (m_config.boolean_or(ID_DUPLICATE_STATIC_BANK, false)) {
+		constexpr std::size_t BANK_BYTE_SIZE{ 0x4000 };
+		std::size_t source_idx{ 0x10 + BANK_BYTE_SIZE * 0x0f };
+		std::size_t target_idx{ 0x10 + BANK_BYTE_SIZE * 0x1f };
+
+		for (std::size_t i{ 0 }; i < BANK_BYTE_SIZE; ++i)
+			rom.at(target_idx + i) = rom[source_idx + i];
+
+		std::cout << "Bank 15 was duplicated to bank 31 post-patch\n";
+	}
 
 	klib::file::write_bytes_to_file(rom, p_nes_filename);
 	std::cout << std::format("Misc data ({} items) written to file ", itemcnt) << p_nes_filename << "!\n";
@@ -404,6 +419,7 @@ void fi::Cli::nes_to_asm(const std::string& p_nes_filename,
 	}
 
 	m_config.load_config_data(appc::CONFIG_XML, appc::CONFIG_OVERRIDE_FILE_NAME, rom_data);
+	fi::load_iscript_opcodes_from_config(m_config.bmap(fi::c::ID_ISCRIPT_OPCODES));
 
 	fi::IScriptLoader loader(rom_data);
 

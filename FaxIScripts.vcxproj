@@ -173,6 +173,7 @@
   <ItemGroup>
     <ClInclude Include="src\common\klib\Kfile.h" />
     <ClInclude Include="src\common\klib\Kstring.h" />
+    <ClInclude Include="src\common\magic_enum.hpp" />
     <ClInclude Include="src\common\midifile\Binasc.h" />
     <ClInclude Include="src\common\midifile\MidiEvent.h" />
     <ClInclude Include="src\common\midifile\MidiEventList.h" />

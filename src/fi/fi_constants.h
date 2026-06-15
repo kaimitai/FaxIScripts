@@ -12,6 +12,7 @@ namespace fi {
 
 	namespace c {
 
+		constexpr char ID_ISCRIPT_OPCODES[]{ "iscript_opcodes" };
 		constexpr char ID_ISCRIPT_PTR_LO[]{ "iscript_ptr_lo" };
 		constexpr char ID_ISCRIPT_MIN_COUNT[]{ "iscript_min_count" };
 		constexpr char ID_ISCRIPT_PTR_HI_REF_OFFSET[]{ "iscript_ptr_hi_ref_offset" };
