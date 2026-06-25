@@ -1,6 +1,6 @@
 # FaxIScripts - User Documentation
 
-This is the user documentation for FaxIScripts (v0.83), an assembler for the internal scripting languages used by Faxanadu for the NES. The application code and binaries can be found on its [GitHub repository](https://github.com/kaimitai/faxiscripts/). It is assumed that users are somewhat acquainted with Faxanadu on the NES.
+This is the user documentation for FaxIScripts (v0.84), an assembler for the internal scripting languages used by Faxanadu for the NES. The application code and binaries can be found on its [GitHub repository](https://github.com/kaimitai/faxiscripts/). It is assumed that users are somewhat acquainted with Faxanadu on the NES.
 
 There are three types of scripts in the game:
   * Interaction Scripts (iScripts)
@@ -1140,6 +1140,14 @@ The reason for the application name being FaxIScripts was that originally this w
 <hr>
 
 ### Changelog
+
+* 2026-06-25: version 0.84
+   * iScript opcode definitions can now be customized through the configuration file, making it easier to support ROM hacks with modified or extended script engines
+   * Linux and macOS support
+      * FaxIScripts can now be built and used on Linux and macOS
+      * Added CMake build support and updated the documentation with build instructions
+   * Improved support for 32-bank MMC1 ROMs (such as SUROM and SXROM) when modifying static data
+   * Documentation updates and various portability and code quality improvements
 
 * 2026-06-07: version 0.83
    * Configuration constants can now be conditionally enabled based on ROM data values, allowing fine-grained control within ROM regions

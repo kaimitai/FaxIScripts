@@ -1550,6 +1550,7 @@ t120
 Some common problems that can occurr when compiling mml.
 
 - A note length becomes 0 or higher than 255 ticks. This is not allowed by the engine. The error message will tell you which song and channel caused the error. Maybe you tied too many notes together, or your tempo was too fast or too slow relative to the note lengths you used. The calculated illegal tick count (0 or &gt;255) will also show in the error message.
+- If a note length does not sound for as many ticks as expected, it has been reported that you need to use length counter halt. ($len_halt)
 - Some notes might not play, if their pitch is too high or too low, depending on the channel. The range of legal note values is bigger than the range of notes that can actually be played.
 - If one of your notes has a pitch that is too low or too high to even be turned into bytecode, compilation will fail. The base range is 127 different semitones, starting from C in octave 2.
 - Opcodes (commands) must start with !, if you write jsr instead of !jsr you will get an error message. Error messages during parsing will tell you which line and column in your mml the problem exists at.
