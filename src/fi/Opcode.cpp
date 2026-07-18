@@ -28,7 +28,43 @@ std::map<byte, fi::Opcode> fi::opcodes{
 	{0x17, fi::Opcode("Jump", fi::ArgType::None, fi::Flow::Jump, fi::ArgDomain::None, true)}
 };
 
-static fi::Opcode parse_opcode_def(const std::string& p_definition) {
+static const std::map<fh::HackLib, fi::Opcode> hacklib_opcodes{
+	{
+		fh::HackLib::SetFlag,
+		fi::Opcode("",
+			fi::ArgType::Byte,
+			fi::Flow::Continue,
+			fi::ArgDomain::None,
+			false)
+	},
+	{
+		fh::HackLib::ClearFlag,
+		fi::Opcode("",
+			fi::ArgType::Byte,
+			fi::Flow::Continue,
+			fi::ArgDomain::None,
+			false)
+	},
+	{
+		fh::HackLib::IfFlag,
+		fi::Opcode("",
+			fi::ArgType::Byte,
+			fi::Flow::Jump,
+			fi::ArgDomain::None,
+			false)
+	},
+	{
+		fh::HackLib::RunScreenHandler,
+		fi::Opcode("",
+			fi::ArgType::None,
+			fi::Flow::Continue,
+			fi::ArgDomain::None,
+			false)
+	}
+};
+
+static fi::Opcode parse_opcode_def(const std::string& p_definition, std::vector<fh::HackLib>& required_libs,
+	bool impl_allowed) {
 	auto kv{ klib::str::extract_keyval_str(p_definition, ',', '=') };
 
 	fi::Opcode result{
@@ -39,29 +75,43 @@ static fi::Opcode parse_opcode_def(const std::string& p_definition) {
 		false
 	};
 
+	std::optional<fh::HackLib> impl;
+
 	for (const auto& [key, value] : kv) {
 		const auto k{ klib::str::to_lower(klib::str::trim(key)) };
 
 		if (k == "mnemonic")
 			result.name = klib::str::trim(value);
-
 		else if (k == "argtype")
 			result.arg_type = klib::str::parse_enum_ci<fi::ArgType>(value);
-
 		else if (k == "flow")
 			result.flow = klib::str::parse_enum_ci<fi::Flow>(value);
-
 		else if (k == "argdomain")
 			result.domain = klib::str::parse_enum_ci<fi::ArgDomain>(value);
-
 		else if (k == "terminal")
 			result.ends_stream = klib::str::parse_bool_ci(value);
+		else if (k == "impl") try {
+			if (!impl_allowed)
+				throw std::runtime_error("Vanilla opcodes may not specify Impl");
+			impl = klib::str::parse_enum_ci<fh::HackLib>(value);
+			required_libs.push_back(*impl);
+		}
+		catch (const std::runtime_error& ex) {
+			throw std::runtime_error(
+				std::format("Could not load script opcode implementation '{}' ({})", value, ex.what()));
+		}
 		else
 			throw std::runtime_error(std::format("Unknown opcode property: {}", key));
 	}
 
 	if (result.name.empty())
 		throw std::runtime_error("Opcode definition missing Mnemonic");
+
+	if (impl) {
+		std::string opcodename{ result.name };
+		result = hacklib_opcodes.at(*impl);
+		result.name = opcodename;
+	}
 
 	return result;
 }
@@ -76,8 +126,19 @@ std::vector<fh::HackLib> fi::load_iscript_opcodes_from_config(const std::map<byt
 
 	std::map<byte, fi::Opcode> l_opcodes;
 
-	for (const auto& kv : p_opcode_defs)
-		l_opcodes.insert(std::make_pair(kv.first, parse_opcode_def(kv.second)));
+	byte expected{ 0 };
+
+	for (const auto& kv : p_opcode_defs) {
+
+		// ensure the map is dense
+		if (kv.first != expected)
+			throw std::runtime_error(std::format("Expected opcode ${:02X}, found ${:02X}", expected, kv.first));
+
+		++expected;
+
+		auto parsed{ parse_opcode_def(kv.second, required_libs, kv.first >= 0x18) };
+		l_opcodes.insert(std::make_pair(kv.first, parsed));
+	}
 
 	if constexpr (THROW_ON_OPCODE_DIFFS) {
 		if (l_opcodes != fi::opcodes)
