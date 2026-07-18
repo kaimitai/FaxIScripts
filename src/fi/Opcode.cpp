@@ -66,11 +66,13 @@ static fi::Opcode parse_opcode_def(const std::string& p_definition) {
 	return result;
 }
 
-void fi::load_iscript_opcodes_from_config(const std::map<byte, std::string>& p_opcode_defs) {
+std::vector<fh::HackLib> fi::load_iscript_opcodes_from_config(const std::map<byte, std::string>& p_opcode_defs) {
 	constexpr bool THROW_ON_OPCODE_DIFFS{ false };
 
+	std::vector<fh::HackLib> required_libs;
+
 	if (p_opcode_defs.empty())
-		return;
+		return required_libs;
 
 	std::map<byte, fi::Opcode> l_opcodes;
 
@@ -83,6 +85,8 @@ void fi::load_iscript_opcodes_from_config(const std::map<byte, std::string>& p_o
 	}
 
 	fi::opcodes = l_opcodes;
+
+	return required_libs;
 }
 
 std::vector<byte> fi::Instruction::get_bytes(void) const {

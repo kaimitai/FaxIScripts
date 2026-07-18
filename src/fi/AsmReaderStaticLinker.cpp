@@ -51,7 +51,7 @@ Data we need:
    between our local data-relative zero addr offset and bank zero addr offset
 
  */
-void fi::AsmReader::parse_section_iscript(const fe::Config& p_config) {
+void fi::AsmReader::parse_section_iscript(const fe::Config& p_config, std::size_t script_rg2_offset) {
 	if (!m_sections.contains(SectionType::IScript))
 		throw std::runtime_error(
 			std::format("Missing required section {}", c::SECTION_ISCRIPT
@@ -60,7 +60,7 @@ void fi::AsmReader::parse_section_iscript(const fe::Config& p_config) {
 	// extract constants we need from the config
 	std::size_t l_iscript_min_count{ p_config.constant(c::ID_ISCRIPT_MIN_COUNT) };
 	std::size_t l_iscript_rg1_end{ p_config.constant(c::ID_ISCRIPT_RG1_END) };
-	std::size_t l_iscript_rg2_offset{ p_config.constant(c::ID_ISCRIPT_RG2_START) };
+	std::size_t l_iscript_rg2_offset{ script_rg2_offset };
 	auto l_iscript_ptr{ p_config.pointer(c::ID_ISCRIPT_PTR_LO) };
 
 	// start by calculating the shop offsets and code offset

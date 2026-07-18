@@ -11,7 +11,7 @@
 #include <utility>
 
 void fi::AsmReader::read_asm_file(const fe::Config& p_config,
-	const std::string& p_filename) {
+	const std::string& p_filename, std::size_t script_rg2_offset) {
 	auto l_lines{ klib::file::read_file_as_strings(p_filename) };
 	fi::SectionType currentSection{ fi::SectionType::Defines };
 
@@ -37,7 +37,7 @@ void fi::AsmReader::read_asm_file(const fe::Config& p_config,
 	parse_section_strings();
 	parse_section_defines();
 	parse_section_shops();
-	parse_section_iscript(p_config);
+	parse_section_iscript(p_config, script_rg2_offset);
 }
 
 void fi::AsmReader::parse_section_strings(void) {

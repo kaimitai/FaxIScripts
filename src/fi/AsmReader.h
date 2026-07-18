@@ -35,7 +35,7 @@ namespace fi {
 		void parse_section_strings(void);
 		void parse_section_defines(void);
 		void parse_section_shops(void);
-		void parse_section_iscript(const fe::Config& p_config);
+		void parse_section_iscript(const fe::Config& p_config, std::size_t script_rg2_offset);
 
 		std::map<std::string, int> relocate_strings(const std::set<std::string>& p_strings);
 
@@ -58,7 +58,7 @@ namespace fi {
 	public:
 		AsmReader(void) = default;
 		void read_asm_file(const fe::Config& p_config,
-			const std::string& p_filename);
+			const std::string& p_filename, std::size_t script_rg2_offset);
 		std::size_t get_entrypoint_count(void) const;
 
 		// get ROM bytes

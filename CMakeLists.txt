@@ -11,6 +11,7 @@ set(SOURCES
     # common
     src/common/klib/Kfile.cpp
     src/common/klib/Kstring.cpp
+	src/common/klib/Asm6502.cpp
 
     src/common/midifile/Binasc.cpp
     src/common/midifile/MidiEvent.cpp
@@ -58,6 +59,9 @@ set(SOURCES
 
     # fv
     src/fv/MiscWriter.cpp
+
+    # fh
+    src/fh/HackManager.cpp
 
     # mantra
     src/mantra/Mantra.cpp

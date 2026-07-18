@@ -6,6 +6,7 @@
 #include <optional>
 #include <string>
 #include <vector>
+#include "./../fh/HackManager.h"
 
 using byte = unsigned char;
 
@@ -66,7 +67,7 @@ namespace fi {
 		std::vector<byte> get_bytes(void) const;
 	};
 
-	void load_iscript_opcodes_from_config(const std::map<byte, std::string>& p_opcode_defs);
+	std::vector<fh::HackLib> load_iscript_opcodes_from_config(const std::map<byte, std::string>& p_opcode_defs);
 
 }
 

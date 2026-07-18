@@ -91,6 +91,12 @@
     <Filter Include="Source Files\mantra">
       <UniqueIdentifier>{6847a90f-1e3f-4675-bcdb-52679488c901}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\fh">
+      <UniqueIdentifier>{e12f2578-4ab0-43be-97b9-81665a585ffd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\fh">
+      <UniqueIdentifier>{fd37c08c-628a-4f45-bab1-71e3ae32a9a3}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp">
@@ -212,6 +218,12 @@
     </ClCompile>
     <ClCompile Include="src\mantra\MantraCli.cpp">
       <Filter>Source Files\mantra</Filter>
+    </ClCompile>
+    <ClCompile Include="src\common\klib\Asm6502.cpp">
+      <Filter>Source Files\common\klib</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fh\HackManager.cpp">
+      <Filter>Source Files\fh</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -367,6 +379,15 @@
     </ClInclude>
     <ClInclude Include="src\common\magic_enum.hpp">
       <Filter>Header Files\common</Filter>
+    </ClInclude>
+    <ClInclude Include="src\common\klib\Asm6502.h">
+      <Filter>Header Files\common\klib</Filter>
+    </ClInclude>
+    <ClInclude Include="src\fh\HackManager.h">
+      <Filter>Header Files\fh</Filter>
+    </ClInclude>
+    <ClInclude Include="src\fh\fh_constants.h">
+      <Filter>Header Files\fh</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
