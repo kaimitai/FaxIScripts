@@ -369,6 +369,14 @@
 		<const name="rom_iscripts_jumptonextaddr" region="us,randum,eu,us-rev-a" value="$8603" />
 		<const name="rom_iscripts_jumptonextaddr" region="jp,en-transl" value="$8600" />
 		<const name="rom_iscripts_invokenextaction" value="$826e" />
+		<const name="rom_mmc1_updaterombank" region="en-transl" value="$fdb2" />
+		<const name="rom_mmc1_updaterombank" value="$cc1a" />
+		<!-- tilemap change hack injection points -->
+		<const name="hack_tm_change_bank" region="en-transl" value="30" />
+		<const name="hack_tm_change_bank" value="9" />
+		<const name="hack_tm_change_cpu_addr" region="en-transl" value="$8000" />
+		<const name="hack_tm_change_cpu_addr" value="$a000" />
+		<const name="hack_tm_handler_cpu_addr" value="$ffc1" />
 		<!-- various hack injection points -->
 		<const name="hack_clear_persistent_flags" value="$d005" />
 	</consts>

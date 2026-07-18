@@ -34,6 +34,7 @@ namespace fi {
 		constexpr char SECTION_STRINGS[]{ "[reserved_strings]" };
 		constexpr char SECTION_SHOPS[]{ "[shops]" };
 		constexpr char SECTION_ISCRIPT[]{ "[iscript]" };
+		constexpr char SECTION_TILEMAP_CHANGES[]{ "[tilemap_changes]" };
 		constexpr char DIRECTIVE_ENTRYPOINT[]{ ".entrypoint" };
 		constexpr char PSEUDO_OPCODE_TEXTBOX[]{ ".textbox" };
 	}

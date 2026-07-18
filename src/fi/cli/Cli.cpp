@@ -260,6 +260,14 @@ void fi::Cli::asm_to_nes(const std::string& p_asm_filename,
 	rom.at(l_rom_offset_hi_byte_ref) = static_cast<byte>(l_hi_byte_addr_bank_rel % 256);
 	rom.at(l_rom_offset_hi_byte_ref + 1) = static_cast<byte>(l_hi_byte_addr_bank_rel / 256);
 
+	// compile tilemap changes if applicable
+	const auto& tmchanges{ reader.get_tilemap_changes() };
+	if (!tmchanges.empty()) {
+		fh::HackManager hack_mgr;
+		std::size_t tmsub_size{ hack_mgr.apply_tilemap_change_subsystem(m_config, rom, tmchanges) };
+		std::cout << "Installed tilemap change subsystem (" << tmsub_size << " bytes)\n";
+	}
+
 	// bank 15 could have been mutated by hacks - duplicate to bank 31 post-patch for expanded roms
 	if (m_config.boolean_or(ID_DUPLICATE_STATIC_BANK, false)) {
 		constexpr std::size_t BANK_BYTE_SIZE{ 0x4000 };

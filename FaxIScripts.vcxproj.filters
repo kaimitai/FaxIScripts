@@ -225,6 +225,9 @@
     <ClCompile Include="src\fh\HackManager.cpp">
       <Filter>Source Files\fh</Filter>
     </ClCompile>
+    <ClCompile Include="src\fh\TilemapChanges.cpp">
+      <Filter>Source Files\fh</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\fi\Opcode.h">
@@ -387,6 +390,9 @@
       <Filter>Header Files\fh</Filter>
     </ClInclude>
     <ClInclude Include="src\fh\fh_constants.h">
+      <Filter>Header Files\fh</Filter>
+    </ClInclude>
+    <ClInclude Include="src\fh\TilemapChanges.h">
       <Filter>Header Files\fh</Filter>
     </ClInclude>
   </ItemGroup>

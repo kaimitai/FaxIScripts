@@ -146,6 +146,7 @@
     <ClCompile Include="src\fe\Config.cpp" />
     <ClCompile Include="src\fe\xml\Xml_helper.cpp" />
     <ClCompile Include="src\fh\HackManager.cpp" />
+    <ClCompile Include="src\fh\TilemapChanges.cpp" />
     <ClCompile Include="src\fi\AsmReader.cpp" />
     <ClCompile Include="src\fi\AsmReaderStaticLinker.cpp" />
     <ClCompile Include="src\fi\AsmWriter.cpp" />
@@ -195,6 +196,7 @@
     <ClInclude Include="src\fe\xml\Xml_helper.h" />
     <ClInclude Include="src\fh\fh_constants.h" />
     <ClInclude Include="src\fh\HackManager.h" />
+    <ClInclude Include="src\fh\TilemapChanges.h" />
     <ClInclude Include="src\fi\AsmReader.h" />
     <ClInclude Include="src\fi\AsmWriter.h" />
     <ClInclude Include="src\fi\cli\application_constants.h" />

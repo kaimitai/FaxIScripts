@@ -9,10 +9,11 @@
 #include "Shop.h"
 #include "Opcode.h"
 #include "./../fe/Config.h"
+#include "./../fh/TilemapChanges.h"
 
 namespace fi {
 
-	enum class SectionType { Defines, Strings, Shops, IScript };
+	enum class SectionType { Defines, Strings, Shops, IScript, TilemapChanges };
 
 	class AsmReader {
 
@@ -27,6 +28,8 @@ namespace fi {
 
 		std::map<SectionType, std::vector<std::string>> m_sections;
 
+		fh::TilemapChanges m_tilemap_changes;
+
 		std::string strip_comment(const std::string& line) const;
 		std::string trim(const std::string& line) const;
 
@@ -35,6 +38,7 @@ namespace fi {
 		void parse_section_strings(void);
 		void parse_section_defines(void);
 		void parse_section_shops(void);
+		void parse_section_tilemap_changes(void);
 		void parse_section_iscript(const fe::Config& p_config, std::size_t script_rg2_offset);
 
 		std::map<std::string, int> relocate_strings(const std::set<std::string>& p_strings);
@@ -65,6 +69,9 @@ namespace fi {
 		std::pair<std::vector<byte>, std::vector<byte>> get_script_bytes(const fe::Config& p_config) const;
 		std::vector<byte> get_string_bytes(const fe::Config& p_config) const;
 		std::size_t get_string_count(void) const;
+
+		// get optional tilemap changes
+		const fh::TilemapChanges& get_tilemap_changes() const;
 	};
 
 }

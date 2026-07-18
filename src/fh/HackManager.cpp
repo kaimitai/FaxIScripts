@@ -168,6 +168,208 @@ std::size_t fh::HackManager::apply_script_library(const fe::Config& p_config, st
 	return code.get_file_offset(rom_addr_start.Bank, cpu_addr);
 }
 
+// tilemap change subsystem
+std::size_t fh::HackManager::apply_tilemap_change_subsystem(const fe::Config& p_config, std::vector<byte>& p_rom,
+	const fh::TilemapChanges& tm_changes) const {
+
+	static const std::vector<byte> BITMASK_TABLE_DATA{ 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80 };
+	const word cpu_addr{ cfg_word(p_config, c::ID_TM_CHANGE_CPU_ADDR) };
+	const byte data_bank{ static_cast<byte>(p_config.constant(c::ID_TM_CHANGE_BANK)) };
+
+	const word data_table_addr{ cpu_addr };
+	const word bitmask_table_addr{ get_next_cpu_addr(data_table_addr,
+		klib::Asm6502::apply_bytes(p_rom, tm_changes.to_bytes(data_table_addr), data_bank, data_table_addr)) };
+	const word flag_helper_addr{ get_next_cpu_addr(bitmask_table_addr,
+		klib::Asm6502::apply_bytes(p_rom, BITMASK_TABLE_DATA, data_bank, bitmask_table_addr)) };
+	const word tilemap_changer_addr{ install_hack_tm_flag_helper(p_rom, data_bank, flag_helper_addr, bitmask_table_addr) };
+	const word descriptor_handler_addr{ install_hack_tm_tilemap_changer(p_rom, data_bank, tilemap_changer_addr) };
+	const word tm_lookup_addr{ install_hack_tm_descriptor_handler(p_rom, data_bank, descriptor_handler_addr,
+		flag_helper_addr, tilemap_changer_addr) };
+	const word tm_subsystem_end{ install_hack_tm_lookup(p_rom, data_bank, tm_lookup_addr, descriptor_handler_addr,
+			static_cast<word>(data_table_addr + fh::TilemapChanges::EOE_TILEMAP_CHANGE_HEADER.size())) };
+
+	// install screen event handler
+	const word tm_event_handler_end{ install_hack_tm_event_handler(p_config, p_rom,
+		data_bank, tm_lookup_addr) };
+
+	return static_cast<std::size_t>(tm_subsystem_end - cpu_addr);
+}
+
+word fh::HackManager::install_hack_tm_event_handler(const fe::Config& p_config, std::vector<byte>& p_rom,
+	byte tm_lookup_bank, word tm_lookup_cpu_addr) const {
+	klib::Asm6502 code;
+
+	const word Hack_ScreenEventHandler{ cfg_word(p_config, c::ID_TM_CHANGE_HANDLER_CPU_ADDR) };
+	const word MMC1_UpdateROMBank{ cfg_word(p_config, c::ID_ROM_MMC1_UPDATEROMBANK) };
+
+	// Save the currently mapped switchable bank.
+	code.lda_abs(RAM::CurrentROMBank);
+	code.pha();
+	// switch to the tilemap changes data bank
+	code.ldx_imm(tm_lookup_bank);
+	code.jsr(MMC1_UpdateROMBank);
+	// call the actual tilemap change logic in the other bank
+	code.jsr(tm_lookup_cpu_addr);
+	// restore the bank that was mapped before this handler ran.
+	code.pla();
+	code.tax();
+	code.jsr(MMC1_UpdateROMBank);
+
+	code.label("@done");
+	// Mark the screen event as complete.
+	code.lda_imm(0xff);
+	code.sta_abs(RAM::CurrentScreen_SpecialEventID);
+	code.rts();
+
+	const word event_table_addr{ get_next_cpu_addr(Hack_ScreenEventHandler,
+		code.apply_hack_and_clear(p_rom, 15, Hack_ScreenEventHandler), 0xffff) };
+
+	// The dispatcher enters handlers using RTS, so entries are address - 1.
+	code.dw(ROM::EventHandlerPathToMascon - 1);
+	code.dw(ROM::EventHandlerBossScreen - 1);
+	code.dw(ROM::EventHandlerFinalBoss - 1);
+	code.dw(Hack_ScreenEventHandler - 1);
+	const word result{ get_next_cpu_addr(event_table_addr, code.apply_hack_and_clear(p_rom, 15, event_table_addr),
+		0xffff) };
+
+	// static change: extend the valid event-table byte count from 6 to 8
+	code.cmp_imm(0x08);
+	code.apply_hack_and_clear(p_rom, 15, ROM::GameLoop_RunScreenEventHandlers_CMP_06);
+	// static change: dispatcher expects the high byte first, then the low byte.
+	code.lda_abs_y(event_table_addr + 1);
+	code.pha();
+	code.lda_abs_y(event_table_addr);
+	code.pha();
+	code.apply_hack_and_clear(p_rom, 15, ROM::GameLoop_RunScreenEventHandlers_LDA_EventTable);
+
+	return result;
+}
+
+word fh::HackManager::install_hack_tm_lookup(std::vector<byte>& p_rom, byte p_bank, word p_cpu_addr,
+	word descriptor_handler_cpu_addr, word data_table_start_cpu_addr) const {
+	klib::Asm6502 code;
+
+	code.lda_zp(RAM::ZP_CurrentWorld);
+	code.asl_a();
+	code.tax();
+	code.lda_abs_x(data_table_start_cpu_addr);
+	code.sta_zp(RAM::ZP_e4);
+	code.lda_abs_x(data_table_start_cpu_addr + 1);
+	code.sta_zp(RAM::ZP_e5);
+	code.jmp(descriptor_handler_cpu_addr);
+	return get_next_cpu_addr(
+		p_cpu_addr,
+		code.apply_hack_and_clear(p_rom, p_bank, p_cpu_addr));
+}
+
+word fh::HackManager::install_hack_tm_descriptor_handler(std::vector<byte>& p_rom, byte p_bank, word p_cpu_addr,
+	word flag_helper_cpu_addr, word tm_changer_cpu_addr) const {
+	klib::Asm6502 code;
+
+	code.ldy_imm(0x00);
+	code.label("@loop");
+	code.lda_ind_y(RAM::ZP_e4);
+	code.cmp_imm(0xff);
+	code.beq("@done");
+
+	code.cmp_zp(RAM::ZP_CurrentScreen);
+	code.beq("@found_screen");
+
+	code.iny();
+
+	code.label("@flag_clear");
+	code.iny();
+	code.iny();
+	code.iny();
+
+	code.bne("@loop");
+
+	code.label("@found_screen");
+	code.iny(); // y -> flag
+	code.lda_ind_y(RAM::ZP_e4);
+	code.jsr(flag_helper_cpu_addr);
+	code.bcc("@flag_clear");
+
+	code.iny(); // y -> ptr lo
+
+	code.lda_ind_y(RAM::ZP_e4);
+	code.sta_zp(RAM::ZP_e2);
+
+	code.iny(); // y -> ptr hi
+
+	code.lda_ind_y(RAM::ZP_e4);
+	code.sta_zp(RAM::ZP_e3);
+
+	code.jmp(tm_changer_cpu_addr);
+
+	code.label("@done");
+	code.lda_imm(0x00);
+	code.rts();
+
+	return get_next_cpu_addr(
+		p_cpu_addr,
+		code.apply_hack_and_clear(p_rom, p_bank, p_cpu_addr));
+}
+
+word fh::HackManager::install_hack_tm_tilemap_changer(std::vector<byte>& p_rom, byte p_bank, word p_cpu_addr) const {
+	klib::Asm6502 code;
+
+	code.ldy_imm(0x00);
+	code.lda_ind_y(RAM::ZP_e2);
+	code.sta_zp(RAM::ZP_Temp08);
+
+	code.ldy_imm(0x01);
+
+	code.label("@loop");
+	code.lda_ind_y(RAM::ZP_e2);
+	code.tax();
+	code.iny();
+	code.lda_ind_y(RAM::ZP_e2);
+	code.iny();
+
+	code.sta_abs_x(RAM::ScreenBuffer);
+
+	code.sty_zp(RAM::ZP_Temp07);
+	code.jsr(ROM::Area_SetBlocks);
+	code.ldy_zp(RAM::ZP_Temp07);
+
+	code.dec_zp(RAM::ZP_Temp08);
+	code.bne("@loop");
+
+	code.rts();
+
+	return get_next_cpu_addr(
+		p_cpu_addr,
+		code.apply_hack_and_clear(p_rom, p_bank, p_cpu_addr));
+}
+
+word fh::HackManager::install_hack_tm_flag_helper(std::vector<byte>& p_rom, byte p_bank, word p_cpu_addr,
+	word p_table_addr) const {
+	klib::Asm6502 code;
+
+	code.pha();
+	code.lsr_a(3);
+	code.tax();
+	code.lda_abs_x(RAM::Flags);
+	code.sta_zp(RAM::ZP_Temp08);
+	code.pla();
+	code.and_imm(0x07);
+	code.tax();
+	code.lda_abs_x(p_table_addr);
+	code.and_zp(RAM::ZP_Temp08);
+	code.beq("@clear");
+	code.sec();
+	code.rts();
+
+	code.label("@clear");
+	code.clc();
+	code.rts();
+
+	return get_next_cpu_addr(
+		p_cpu_addr,
+		code.apply_hack_and_clear(p_rom, p_bank, p_cpu_addr));
+}
+
 // other hacks
 word fh::HackManager::install_hack_clear_flag_memory(const fe::Config& p_config, std::vector<byte>& p_rom) const {
 	const word Hack_ClearPersistentFlags{ cfg_word(p_config, c::ID_HACK_CLEAR_PERSISTENT_FLAGS) };

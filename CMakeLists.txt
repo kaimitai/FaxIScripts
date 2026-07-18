@@ -62,6 +62,7 @@ set(SOURCES
 
     # fh
     src/fh/HackManager.cpp
+	src/fh/TilemapChanges.cpp
 
     # mantra
     src/mantra/Mantra.cpp
@@ -90,6 +91,8 @@ target_include_directories(faxiscripts PRIVATE
     src/fm/song
 
     src/fv
+	
+	src/fh
 
     src/mantra
 )
