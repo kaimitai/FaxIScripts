@@ -12,8 +12,8 @@ using word = uint16_t;
 namespace fh {
 
 	enum class HackLib {
-		SetFlag, ClearFlag, IfFlag, RunScreenHandler, GetXP,
-		IfWorld, IfScreen, IfStage, Die
+		SetFlag, ClearFlag, IfFlag, SetQuestFlag, ClearQuestFlag, IfQuestFlag,
+		RunScreenHandler, GetXP, IfWorld, IfScreen, IfStage, Die
 	};
 
 	class HackManager {
@@ -25,6 +25,12 @@ namespace fh {
 			word cpu_addr, word flag_decode_helper_addr, word bitmask_table_addr) const;
 		word apply_IfFlag(const fe::Config& p_config, std::vector<byte>& p_rom,
 			word cpu_addr, word flag_decode_helper_addr, word bitmask_table_addr) const;
+		word apply_SetQuestFlag(const fe::Config& p_config, std::vector<byte>& p_rom,
+			word cpu_addr, word quest_flag_decode_helper_addr, word bitmask_table_addr) const;
+		word apply_ClearQuestFlag(const fe::Config& p_config, std::vector<byte>& p_rom,
+			word cpu_addr, word quest_flag_decode_helper_addr, word bitmask_table_addr) const;
+		word apply_IfQuestFlag(const fe::Config& p_config, std::vector<byte>& p_rom,
+			word cpu_addr, word quest_flag_decode_helper_addr, word bitmask_table_addr) const;
 		word apply_RunScreenHandler(const fe::Config& p_config, std::vector<byte>& p_rom,
 			word cpu_addr) const;
 		word apply_GetXP(const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const;
@@ -35,6 +41,8 @@ namespace fh {
 
 		// shared helpers for the script action library
 		word apply_helper_DecodeScriptFlag(const fe::Config& p_config, std::vector<byte>& p_rom,
+			word cpu_addr) const;
+		word apply_helper_DecodeQuestFlag(const fe::Config& p_config, std::vector<byte>& p_rom,
 			word cpu_addr) const;
 		word apply_helper_IfAEquals(const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const;
 

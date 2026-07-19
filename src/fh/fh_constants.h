@@ -43,6 +43,7 @@ namespace fh {
 
 		constexpr word CurrentROMBank{ 0x0100 };
 		constexpr word Flags{ 0x0101 };
+		constexpr word QuestFlags{ 0x042d };
 		constexpr word CurrentScreen_SpecialEventID{ 0x042e };
 		constexpr word CurrentStage{ 0x0435 };
 		constexpr word PlayerIsDead{ 0x0438 };
