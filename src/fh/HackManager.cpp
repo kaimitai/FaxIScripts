@@ -113,16 +113,12 @@ word fh::HackManager::apply_RunScreenHandler(const fe::Config& p_config, std::ve
 
 	code.jsr(ROM::GameLoop_RunScreenEventHandlers);
 
-	code.jmp(cfg_word(
-		p_config,
-		c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
 
-	return get_next_cpu_addr(
-		cpu_addr,
-		code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+	return get_next_cpu_addr(cpu_addr, code.apply_hack_and_clear(p_rom, 12, cpu_addr));
 }
 
-word fh::HackManager::apply_GetXPHandler(const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const {
+word fh::HackManager::apply_GetXP(const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const {
 	klib::Asm6502 code;
 
 	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); // A = xp lo byte
@@ -131,9 +127,7 @@ word fh::HackManager::apply_GetXPHandler(const fe::Config& p_config, std::vector
 	code.sta_zp(RAM::ZP_Temp_Int24_M);
 	code.jsr(cfg_word(p_config, c::ID_ROM_PLAYER_UPDATEEXPERIENCE));
 
-	code.jmp(cfg_word(
-		p_config,
-		c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
 
 	return get_next_cpu_addr(cpu_addr, code.apply_hack_and_clear(p_rom, 12, cpu_addr));
 }
@@ -161,6 +155,16 @@ word fh::HackManager::apply_IfStage(std::vector<byte>& p_rom, word cpu_addr, wor
 
 	code.lda_abs(RAM::CurrentStage);
 	code.jmp(helper_if_a_equals_addr);
+
+	return get_next_cpu_addr(cpu_addr, code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+}
+
+word fh::HackManager::apply_Die(const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const {
+	klib::Asm6502 code;
+
+	code.lda_imm(0x01);
+	code.sta_abs(RAM::PlayerIsDead);
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
 
 	return get_next_cpu_addr(cpu_addr, code.apply_hack_and_clear(p_rom, 12, cpu_addr));
 }
@@ -230,7 +234,7 @@ std::size_t fh::HackManager::apply_script_library(const fe::Config& p_config, st
 			break;
 		}
 		case HackLib::GetXP: {
-			cpu_addr = apply_GetXPHandler(p_config, p_rom, cpu_addr);
+			cpu_addr = apply_GetXP(p_config, p_rom, cpu_addr);
 			break;
 		}
 		case HackLib::IfWorld: {
@@ -243,6 +247,10 @@ std::size_t fh::HackManager::apply_script_library(const fe::Config& p_config, st
 		}
 		case HackLib::IfStage: {
 			cpu_addr = apply_IfStage(p_rom, cpu_addr, ram_check_helper_addr);
+			break;
+		}
+		case HackLib::Die: {
+			cpu_addr = apply_Die(p_config, p_rom, cpu_addr);
 			break;
 		}
 

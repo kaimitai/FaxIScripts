@@ -70,7 +70,8 @@ namespace {
 		{ fh::HackLib::GetXP,            WORD_CONTINUE },
 		{ fh::HackLib::IfWorld,          BYTE_JUMP },
 		{ fh::HackLib::IfScreen,         BYTE_JUMP },
-		{ fh::HackLib::IfStage,          BYTE_JUMP }
+		{ fh::HackLib::IfStage,          BYTE_JUMP },
+		{ fh::HackLib::Die,              NONE_CONTINUE }
 	};
 }
 

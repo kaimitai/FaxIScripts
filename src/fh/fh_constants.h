@@ -45,6 +45,7 @@ namespace fh {
 		constexpr word Flags{ 0x0101 };
 		constexpr word CurrentScreen_SpecialEventID{ 0x042e };
 		constexpr word CurrentStage{ 0x0435 };
+		constexpr word PlayerIsDead{ 0x0438 };
 		constexpr word ScreenBuffer{ 0x0600 };
 	}
 
