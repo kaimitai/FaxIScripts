@@ -67,7 +67,10 @@ namespace {
 		{ fh::HackLib::ClearFlag,        BYTE_CONTINUE },
 		{ fh::HackLib::IfFlag,           BYTE_JUMP },
 		{ fh::HackLib::RunScreenHandler, NONE_CONTINUE },
-		{ fh::HackLib::GetXP,            WORD_CONTINUE }
+		{ fh::HackLib::GetXP,            WORD_CONTINUE },
+		{ fh::HackLib::IfWorld,          BYTE_JUMP },
+		{ fh::HackLib::IfScreen,         BYTE_JUMP },
+		{ fh::HackLib::IfStage,          BYTE_JUMP }
 	};
 }
 

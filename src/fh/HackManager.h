@@ -12,21 +12,30 @@ using word = uint16_t;
 namespace fh {
 
 	enum class HackLib {
-		SetFlag, ClearFlag, IfFlag, RunScreenHandler, GetXP
+		SetFlag, ClearFlag, IfFlag, RunScreenHandler, GetXP,
+		IfWorld, IfScreen, IfStage
 	};
 
 	class HackManager {
 
 		// script action library
 		word apply_SetFlag(const fe::Config& p_config, std::vector<byte>& p_rom,
-			word cpu_addr, word bitmask_table_addr) const;
+			word cpu_addr, word flag_decode_helper_addr, word bitmask_table_addr) const;
 		word apply_ClearFlag(const fe::Config& p_config, std::vector<byte>& p_rom,
-			word cpu_addr, word bitmask_table_addr) const;
+			word cpu_addr, word flag_decode_helper_addr, word bitmask_table_addr) const;
 		word apply_IfFlag(const fe::Config& p_config, std::vector<byte>& p_rom,
-			word cpu_addr, word bitmask_table_addr) const;
+			word cpu_addr, word flag_decode_helper_addr, word bitmask_table_addr) const;
 		word apply_RunScreenHandler(const fe::Config& p_config, std::vector<byte>& p_rom,
 			word cpu_addr) const;
 		word apply_GetXPHandler(const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const;
+		word apply_IfWorld(std::vector<byte>& p_rom, word cpu_addr, word helper_if_a_equals_addr) const;
+		word apply_IfScreen(std::vector<byte>& p_rom, word cpu_addr, word helper_if_a_equals_addr) const;
+		word apply_IfStage(std::vector<byte>& p_rom, word cpu_addr, word helper_if_a_equals_addr) const;
+
+		// shared helpers for the script action library
+		word apply_helper_DecodeScriptFlag(const fe::Config& p_config, std::vector<byte>& p_rom,
+			word cpu_addr) const;
+		word apply_helper_IfAEquals(const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const;
 
 		// other hacks
 		word install_hack_clear_flag_memory(const fe::Config& p_config, std::vector<byte>& p_rom) const;

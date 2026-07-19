@@ -6,15 +6,17 @@
 #include <set>
 #include <stdexcept>
 
-// script library hacks
-word fh::HackManager::apply_SetFlag(const fe::Config& p_config, std::vector<byte>& p_rom,
-	word cpu_addr, word bitmask_table_addr) const {
+// shared helpers for script library hacks
+
+// reads the next script operand as a flag number, stores the byte number (relative to start of flags block)
+// in X, and the bit number (0-7) in that byte in Y
+word fh::HackManager::apply_helper_DecodeScriptFlag(const fe::Config& p_config, std::vector<byte>& p_rom,
+	word cpu_addr) const {
 	klib::Asm6502 code;
 
 	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); // A = flag no
-	code.sty_zp(RAM::ZP_Temp07);
-	code.pha(); // save original flag
 
+	code.pha(); // save original flag
 	code.lsr_a(3); // A = flag no / 8
 	code.tax(); // X = byte index
 
@@ -22,29 +24,51 @@ word fh::HackManager::apply_SetFlag(const fe::Config& p_config, std::vector<byte
 	code.and_imm(0x07); // A = bit number
 	code.tay();
 
+	code.rts();
+
+	return get_next_cpu_addr(cpu_addr, code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+}
+
+// if A equals the operand, jump - otherwise continue script execution
+word fh::HackManager::apply_helper_IfAEquals(const fe::Config& p_config, std::vector<byte>& p_rom,
+	word cpu_addr) const {
+	klib::Asm6502 code;
+
+	code.pha();
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); // A = operand (comparison value)
+	code.sta_zp(RAM::ZP_Temp07);
+	code.pla();
+	code.cmp_zp(RAM::ZP_Temp07);
+	code.beq("@equal");
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_SKIPADDRANDINVOKE));
+
+	code.label("@equal");
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_JUMPTONEXTADDR));
+
+	return get_next_cpu_addr(cpu_addr, code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+}
+
+// script library hacks
+word fh::HackManager::apply_SetFlag(const fe::Config& p_config, std::vector<byte>& p_rom,
+	word cpu_addr, word flag_decode_helper_addr, word bitmask_table_addr) const {
+	klib::Asm6502 code;
+
+	code.jsr(flag_decode_helper_addr);
+
 	code.lda_abs_x(RAM::Flags);
 	code.ora_abs_y(bitmask_table_addr);
 	code.sta_abs_x(RAM::Flags);
 
-	code.ldy_zp(RAM::ZP_Temp07);
 	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
 
 	return get_next_cpu_addr(cpu_addr, code.apply_hack_and_clear(p_rom, 12, cpu_addr));
 }
 
 word fh::HackManager::apply_ClearFlag(const fe::Config& p_config, std::vector<byte>& p_rom,
-	word cpu_addr, word bitmask_table_addr) const {
+	word cpu_addr, word flag_decode_helper_addr, word bitmask_table_addr) const {
 	klib::Asm6502 code;
 
-	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); // A = flag no
-
-	code.pha(); // save original flag
-	code.lsr_a(3); // A = flag no / 8
-	code.tax(); // X = byte index
-
-	code.pla();
-	code.and_imm(0x07); // A = bit number
-	code.tay();
+	code.jsr(flag_decode_helper_addr);
 
 	code.lda_abs_x(RAM::Flags);
 	code.sta_zp(RAM::ZP_Temp07);
@@ -61,18 +85,10 @@ word fh::HackManager::apply_ClearFlag(const fe::Config& p_config, std::vector<by
 }
 
 word fh::HackManager::apply_IfFlag(const fe::Config& p_config, std::vector<byte>& p_rom,
-	word cpu_addr, word bitmask_table_addr) const {
+	word cpu_addr, word flag_decode_helper_addr, word bitmask_table_addr) const {
 	klib::Asm6502 code;
 
-	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); // A = flag no
-
-	code.pha(); // save original flag
-	code.lsr_a(3); // A = flag no / 8
-	code.tax(); // X = byte index
-
-	code.pla();
-	code.and_imm(0x07); // A = bit number
-	code.tay();
+	code.jsr(flag_decode_helper_addr);
 
 	code.lda_abs_x(RAM::Flags);
 	code.and_abs_y(bitmask_table_addr);
@@ -115,9 +131,38 @@ word fh::HackManager::apply_GetXPHandler(const fe::Config& p_config, std::vector
 	code.sta_zp(RAM::ZP_Temp_Int24_M);
 	code.jsr(cfg_word(p_config, c::ID_ROM_PLAYER_UPDATEEXPERIENCE));
 
-	return get_next_cpu_addr(
-		cpu_addr,
-		code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+	code.jmp(cfg_word(
+		p_config,
+		c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+
+	return get_next_cpu_addr(cpu_addr, code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+}
+
+word fh::HackManager::apply_IfWorld(std::vector<byte>& p_rom, word cpu_addr, word helper_if_a_equals_addr) const {
+	klib::Asm6502 code;
+
+	code.lda_zp(RAM::ZP_CurrentWorld);
+	code.jmp(helper_if_a_equals_addr);
+
+	return get_next_cpu_addr(cpu_addr, code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+}
+
+word fh::HackManager::apply_IfScreen(std::vector<byte>& p_rom, word cpu_addr, word helper_if_a_equals_addr) const {
+	klib::Asm6502 code;
+
+	code.lda_zp(RAM::ZP_CurrentScreen);
+	code.jmp(helper_if_a_equals_addr);
+
+	return get_next_cpu_addr(cpu_addr, code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+}
+
+word fh::HackManager::apply_IfStage(std::vector<byte>& p_rom, word cpu_addr, word helper_if_a_equals_addr) const {
+	klib::Asm6502 code;
+
+	code.lda_abs(RAM::CurrentStage);
+	code.jmp(helper_if_a_equals_addr);
+
+	return get_next_cpu_addr(cpu_addr, code.apply_hack_and_clear(p_rom, 12, cpu_addr));
 }
 
 // main orchestrator - injects the script routines specified by users through the configuration xml
@@ -125,6 +170,7 @@ word fh::HackManager::apply_GetXPHandler(const fe::Config& p_config, std::vector
 std::size_t fh::HackManager::apply_script_library(const fe::Config& p_config, std::vector<byte>& p_rom,
 	std::size_t p_file_offset, const std::vector<HackLib>& p_lib) const {
 	const std::set<HackLib> FLAG_REQUIRED{ HackLib::SetFlag, HackLib::ClearFlag, HackLib::IfFlag };
+	const std::set<HackLib> RAM_CHECK_REQUIRED{ HackLib::IfWorld, HackLib::IfScreen, HackLib::IfStage };
 	std::vector<word> script_impl_addresses{ read_vanilla_script_opcode_addrs(p_rom) };
 
 	klib::Asm6502 code;
@@ -133,8 +179,11 @@ std::size_t fh::HackManager::apply_script_library(const fe::Config& p_config, st
 	assert(rom_addr_start.Bank == 12);
 
 	word cpu_addr{ rom_addr_start.CpuAddr };
-	word bitmask_table_addr{ cpu_addr };
+	word bitmask_table_addr{ 0 };
+	word flag_decode_helper_addr{ 0 };
+	word ram_check_helper_addr{ 0 };
 
+	// check if the flag-check helper and bitmask lookup-table must be installed
 	for (HackLib llib : FLAG_REQUIRED)
 		if (std::find(begin(p_lib), end(p_lib), llib) != end(p_lib)) {
 			// install hack which clears flag-memory since vanilla does not
@@ -144,9 +193,20 @@ std::size_t fh::HackManager::apply_script_library(const fe::Config& p_config, st
 				install_static_hack_flags_to_sram(p_config, p_rom);
 			// install lookup table to extract bits from flag bytes
 			const std::vector<byte> BITMASK_TABLE{ 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80 };
-			cpu_addr = get_next_cpu_addr(cpu_addr, klib::Asm6502::apply_bytes(p_rom, BITMASK_TABLE, rom_addr_start.Bank, cpu_addr));
+			bitmask_table_addr = cpu_addr;
+			flag_decode_helper_addr = get_next_cpu_addr(bitmask_table_addr, klib::Asm6502::apply_bytes(p_rom, BITMASK_TABLE, 12, bitmask_table_addr));
+			cpu_addr = apply_helper_DecodeScriptFlag(p_config, p_rom, flag_decode_helper_addr);
 			break;
 		}
+
+	// check if the ram checker helper must be installed
+	for (HackLib llib : RAM_CHECK_REQUIRED) {
+		if (std::find(begin(p_lib), end(p_lib), llib) != end(p_lib)) {
+			ram_check_helper_addr = cpu_addr;
+			cpu_addr = apply_helper_IfAEquals(p_config, p_rom, cpu_addr);
+			break;
+		}
+	}
 
 	for (HackLib llib : p_lib) {
 		script_impl_addresses.push_back(cpu_addr - 1);
@@ -154,15 +214,15 @@ std::size_t fh::HackManager::apply_script_library(const fe::Config& p_config, st
 		switch (llib) {
 
 		case HackLib::SetFlag: {
-			cpu_addr = apply_SetFlag(p_config, p_rom, cpu_addr, bitmask_table_addr);
+			cpu_addr = apply_SetFlag(p_config, p_rom, cpu_addr, flag_decode_helper_addr, bitmask_table_addr);
 			break;
 		}
 		case HackLib::ClearFlag: {
-			cpu_addr = apply_ClearFlag(p_config, p_rom, cpu_addr, bitmask_table_addr);
+			cpu_addr = apply_ClearFlag(p_config, p_rom, cpu_addr, flag_decode_helper_addr, bitmask_table_addr);
 			break;
 		}
 		case HackLib::IfFlag: {
-			cpu_addr = apply_IfFlag(p_config, p_rom, cpu_addr, bitmask_table_addr);
+			cpu_addr = apply_IfFlag(p_config, p_rom, cpu_addr, flag_decode_helper_addr, bitmask_table_addr);
 			break;
 		}
 		case HackLib::RunScreenHandler: {
@@ -171,6 +231,18 @@ std::size_t fh::HackManager::apply_script_library(const fe::Config& p_config, st
 		}
 		case HackLib::GetXP: {
 			cpu_addr = apply_GetXPHandler(p_config, p_rom, cpu_addr);
+			break;
+		}
+		case HackLib::IfWorld: {
+			cpu_addr = apply_IfWorld(p_rom, cpu_addr, ram_check_helper_addr);
+			break;
+		}
+		case HackLib::IfScreen: {
+			cpu_addr = apply_IfScreen(p_rom, cpu_addr, ram_check_helper_addr);
+			break;
+		}
+		case HackLib::IfStage: {
+			cpu_addr = apply_IfStage(p_rom, cpu_addr, ram_check_helper_addr);
 			break;
 		}
 
