@@ -37,6 +37,14 @@ namespace {
 		false
 	};
 
+	const fi::Opcode WORD_CONTINUE{
+	"",
+	fi::ArgType::Short,
+	fi::Flow::Continue,
+	fi::ArgDomain::None,
+	false
+	};
+
 	const fi::Opcode BYTE_JUMP{
 		"",
 		fi::ArgType::Byte,
@@ -58,7 +66,8 @@ namespace {
 		{ fh::HackLib::SetFlag,          BYTE_CONTINUE },
 		{ fh::HackLib::ClearFlag,        BYTE_CONTINUE },
 		{ fh::HackLib::IfFlag,           BYTE_JUMP },
-		{ fh::HackLib::RunScreenHandler, NONE_CONTINUE }
+		{ fh::HackLib::RunScreenHandler, NONE_CONTINUE },
+		{ fh::HackLib::GetXP,            WORD_CONTINUE }
 	};
 }
 

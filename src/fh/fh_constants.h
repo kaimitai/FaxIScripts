@@ -37,6 +37,9 @@ namespace fh {
 		constexpr byte ZP_e5{ 0xe5 };
 		constexpr byte ZP_e6{ 0xe6 };
 		constexpr byte ZP_e7{ 0xe7 };
+		constexpr byte ZP_Temp_Int24_L{ 0xec };
+		constexpr byte ZP_Temp_Int24_M{ 0xed };
+		constexpr byte ZP_Temp_Int24_U{ 0xee };
 
 		constexpr word CurrentROMBank{ 0x0100 };
 		constexpr word Flags{ 0x0101 };
@@ -52,6 +55,7 @@ namespace fh {
 		constexpr char ID_ROM_ISCRIPTS_JUMPTONEXTADDR[]{ "rom_iscripts_jumptonextaddr" };
 		constexpr char ID_ROM_ISCRIPTS_INVOKENEXTACTION[]{ "rom_iscripts_invokenextaction" };
 		constexpr char ID_ROM_MMC1_UPDATEROMBANK[]{ "rom_mmc1_updaterombank" };
+		constexpr char ID_ROM_PLAYER_UPDATEEXPERIENCE[]{ "rom_player_updateexperience" };
 
 		constexpr char ID_HACK_CLEAR_PERSISTENT_FLAGS[]{ "hack_clear_persistent_flags" };
 		constexpr char ID_TM_CHANGE_BANK[]{ "hack_tm_change_bank" };

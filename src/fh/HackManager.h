@@ -12,7 +12,7 @@ using word = uint16_t;
 namespace fh {
 
 	enum class HackLib {
-		SetFlag, ClearFlag, IfFlag, RunScreenHandler
+		SetFlag, ClearFlag, IfFlag, RunScreenHandler, GetXP
 	};
 
 	class HackManager {
@@ -26,6 +26,7 @@ namespace fh {
 			word cpu_addr, word bitmask_table_addr) const;
 		word apply_RunScreenHandler(const fe::Config& p_config, std::vector<byte>& p_rom,
 			word cpu_addr) const;
+		word apply_GetXPHandler(const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const;
 
 		// other hacks
 		word install_hack_clear_flag_memory(const fe::Config& p_config, std::vector<byte>& p_rom) const;

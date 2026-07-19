@@ -121,8 +121,9 @@
 		<const name="mattock_animations_offset" value="0x3c69f" />
 		<const name="jump_on_animation_offset" value="0x3d6ff" />
 		<const name="pal2mus_entry_count_offset" value="0x3e55b" />
-		<!-- default spawn point count, can be overridden front-end (can not be deduced from rom with certainty) -->
-		<const name="spawn_count" value="8" />
+		<const name="command_byte_count_offset" value="0x3ef66" />
+		<!-- default spawn point count (can not always be deduced from rom with certainty) -->
+		<const name="default_spawn_count" value="8" />
 		<!-- offsets to the constants saying how many bits the spawn point uses when stored in a mantra -->
 		<const name="spawn_bit_count_decode_offset" region="us,us-rev-a,eu,randum" value="0x31607" />
 		<const name="spawn_bit_count_decode_offset" region="jp" value="0x31a03" />
@@ -143,7 +144,6 @@
 		<const name="door_dest_sub_value_offset" value="0x3e84c" />
 		<!-- counts -->
 		<const name="sprite_count" value="101" />
-		<const name="command_byte_count" value="3" />
 		<!-- minimum number of iScripts we require when assembling; hard-coded ref to index #151 in game code -->
 		<const name="iscript_min_count" value="152" />
 		<const name="string_data_start" region="eu,us,randum,us-rev-a" value="0x34310" />
@@ -371,6 +371,8 @@
 		<const name="rom_iscripts_invokenextaction" value="$826e" />
 		<const name="rom_mmc1_updaterombank" region="en-transl" value="$fdb2" />
 		<const name="rom_mmc1_updaterombank" value="$cc1a" />
+		<const name="rom_player_updateexperience" region="jp,en-transl" value="$fa1f" />
+		<const name="rom_player_updateexperience" value="$f957" />
 		<!-- tilemap change hack injection points -->
 		<const name="hack_tm_change_bank" region="en-transl" value="30" />
 		<const name="hack_tm_change_bank" value="9" />

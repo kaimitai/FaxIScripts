@@ -106,6 +106,22 @@ word fh::HackManager::apply_RunScreenHandler(const fe::Config& p_config, std::ve
 		code.apply_hack_and_clear(p_rom, 12, cpu_addr));
 }
 
+word fh::HackManager::apply_GetXPHandler(const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const {
+	klib::Asm6502 code;
+
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); // A = xp lo byte
+	code.sta_zp(RAM::ZP_Temp_Int24_L);
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); // A = xp hi byte
+	code.sta_zp(RAM::ZP_Temp_Int24_M);
+	code.jsr(cfg_word(p_config, c::ID_ROM_PLAYER_UPDATEEXPERIENCE));
+
+	return get_next_cpu_addr(
+		cpu_addr,
+		code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+}
+
+// main orchestrator - injects the script routines specified by users through the configuration xml
+// and extends the scripting language itself
 std::size_t fh::HackManager::apply_script_library(const fe::Config& p_config, std::vector<byte>& p_rom,
 	std::size_t p_file_offset, const std::vector<HackLib>& p_lib) const {
 	const std::set<HackLib> FLAG_REQUIRED{ HackLib::SetFlag, HackLib::ClearFlag, HackLib::IfFlag };
@@ -141,19 +157,20 @@ std::size_t fh::HackManager::apply_script_library(const fe::Config& p_config, st
 			cpu_addr = apply_SetFlag(p_config, p_rom, cpu_addr, bitmask_table_addr);
 			break;
 		}
-
 		case HackLib::ClearFlag: {
 			cpu_addr = apply_ClearFlag(p_config, p_rom, cpu_addr, bitmask_table_addr);
 			break;
 		}
-
 		case HackLib::IfFlag: {
 			cpu_addr = apply_IfFlag(p_config, p_rom, cpu_addr, bitmask_table_addr);
 			break;
 		}
-
 		case HackLib::RunScreenHandler: {
 			cpu_addr = apply_RunScreenHandler(p_config, p_rom, cpu_addr);
+			break;
+		}
+		case HackLib::GetXP: {
+			cpu_addr = apply_GetXPHandler(p_config, p_rom, cpu_addr);
 			break;
 		}
 
