@@ -59,6 +59,18 @@ namespace klib {
 			);
 		}
 
+		template<typename T>
+		std::string enum_to_string(T p_value) {
+			const auto name{ magic_enum::enum_name(p_value) };
+
+			if (name.empty()) {
+				throw std::runtime_error(
+					std::format("Invalid enum value: {}", static_cast<int>(p_value))
+				);
+			}
+
+			return std::string(name);
+		}
 	}
 
 }

@@ -134,6 +134,7 @@ constexpr byte OP_TAY{ 0xa8 };
 constexpr byte OP_LDA_IMM{ 0xa9 };
 constexpr byte OP_TAX{ 0xaa };
 constexpr byte OP_LDA_ABS{ 0xad };
+constexpr byte OP_BCS{ 0xb0 };
 constexpr byte OP_LDA_IND_Y{ 0xb1 };
 constexpr byte OP_LDA_ABS_Y{ 0xb9 };
 constexpr byte OP_LDA_ABS_X{ 0xbd };
@@ -303,6 +304,11 @@ void klib::Asm6502::bcc(sbyte p_offset) {
 	emit(p_offset);
 }
 
+void klib::Asm6502::bcs(sbyte p_offset) {
+	emit(OP_BCS);
+	emit(p_offset);
+}
+
 void klib::Asm6502::bpl(sbyte p_offset) {
 	emit(OP_BPL);
 	emit(p_offset);
@@ -323,6 +329,10 @@ void klib::Asm6502::bne(const std::string& p_label) {
 
 void klib::Asm6502::bcc(const std::string& p_label) {
 	branch(OP_BCC, p_label);
+}
+
+void klib::Asm6502::bcs(const std::string& p_label) {
+	branch(OP_BCS, p_label);
 }
 
 void klib::Asm6502::bpl(const std::string& p_label) {

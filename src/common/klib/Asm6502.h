@@ -113,11 +113,13 @@ namespace klib {
 		void beq(sbyte p_offset);
 		void bne(sbyte p_offset);
 		void bcc(sbyte p_offset);
+		void bcs(sbyte p_offset);
 		void bpl(sbyte p_offset);
 		void bmi(sbyte p_offset);
 		void beq(const std::string& p_label);
 		void bne(const std::string& p_label);
 		void bcc(const std::string& p_label);
+		void bcs(const std::string& p_label);
 		void bpl(const std::string& p_label);
 		void bmi(const std::string& p_label);
 
