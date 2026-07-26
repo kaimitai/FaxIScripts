@@ -38,11 +38,11 @@ namespace {
 	};
 
 	const fi::Opcode WORD_CONTINUE{
-	"",
-	fi::ArgType::Short,
-	fi::Flow::Continue,
-	fi::ArgDomain::None,
-	false
+		"",
+		fi::ArgType::Short,
+		fi::Flow::Continue,
+		fi::ArgDomain::None,
+		false
 	};
 
 	const fi::Opcode BYTE_JUMP{
@@ -61,6 +61,22 @@ namespace {
 		false
 	};
 
+	const fi::Opcode NONE_JUMP{
+		"",
+		fi::ArgType::None,
+		fi::Flow::Jump,
+		fi::ArgDomain::None,
+		false
+		};
+
+		const fi::Opcode NONE_END{
+		"",
+		fi::ArgType::None,
+		fi::Flow::End,
+		fi::ArgDomain::None,
+		true
+	};
+
 	// maps each HackLib implementation to its required opcode signature
 	const std::map<fh::HackLib, fi::Opcode> hacklib_opcodes{
 		{ fh::HackLib::SetFlag,          BYTE_CONTINUE },
@@ -74,7 +90,9 @@ namespace {
 		{ fh::HackLib::IfWorld,          BYTE_JUMP },
 		{ fh::HackLib::IfScreen,         BYTE_JUMP },
 		{ fh::HackLib::IfStage,          BYTE_JUMP },
-		{ fh::HackLib::Die,              NONE_CONTINUE }
+		{ fh::HackLib::Die,              NONE_CONTINUE },
+		{ fh::HackLib::JSR,              NONE_JUMP },
+		{ fh::HackLib::Return,           NONE_END }
 	};
 }
 

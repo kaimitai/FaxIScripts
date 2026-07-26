@@ -381,6 +381,10 @@
 		<const name="hack_tm_handler_cpu_addr" value="$ffc1" />
 		<!-- various hack injection points -->
 		<const name="hack_clear_persistent_flags" value="$d005" />
+		<!-- various hack RAM variables -->
+		<!-- RAM addresses used by the iScript JSR/Return opcodes to store the return address -->
+		<const name="hack_script_jsr_ram_addr_lo" value="$0182" />
+		<const name="hack_script_jsr_ram_addr_hi" value="$0183" />
 	</consts>
 	<!-- value sets -->
 	<sets>

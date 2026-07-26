@@ -92,12 +92,16 @@ namespace klib {
 		void ldx_abs_y(word p_addr);
 		void ldy_imm(byte p_value);
 		void ldy_zp(byte p_value);
+		// virtual helper
+		void lda_mem(word p_addr);
 
 		// stores
 		void sta_zp(byte p_addr);
 		void sta_abs(word p_addr);
 		void sta_abs_x(word p_addr);
 		void sty_zp(byte p_addr);
+		// virtual helper
+		void sta_mem(word p_addr);
 
 		// compares
 		void cmp_zp(byte p_addr);
@@ -148,6 +152,8 @@ namespace klib {
 		// math
 		void inx(void);
 		void dec_zp(byte p_addr);
+		void adc_imm(byte p_value);
+		void adc_zp(byte p_addr);
 		void dex(void);
 		void iny(void);
 		void sec(void);

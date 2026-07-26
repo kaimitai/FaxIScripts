@@ -236,6 +236,63 @@ word fh::HackManager::apply_Die(const fe::Config& p_config, std::vector<byte>& p
 	return get_next_cpu_addr(cpu_addr, code.apply_hack_and_clear(p_rom, 12, cpu_addr));
 }
 
+word fh::HackManager::apply_JSR(const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const {
+	klib::Asm6502 code;
+
+	const word ScriptReturn_Lo_ram_addr{ cfg_word(p_config, c::ID_HACK_SCRIPT_JSR_RAM_ADDR_LO) };
+	const word ScriptReturn_Hi_ram_addr{ cfg_word(p_config, c::ID_HACK_SCRIPT_JSR_RAM_ADDR_HI) };
+
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); // A = target lo
+	code.pha();
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); // A = target hi
+	code.pha();
+
+	// compute return address = base + offset
+	code.clc();
+	code.lda_zp(RAM::ZP_ScriptAddr);
+	code.adc_zp(RAM::ZP_ScriptOffset);
+	code.sta_mem(ScriptReturn_Lo_ram_addr);
+
+	code.lda_zp(RAM::ZP_ScriptAddrU);
+	code.adc_imm(0x00);
+	code.sta_mem(ScriptReturn_Hi_ram_addr);
+
+	// restore target
+	code.pla();
+	code.sta_zp(RAM::ZP_ScriptAddrU);
+	code.pla();
+	code.sta_zp(RAM::ZP_ScriptAddr);
+	code.lda_imm(0x00);
+	code.sta_zp(RAM::ZP_ScriptOffset);
+
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+
+	return get_next_cpu_addr(cpu_addr, code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+}
+
+word fh::HackManager::apply_Return(const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const {
+	klib::Asm6502 code;
+
+	const word ScriptReturn_Lo_ram_addr{ cfg_word(p_config, c::ID_HACK_SCRIPT_JSR_RAM_ADDR_LO) };
+	const word ScriptReturn_Hi_ram_addr{ cfg_word(p_config, c::ID_HACK_SCRIPT_JSR_RAM_ADDR_HI) };
+
+	// retrieve lo addr
+	code.lda_mem(ScriptReturn_Lo_ram_addr);
+	code.sta_zp(RAM::ZP_ScriptAddr);
+
+	// retrieve hi addr
+	code.lda_mem(ScriptReturn_Hi_ram_addr);
+	code.sta_zp(RAM::ZP_ScriptAddrU);
+
+	// set offset to 0 - as the JSR normalized the target address
+	code.lda_imm(0x00);
+	code.sta_zp(RAM::ZP_ScriptOffset);
+
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+
+	return get_next_cpu_addr(cpu_addr, code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+}
+
 // main orchestrator - injects the script routines specified by users through the configuration xml
 // and extends the scripting language itself
 std::size_t fh::HackManager::apply_script_library(const fe::Config& p_config, std::vector<byte>& p_rom,
@@ -352,6 +409,14 @@ std::size_t fh::HackManager::apply_script_library(const fe::Config& p_config, st
 		}
 		case HackLib::Die: {
 			cpu_addr = apply_Die(p_config, p_rom, cpu_addr);
+			break;
+		}
+		case HackLib::JSR: {
+			cpu_addr = apply_JSR(p_config, p_rom, cpu_addr);
+			break;
+		}
+		case HackLib::Return: {
+			cpu_addr = apply_Return(p_config, p_rom, cpu_addr);
 			break;
 		}
 

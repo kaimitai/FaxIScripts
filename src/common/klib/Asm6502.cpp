@@ -117,7 +117,9 @@ constexpr byte OP_EOR_IMM{ 0x49 };
 constexpr byte OP_LSR_A{ 0x4a };
 constexpr byte OP_JMP{ 0x4c };
 constexpr byte OP_RTS{ 0x60 };
+constexpr byte OP_ADC_ZP{ 0x65 };
 constexpr byte OP_PLA{ 0x68 };
+constexpr byte OP_ADC_IMM{ 0x69 };
 constexpr byte OP_JMP_IND{ 0x6c };
 constexpr byte OP_STY_ZP{ 0x84 };
 constexpr byte OP_STA_ZP{ 0x85 };
@@ -226,6 +228,14 @@ void klib::Asm6502::ldy_zp(byte p_addr) {
 	emit(p_addr);
 }
 
+// virtual helper
+void klib::Asm6502::lda_mem(word p_addr) {
+	if (p_addr <= 0xff)
+		lda_zp(static_cast<byte>(p_addr));
+	else
+		lda_abs(p_addr);
+}
+
 // stores
 void  klib::Asm6502::sta_zp(byte p_addr) {
 	emit(OP_STA_ZP);
@@ -245,6 +255,14 @@ void klib::Asm6502::sta_abs_x(word p_addr) {
 void klib::Asm6502::sty_zp(byte p_addr) {
 	emit(OP_STY_ZP);
 	emit(p_addr);
+}
+
+// virtual helper
+void klib::Asm6502::sta_mem(word p_addr) {
+	if (p_addr <= 0xff)
+		sta_zp(static_cast<byte>(p_addr));
+	else
+		sta_abs(p_addr);
 }
 
 // compares
@@ -418,6 +436,16 @@ void klib::Asm6502::inx(void) {
 
 void klib::Asm6502::dec_zp(byte p_addr) {
 	emit(OP_DEC_ZP);
+	emit(p_addr);
+}
+
+void klib::Asm6502::adc_imm(byte p_value) {
+	emit(OP_ADC_IMM);
+	emit(p_value);
+}
+
+void klib::Asm6502::adc_zp(byte p_addr) {
+	emit(OP_ADC_ZP);
 	emit(p_addr);
 }
 

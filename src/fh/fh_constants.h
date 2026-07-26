@@ -31,6 +31,9 @@ namespace fh {
 		constexpr byte ZP_Temp08{ 0x08 };
 		constexpr byte ZP_CurrentWorld{ 0x24 };
 		constexpr byte ZP_CurrentScreen{ 0x63 };
+		constexpr byte ZP_ScriptAddr{ 0xdb };
+		constexpr byte ZP_ScriptAddrU{ 0xdc };
+		constexpr byte ZP_ScriptOffset{ 0xdd };
 		constexpr byte ZP_e2{ 0xe2 };
 		constexpr byte ZP_e3{ 0xe3 };
 		constexpr byte ZP_e4{ 0xe4 };
@@ -64,6 +67,9 @@ namespace fh {
 		constexpr char ID_TM_CHANGE_BANK[]{ "hack_tm_change_bank" };
 		constexpr char ID_TM_CHANGE_CPU_ADDR[]{ "hack_tm_change_cpu_addr" };
 		constexpr char ID_TM_CHANGE_HANDLER_CPU_ADDR[]{ "hack_tm_handler_cpu_addr" };
+
+		constexpr char ID_HACK_SCRIPT_JSR_RAM_ADDR_LO[]{ "hack_script_jsr_ram_addr_lo" };
+		constexpr char ID_HACK_SCRIPT_JSR_RAM_ADDR_HI[]{ "hack_script_jsr_ram_addr_hi" };
 
 		constexpr char ID_FLAGS_WRAM_TO_SRAM[]{ "flags_wram_to_sram" };
 
