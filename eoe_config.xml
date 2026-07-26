@@ -797,6 +797,23 @@
 			<entry byte="$16" str="Mnemonic=IfMsgPrompt,ArgType=Byte,Flow=Jump,ArgDomain=TextString" />
 			<entry byte="$17" str="Mnemonic=Jump,Flow=Jump,Terminal=true" />
 		</byte_to_string_map>
+		<!-- built-in extended script opcode signatures - do not modify! -->
+		<byte_to_string_map name="iscript_opcode_impls">
+			<entry byte="$00" str="Impl=SetFlag,ArgType=Byte" />
+			<entry byte="$01" str="Impl=ClearFlag,ArgType=Byte" />
+			<entry byte="$02" str="Impl=IfFlag,ArgType=Byte,Flow=Jump" />
+			<entry byte="$03" str="Impl=SetQuestFlag,ArgType=Byte" />
+			<entry byte="$04" str="Impl=ClearQuestFlag,ArgType=Byte" />
+			<entry byte="$05" str="Impl=IfQuestFlag,ArgType=Byte,Flow=Jump" />
+			<entry byte="$06" str="Impl=RunScreenHandler" />
+			<entry byte="$07" str="Impl=GetXP,ArgType=Short" />
+			<entry byte="$08" str="Impl=IfWorld,ArgType=Byte,Flow=Jump" />
+			<entry byte="$09" str="Impl=IfScreen,ArgType=Byte,Flow=Jump" />
+			<entry byte="$0a" str="Impl=IfStage,ArgType=Byte,Flow=Jump" />
+			<entry byte="$0b" str="Impl=Die" />
+			<entry byte="$0c" str="Impl=JSR,Flow=Jump" />
+			<entry byte="$0d" str="Impl=Return,Flow=End,Terminal=true" />
+		</byte_to_string_map>
 		<!-- string mapping used by the iScript assembler and disassembler -->
 		<byte_to_string_map name="iscript_string_characters" region="us,eu,randum,us-rev-a">
 			<!-- printable characters -->

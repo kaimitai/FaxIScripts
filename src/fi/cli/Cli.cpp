@@ -190,14 +190,26 @@ void fi::Cli::asm_to_nes(const std::string& p_asm_filename,
 	}
 
 	m_config.load_config_data(appc::CONFIG_XML, appc::CONFIG_OVERRIDE_FILE_NAME, rom);
-	auto required_libs{ fi::load_iscript_opcodes_from_config(m_config.bmap(fi::c::ID_ISCRIPT_OPCODES)) };
+	auto required_impls_str{ fi::load_iscript_opcodes_from_config(m_config.bmap(fi::c::ID_ISCRIPT_OPCODES),
+		m_config.bmap(fi::c::ID_ISCRIPT_OPCODE_IMPLS)) };
 	std::size_t l_iscript_rg2_start{ m_config.constant(c::ID_ISCRIPT_RG2_START) };
 
-	if (!required_libs.empty()) {
+	if (!required_impls_str.empty()) {
 		fh::HackManager hack_mgr;
 
 		if (p_strict)
 			throw std::runtime_error("Strict mode cannot be used with extended script library routines");
+
+		std::vector<fh::HackLib> required_libs;
+
+		for (const auto& impl : required_impls_str) {
+			try {
+				required_libs.push_back(klib::str::parse_enum_ci<fh::HackLib>(impl));
+			}
+			catch (const std::exception&) {
+				throw std::runtime_error(std::format("Unknown script implementation '{}'", impl));
+			}
+		}
 
 		const auto l_iscript_rg2_start_new{ hack_mgr.apply_script_library(m_config, rom,
 			l_iscript_rg2_start, required_libs) };
@@ -454,7 +466,8 @@ void fi::Cli::nes_to_asm(const std::string& p_nes_filename,
 	}
 
 	m_config.load_config_data(appc::CONFIG_XML, appc::CONFIG_OVERRIDE_FILE_NAME, rom_data);
-	fi::load_iscript_opcodes_from_config(m_config.bmap(fi::c::ID_ISCRIPT_OPCODES));
+	fi::load_iscript_opcodes_from_config(m_config.bmap(fi::c::ID_ISCRIPT_OPCODES),
+		m_config.bmap(fi::c::ID_ISCRIPT_OPCODE_IMPLS));
 
 	fi::IScriptLoader loader(rom_data);
 

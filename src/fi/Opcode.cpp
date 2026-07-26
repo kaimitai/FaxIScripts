@@ -28,30 +28,9 @@ std::map<byte, fi::Opcode> fi::opcodes{
 	{0x17, fi::Opcode("Jump", fi::ArgType::None, fi::Flow::Jump, fi::ArgDomain::None, true)}
 };
 
+std::map<std::string, fi::Opcode> fi::implementation_opcodes;
+
 namespace {
-	const fi::Opcode BYTE_CONTINUE{
-		"",
-		fi::ArgType::Byte,
-		fi::Flow::Continue,
-		fi::ArgDomain::None,
-		false
-	};
-
-	const fi::Opcode WORD_CONTINUE{
-		"",
-		fi::ArgType::Short,
-		fi::Flow::Continue,
-		fi::ArgDomain::None,
-		false
-	};
-
-	const fi::Opcode BYTE_JUMP{
-		"",
-		fi::ArgType::Byte,
-		fi::Flow::Jump,
-		fi::ArgDomain::None,
-		false
-	};
 
 	const fi::Opcode NONE_CONTINUE{
 		"",
@@ -61,49 +40,19 @@ namespace {
 		false
 	};
 
-	const fi::Opcode NONE_JUMP{
-		"",
-		fi::ArgType::None,
-		fi::Flow::Jump,
-		fi::ArgDomain::None,
-		false
-		};
-
-		const fi::Opcode NONE_END{
-		"",
-		fi::ArgType::None,
-		fi::Flow::End,
-		fi::ArgDomain::None,
-		true
-	};
-
-	// maps each HackLib implementation to its required opcode signature
-	const std::map<fh::HackLib, fi::Opcode> hacklib_opcodes{
-		{ fh::HackLib::SetFlag,          BYTE_CONTINUE },
-		{ fh::HackLib::ClearFlag,        BYTE_CONTINUE },
-		{ fh::HackLib::IfFlag,           BYTE_JUMP },
-		{ fh::HackLib::SetQuestFlag,     BYTE_CONTINUE },
-		{ fh::HackLib::ClearQuestFlag,   BYTE_CONTINUE },
-		{ fh::HackLib::IfQuestFlag,      BYTE_JUMP },
-		{ fh::HackLib::RunScreenHandler, NONE_CONTINUE },
-		{ fh::HackLib::GetXP,            WORD_CONTINUE },
-		{ fh::HackLib::IfWorld,          BYTE_JUMP },
-		{ fh::HackLib::IfScreen,         BYTE_JUMP },
-		{ fh::HackLib::IfStage,          BYTE_JUMP },
-		{ fh::HackLib::Die,              NONE_CONTINUE },
-		{ fh::HackLib::JSR,              NONE_JUMP },
-		{ fh::HackLib::Return,           NONE_END }
+	struct ParsedOpcodeDef {
+		fi::Opcode opcode;
+		std::optional<std::string> impl;
 	};
 }
 
-static fi::Opcode parse_opcode_def(const std::string& p_definition, std::vector<fh::HackLib>& required_libs,
-	bool impl_allowed) {
+static ParsedOpcodeDef parse_opcode_properties(const std::string& p_definition) {
 	auto kv{ klib::str::extract_keyval_str(p_definition, ',', '=') };
 
 	// default
 	fi::Opcode result{ NONE_CONTINUE };
 
-	std::optional<fh::HackLib> impl;
+	std::optional<std::string> impl;
 
 	for (const auto& [key, value] : kv) {
 		const auto k{ klib::str::to_lower(klib::str::trim(key)) };
@@ -118,46 +67,79 @@ static fi::Opcode parse_opcode_def(const std::string& p_definition, std::vector<
 			result.domain = klib::str::parse_enum_ci<fi::ArgDomain>(value);
 		else if (k == "terminal")
 			result.ends_stream = klib::str::parse_bool_ci(value);
-		else if (k == "impl") try {
-			if (!impl_allowed)
-				throw std::runtime_error("Vanilla opcodes may not specify Impl");
-			impl = klib::str::parse_enum_ci<fh::HackLib>(value);
-			required_libs.push_back(*impl);
+		else if (k == "impl") {
+			impl = klib::str::trim(value);
 		}
-		catch (const std::runtime_error& ex) {
-			throw std::runtime_error(
-				std::format("Could not load script opcode implementation '{}' ({})", value, ex.what()));
-		}
+
 		else
 			throw std::runtime_error(std::format("Unknown opcode property: {}", key));
 	}
 
-	if (impl) {
-		std::string opcodename{ result.name };
-		if (opcodename.empty())
-			opcodename = klib::str::enum_to_string(*impl);
-		result = hacklib_opcodes.at(*impl);
-		result.name = opcodename;
+	return { result, impl };
+}
+
+static fi::Opcode parse_opcode_def(const std::string& p_definition, std::vector<std::string>& p_required_impls,
+	bool p_impl_allowed) {
+	auto parsed{ parse_opcode_properties(p_definition) };
+
+	if (parsed.impl) {
+		if (!p_impl_allowed)
+			throw std::runtime_error("Vanilla opcodes may not specify Impl");
+
+		p_required_impls.push_back(*parsed.impl);
 	}
 	else {
 		// once an Impl-opcode has been seen, we cannot easily allow non-Impl opcodes
-		if (!required_libs.empty())
-			throw std::runtime_error(std::format("Opcode '{}' did not specify Impl, but a previous one did", result.name));
+		if (!p_required_impls.empty())
+			throw std::runtime_error(std::format(
+				"Opcode '{}' did not specify Impl, but a previous one did",
+				parsed.opcode.name));
 	}
 
-	if (result.name.empty())
-		throw std::runtime_error("Opcode definition missing Mnemonic");
+	if (parsed.impl) {
+		auto opcode_name{ parsed.opcode.name };
+		const auto key{ klib::str::to_lower(*parsed.impl) };
 
-	return result;
+		const auto it{ fi::implementation_opcodes.find(key) };
+		if (it == fi::implementation_opcodes.end())
+			throw std::runtime_error(std::format(
+				"Unknown script opcode implementation '{}'", *parsed.impl));
+
+		parsed.opcode = it->second;
+
+		if (!opcode_name.empty())
+			parsed.opcode.name = opcode_name;
+	}
+
+	return parsed.opcode;
 }
 
-std::vector<fh::HackLib> fi::load_iscript_opcodes_from_config(const std::map<byte, std::string>& p_opcode_defs) {
+static void load_opcode_implementations(const std::map<byte, std::string>& p_impl_defs) {
+	fi::implementation_opcodes.clear();
+
+	for (const auto& [_, definition] : p_impl_defs) {
+		auto parsed{ parse_opcode_properties(definition) };
+
+		if (!parsed.impl)
+			throw std::runtime_error("Opcode implementation definition missing Impl");
+
+		parsed.opcode.name = *parsed.impl;
+
+		const auto key{ klib::str::to_lower(*parsed.impl) };
+		fi::implementation_opcodes.emplace(key, parsed.opcode);
+	}
+}
+
+std::vector<std::string> fi::load_iscript_opcodes_from_config(const std::map<byte, std::string>& p_opcode_defs,
+	const std::map<byte, std::string>& p_impl_defs) {
 	constexpr bool THROW_ON_OPCODE_DIFFS{ false };
 
-	std::vector<fh::HackLib> required_libs;
+	std::vector<std::string> required_impls;
 
 	if (p_opcode_defs.empty())
-		return required_libs;
+		return required_impls;
+
+	load_opcode_implementations(p_impl_defs);
 
 	std::map<byte, fi::Opcode> l_opcodes;
 
@@ -171,7 +153,7 @@ std::vector<fh::HackLib> fi::load_iscript_opcodes_from_config(const std::map<byt
 
 		++expected;
 
-		auto parsed{ parse_opcode_def(kv.second, required_libs, kv.first >= 0x18) };
+		auto parsed{ parse_opcode_def(kv.second, required_impls, kv.first >= 0x18) };
 		l_opcodes.insert(std::make_pair(kv.first, parsed));
 	}
 
@@ -182,7 +164,7 @@ std::vector<fh::HackLib> fi::load_iscript_opcodes_from_config(const std::map<byt
 
 	fi::opcodes = l_opcodes;
 
-	return required_libs;
+	return required_impls;
 }
 
 std::vector<byte> fi::Instruction::get_bytes(void) const {
