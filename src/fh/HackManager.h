@@ -4,6 +4,7 @@
 #include "./../fe/Config.h"
 #include "TilemapChanges.h"
 #include <cstddef>
+#include <cstdint>
 #include <vector>
 
 using byte = unsigned char;

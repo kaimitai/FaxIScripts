@@ -6,7 +6,6 @@
 #include <optional>
 #include <string>
 #include <vector>
-#include "./../fh/HackManager.h"
 
 using byte = unsigned char;
 
