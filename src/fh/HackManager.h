@@ -57,7 +57,7 @@ namespace fh {
 		// tilemap change hacks
 		word install_hack_tm_flag_helper(std::vector<byte>& p_rom, byte p_bank, word p_cpu_addr,
 			word p_table_addr) const;
-		word install_hack_tm_tilemap_changer(std::vector<byte>& p_rom, byte p_bank, word p_cpu_addr) const;
+		word install_hack_tm_tilemap_changer(const fe::Config& p_config, std::vector<byte>& p_rom, byte p_bank, word p_cpu_addr) const;
 		word install_hack_tm_descriptor_handler(std::vector<byte>& p_rom, byte p_bank, word p_cpu_addr,
 			word flag_helper_cpu_addr, word tm_changer_cpu_addr) const;
 		word install_hack_tm_lookup(std::vector<byte>& p_rom, byte p_bank, word p_cpu_addr,
@@ -67,11 +67,13 @@ namespace fh {
 			byte tm_lookup_bank, word tm_lookup_cpu_addr) const;
 
 		// util
-		word get_next_cpu_addr(word cpu_addr, std::size_t hack_size, word max_addr = 0xc000) const;
+		word get_next_cpu_addr(word cpu_addr, std::size_t hack_size, std::size_t max_addr = 0xc000) const;
 		word cfg_word(const fe::Config& p_config, const std::string& p_id) const;
+		byte cfg_byte(const fe::Config& p_config, const std::string& p_id) const;
 		std::vector<word> read_vanilla_script_opcode_addrs(const std::vector<byte>& p_rom) const;
 		std::size_t write_script_opcode_table(std::vector<byte>& p_rom, word cpu_addr,
 			const std::vector<word>& p_jump_table) const;
+		std::vector<word> read_screen_event_handler_addrs(const std::vector<byte>& p_rom) const;
 
 	public:
 		HackManager(void) = default;

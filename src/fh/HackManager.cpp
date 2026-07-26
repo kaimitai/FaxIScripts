@@ -445,7 +445,7 @@ std::size_t fh::HackManager::apply_tilemap_change_subsystem(const fe::Config& p_
 	const word flag_helper_addr{ get_next_cpu_addr(bitmask_table_addr,
 		klib::Asm6502::apply_bytes(p_rom, BITMASK_TABLE_DATA, data_bank, bitmask_table_addr)) };
 	const word tilemap_changer_addr{ install_hack_tm_flag_helper(p_rom, data_bank, flag_helper_addr, bitmask_table_addr) };
-	const word descriptor_handler_addr{ install_hack_tm_tilemap_changer(p_rom, data_bank, tilemap_changer_addr) };
+	const word descriptor_handler_addr{ install_hack_tm_tilemap_changer(p_config, p_rom, data_bank, tilemap_changer_addr) };
 	const word tm_lookup_addr{ install_hack_tm_descriptor_handler(p_rom, data_bank, descriptor_handler_addr,
 		flag_helper_addr, tilemap_changer_addr) };
 	const word tm_subsystem_end{ install_hack_tm_lookup(p_rom, data_bank, tm_lookup_addr, descriptor_handler_addr,
@@ -460,9 +460,13 @@ std::size_t fh::HackManager::apply_tilemap_change_subsystem(const fe::Config& p_
 
 word fh::HackManager::install_hack_tm_event_handler(const fe::Config& p_config, std::vector<byte>& p_rom,
 	byte tm_lookup_bank, word tm_lookup_cpu_addr) const {
+	// read the jump table of the three canonical event handlers
+	std::vector<word> event_handlers{ read_screen_event_handler_addrs(p_rom) };
+
 	klib::Asm6502 code;
 
 	const word Hack_ScreenEventHandler{ cfg_word(p_config, c::ID_TM_CHANGE_HANDLER_CPU_ADDR) };
+	const word Hack_ScreenEventHandlerTable{ cfg_word(p_config, c::ID_TM_CHANGE_HANDLER_TABLE_CPU_ADDR) };
 	const word MMC1_UpdateROMBank{ cfg_word(p_config, c::ID_ROM_MMC1_UPDATEROMBANK) };
 
 	// Save the currently mapped switchable bank.
@@ -484,24 +488,24 @@ word fh::HackManager::install_hack_tm_event_handler(const fe::Config& p_config, 
 	code.sta_abs(RAM::CurrentScreen_SpecialEventID);
 	code.rts();
 
-	const word event_table_addr{ get_next_cpu_addr(Hack_ScreenEventHandler,
-		code.apply_hack_and_clear(p_rom, 15, Hack_ScreenEventHandler), 0xffff) };
+	const word result{
+		get_next_cpu_addr(Hack_ScreenEventHandler, code.apply_hack_and_clear(p_rom, 15, Hack_ScreenEventHandler),
+			0x10000) };
 
+	// remake the event handler table by copying the three original addresses
+	for (word handler : event_handlers)
+		code.dw(handler);
 	// The dispatcher enters handlers using RTS, so entries are address - 1.
-	code.dw(ROM::EventHandlerPathToMascon - 1);
-	code.dw(ROM::EventHandlerBossScreen - 1);
-	code.dw(ROM::EventHandlerFinalBoss - 1);
 	code.dw(Hack_ScreenEventHandler - 1);
-	const word result{ get_next_cpu_addr(event_table_addr, code.apply_hack_and_clear(p_rom, 15, event_table_addr),
-		0xffff) };
+	code.apply_hack_and_clear(p_rom, 15, Hack_ScreenEventHandlerTable);
 
 	// static change: extend the valid event-table byte count from 6 to 8
 	code.cmp_imm(0x08);
 	code.apply_hack_and_clear(p_rom, 15, ROM::GameLoop_RunScreenEventHandlers_CMP_06);
 	// static change: dispatcher expects the high byte first, then the low byte.
-	code.lda_abs_y(event_table_addr + 1);
+	code.lda_abs_y(Hack_ScreenEventHandlerTable + 1);
 	code.pha();
-	code.lda_abs_y(event_table_addr);
+	code.lda_abs_y(Hack_ScreenEventHandlerTable);
 	code.pha();
 	code.apply_hack_and_clear(p_rom, 15, ROM::GameLoop_RunScreenEventHandlers_LDA_EventTable);
 
@@ -574,7 +578,10 @@ word fh::HackManager::install_hack_tm_descriptor_handler(std::vector<byte>& p_ro
 		code.apply_hack_and_clear(p_rom, p_bank, p_cpu_addr));
 }
 
-word fh::HackManager::install_hack_tm_tilemap_changer(std::vector<byte>& p_rom, byte p_bank, word p_cpu_addr) const {
+word fh::HackManager::install_hack_tm_tilemap_changer(const fe::Config& p_config, std::vector<byte>& p_rom, byte p_bank, word p_cpu_addr) const {
+	const byte waitframes{ cfg_byte(p_config, c::ID_TM_CHANGE_HANDLER_WAIT_FRAMES) };
+	const byte sound_effect{ cfg_byte(p_config, c::ID_TM_CHANGE_HANDLER_SOUND_EFFECT) };
+
 	klib::Asm6502 code;
 
 	code.ldy_imm(0x00);
@@ -584,6 +591,17 @@ word fh::HackManager::install_hack_tm_tilemap_changer(std::vector<byte>& p_rom, 
 	code.ldy_imm(0x01);
 
 	code.label("@loop");
+
+	// wait for a given number of interrupts
+	for (std::size_t i{ 0 }; i < waitframes; ++i)
+		code.jsr(ROM::WaitForInterrupt);
+
+	// optionally play a sound effect
+	if (sound_effect != 0xff) {
+		code.lda_imm(sound_effect);
+		code.jsr(ROM::Sound_PlayEffect);
+	}
+
 	code.lda_ind_y(RAM::ZP_e2);
 	code.tax();
 	code.iny();
@@ -717,7 +735,11 @@ word fh::HackManager::cfg_word(const fe::Config& p_config, const std::string& p_
 	return static_cast<word>(p_config.constant(p_id));
 }
 
-word fh::HackManager::get_next_cpu_addr(word cpu_addr, std::size_t hack_size, word max_addr) const {
+byte fh::HackManager::cfg_byte(const fe::Config& p_config, const std::string& p_id) const {
+	return static_cast<byte>(p_config.constant(p_id));
+}
+
+word fh::HackManager::get_next_cpu_addr(word cpu_addr, std::size_t hack_size, std::size_t max_addr) const {
 	auto next_addr{ cpu_addr + hack_size };
 	if (next_addr > max_addr)
 		throw std::runtime_error("Hack overflow");
@@ -749,4 +771,18 @@ std::size_t fh::HackManager::write_script_opcode_table(std::vector<byte>& p_rom,
 	klib::Asm6502::apply_word(p_rom, ref_lo, 12, ROM::IScripts_JumpTable_Ref_L);
 
 	return klib::Asm6502::apply_words_as_split_table(p_rom, p_jump_table, 12, table_cpu_addr);
+}
+
+std::vector<word> fh::HackManager::read_screen_event_handler_addrs(const std::vector<byte>& p_rom) const {
+	const word dispatcher_addr{ ROM::GameLoop_RunScreenEventHandlers_LDA_EventTable };
+
+	// TODO: sanity check that the two LDA operands differ by exactly one
+	const word table_ref{ klib::Asm6502::read_word(p_rom, 15, static_cast<word>(dispatcher_addr + 5)) };
+
+	std::vector<word> result;
+
+	for (std::size_t i{ 0 }; i < 3; ++i)
+		result.push_back(klib::Asm6502::read_word(p_rom, 15, static_cast<word>(table_ref + 2 * i)));
+
+	return result;
 }

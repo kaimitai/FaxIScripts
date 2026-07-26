@@ -17,12 +17,11 @@ namespace fh {
 		// bank 15 addresses
 		constexpr word Game_Init_JSR_Game_InitMMCAndBank{ 0xc954 };
 		constexpr word Game_Init_JSR_Game_InitScreenAndMusic{ Game_Init_JSR_Game_InitMMCAndBank + 3 };
+		constexpr word WaitForInterrupt{ 0xca2e };
 		constexpr word Game_InitMMCAndBank{ 0xcbbf };
+		constexpr word Sound_PlayEffect{ 0xd0e4 };
 		constexpr word Area_SetBlocks{ 0xd7c5 };
 		constexpr word GameLoop_RunScreenEventHandlers_CMP_06{ 0xef55 };
-		constexpr word EventHandlerPathToMascon{ 0xef69 };
-		constexpr word EventHandlerBossScreen{ 0xef9e };
-		constexpr word EventHandlerFinalBoss{ 0xefd4 };
 		constexpr word GameLoop_RunScreenEventHandlers_LDA_EventTable{ 0xef5a };
 	}
 
@@ -67,6 +66,9 @@ namespace fh {
 		constexpr char ID_TM_CHANGE_BANK[]{ "hack_tm_change_bank" };
 		constexpr char ID_TM_CHANGE_CPU_ADDR[]{ "hack_tm_change_cpu_addr" };
 		constexpr char ID_TM_CHANGE_HANDLER_CPU_ADDR[]{ "hack_tm_handler_cpu_addr" };
+		constexpr char ID_TM_CHANGE_HANDLER_TABLE_CPU_ADDR[]{ "hack_tm_handler_table_cpu_addr" };
+		constexpr char ID_TM_CHANGE_HANDLER_WAIT_FRAMES[]{ "hack_tm_change_wait_frames" };
+		constexpr char ID_TM_CHANGE_HANDLER_SOUND_EFFECT[]{ "hack_tm_change_sound_effect" };
 
 		constexpr char ID_HACK_SCRIPT_JSR_RAM_ADDR_LO[]{ "hack_script_jsr_ram_addr_lo" };
 		constexpr char ID_HACK_SCRIPT_JSR_RAM_ADDR_HI[]{ "hack_script_jsr_ram_addr_hi" };

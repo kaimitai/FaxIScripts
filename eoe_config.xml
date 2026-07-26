@@ -378,7 +378,12 @@
 		<const name="hack_tm_change_bank" value="9" />
 		<const name="hack_tm_change_cpu_addr" region="en-transl" value="$8000" />
 		<const name="hack_tm_change_cpu_addr" value="$a000" />
-		<const name="hack_tm_handler_cpu_addr" value="$ffc1" />
+		<const name="hack_tm_handler_cpu_addr" value="$e894" />
+		<const name="hack_tm_handler_table_cpu_addr" value="$cb0c" />
+		<!-- how many interrupts to wait before drawing the next tile, max 34 -->
+		<const name="hack_tm_change_wait_frames" value="4" />
+		<!-- which sound effect to play when placing a tile - $ff for none -->
+		<const name="hack_tm_change_sound_effect" value="$17" />
 		<!-- various hack injection points -->
 		<const name="hack_clear_persistent_flags" value="$d005" />
 		<!-- various hack RAM variables -->
