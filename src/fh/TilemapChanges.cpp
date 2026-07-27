@@ -3,8 +3,6 @@
 #include <format>
 #include <stdexcept>
 
-constexpr std::size_t DESCRIPTOR_SIZE = 4;
-
 fh::TilemapChanges::TilemapChanges(byte p_init_max_world_idx) {
 	resize_data_if_needed(p_init_max_world_idx);
 }
@@ -65,8 +63,14 @@ std::vector<byte> fh::TilemapChanges::to_bytes(word cpu_addr) const {
 		result.push_back(0xff);
 	}
 
-	for (const auto& world : data) {
-		for (const auto& [screen, change] : world) {
+	for (std::size_t world{ 0 }; world < data.size(); ++world) {
+		for (const auto& [screen, change] : data[world]) {
+			if (change.changes.empty())
+				throw std::runtime_error(
+					std::format(
+						"Screen {} in world {} has no tile changes",
+						screen, world));
+
 			result.push_back(static_cast<byte>(change.changes.size()));
 
 			for (const auto& tile : change.changes) {
@@ -86,12 +90,20 @@ std::vector<byte> fh::TilemapChanges::to_bytes(word cpu_addr) const {
 }
 
 void fh::TilemapChanges::resize_data_if_needed(byte p_world) {
+	if (p_world > MAX_WORLD)
+		throw std::runtime_error(std::format("World {} exceeds the maximum supported world index ({})", p_world, MAX_WORLD));
+
 	if (data.size() <= p_world)
 		data.resize(p_world + 1);
 }
 
 void fh::TilemapChanges::add_screen(byte p_world, byte p_screen, byte p_flag) {
 	resize_data_if_needed(p_world);
+
+	if (p_screen == 0xff)
+		throw std::runtime_error("Screen $ff is reserved as the descriptor terminator");
+	if (data[p_world].size() >= MAX_SCREENS_PER_WORLD)
+		throw std::runtime_error(std::format("World {} exceeds the maximum of {} tilemap change screens", p_world, MAX_SCREENS_PER_WORLD));
 
 	auto [it, inserted] = data[p_world].emplace(
 		p_screen,
@@ -110,6 +122,12 @@ void fh::TilemapChanges::add_change(byte p_world, byte p_screen, byte p_x, byte 
 
 	if (it == end(data[p_world]))
 		throw std::runtime_error(std::format("Screen {} in world {} has not been initialized with a flag number", p_screen, p_world));
+
+	if (p_x >= 16 || p_y >= 13)
+		throw std::runtime_error(std::format("Tile coordinate ({}, {}) is outside the supported range (0-15 by 0-12)", p_x, p_y));
+
+	if (it->second.changes.size() >= MAX_TILE_CHANGES)
+		throw std::runtime_error(std::format("Screen {} in world {} exceeds the maximum of {} tile changes", p_screen, p_world, MAX_TILE_CHANGES));
 
 	it->second.changes.push_back(TileChange{
 		.x = p_x,

@@ -23,6 +23,10 @@ namespace fh {
 
 	class TilemapChanges {
 
+		static constexpr byte MAX_WORLD = 127;
+		static constexpr std::size_t MAX_SCREENS_PER_WORLD = 63;
+		static constexpr std::size_t MAX_TILE_CHANGES = 127;
+
 		std::vector<std::map<byte, ScreenTilemapChange>> data;
 		void resize_data_if_needed(byte p_world);
 
@@ -32,6 +36,7 @@ namespace fh {
 		std::vector<byte> to_bytes(word cpu_addr) const;
 
 		static constexpr std::array<byte, 4> EOE_TILEMAP_CHANGE_HEADER{ 'K', 'E', 'F', 0x00 };
+		static constexpr std::size_t DESCRIPTOR_SIZE{ 4 };
 
 		void add_screen(byte p_world, byte p_screen, byte p_flag);
 		void add_change(byte p_world, byte p_screen, byte p_x, byte p_y, byte p_id);

@@ -1,0 +1,88 @@
+<!--
+    Echoes of Eolis / FaxIScripts
+    Advanced configuration examples
+
+    Rename this file to:
+
+        eoe_config_override.xml
+
+    and edit the settings you need.
+
+    Any entries omitted from this file will fall back to the defaults in eoe_config.xml.
+-->
+<eoe_config>
+
+	<!-- region definition overrides -->
+	<regions>
+	</regions>
+
+	<!-- pointer overrides -->
+	<pointers>
+	</pointers>
+
+	<!-- constant overrides -->
+	<consts>
+		<!-- how many interrupts to wait before drawing the next tile during tilemap changes (max 34) -->
+		<const name="hack_tm_change_wait_frames" value="4" />
+		<!-- which sound effect to play when placing a tile - $ff for none -->
+		<const name="hack_tm_change_sound_effect" value="$17" />
+	</consts>
+
+	<!-- value set overrides -->
+	<sets>
+	</sets>
+
+	<!-- boolean overrides -->
+	<bools>
+	</bools>
+
+	<!-- byte map overrides -->
+	<byte_to_string_maps>
+
+		<byte_to_string_map name="command_byte_labels">
+			<entry byte="$00" str="Final Spring Opening" />
+			<entry byte="$01" str="Boss Room" />
+			<entry byte="$02" str="End-Game Room" />
+			<entry byte="$03" str="Tilemap Change" />
+		</byte_to_string_map>
+
+		<byte_to_string_map name="iscript_opcodes">
+			<!-- regular implementations - do not modify unless a corresponding hack has been sideloaded -->
+			<entry byte="0" str="Mnemonic=End,Flow=End,Terminal=true" />
+			<entry byte="1" str="Mnemonic=MsgNoskip,ArgType=Byte,ArgDomain=TextString" />
+			<entry byte="2" str="Mnemonic=MsgPrompt,ArgType=Byte,ArgDomain=TextString" />
+			<entry byte="3" str="Mnemonic=Msg,ArgType=Byte,ArgDomain=TextString" />
+			<entry byte="4" str="Mnemonic=IfTitleChange,Flow=Jump" />
+			<entry byte="5" str="Mnemonic=LoseGold,ArgType=Short" />
+			<entry byte="6" str="Mnemonic=SetSpawn,ArgType=Byte" />
+			<entry byte="7" str="Mnemonic=GetItem,ArgType=Byte,ArgDomain=Item" />
+			<entry byte="8" str="Mnemonic=OpenShopBuy,Flow=Read" />
+			<entry byte="9" str="Mnemonic=GetGold,ArgType=Short" />
+			<entry byte="10" str="Mnemonic=GetMana,ArgType=Byte" />
+			<entry byte="11" str="Mnemonic=IfQuest,ArgType=Byte,Flow=Jump,ArgDomain=Quest" />
+			<entry byte="12" str="Mnemonic=IfRank,ArgType=Byte,Flow=Jump,ArgDomain=Rank" />
+			<entry byte="13" str="Mnemonic=IfGold,Flow=Jump" />
+			<entry byte="14" str="Mnemonic=SetQuest,ArgType=Byte,ArgDomain=Quest" />
+			<entry byte="15" str="Mnemonic=IfBuy,Flow=Jump" />
+			<entry byte="16" str="Mnemonic=LoseItem,ArgType=Byte,ArgDomain=Item" />
+			<entry byte="17" str="Mnemonic=OpenShopSell,Flow=Read" />
+			<entry byte="18" str="Mnemonic=IfItem,ArgType=Byte,Flow=Jump,ArgDomain=Item" />
+			<entry byte="19" str="Mnemonic=GetHealth,ArgType=Byte" />
+			<entry byte="20" str="Mnemonic=ShowMantra" />
+			<entry byte="21" str="Mnemonic=EndGame,Flow=End,Terminal=true" />
+			<entry byte="22" str="Mnemonic=IfMsgPrompt,ArgType=Byte,Flow=Jump,ArgDomain=TextString" />
+			<entry byte="23" str="Mnemonic=Jump,Flow=Jump,Terminal=true" />
+			<!-- library implementations, add new entries here as needed -->
+			<entry byte="24" str="Impl=IfFlag" />
+			<entry byte="25" str="Impl=SetFlag" />
+			<entry byte="26" str="Impl=IfWorld" />
+			<entry byte="27" str="Impl=IfScreen" />
+			<entry byte="28" str="Impl=IfDoorYX" />
+			<entry byte="29" str="Impl=JSR" />
+			<entry byte="30" str="Impl=Return" />
+			<entry byte="31" str="Impl=ForceDoor" />
+			<entry byte="32" str="Mnemonic=Render,Impl=RunScreenHandler" />
+		</byte_to_string_map>
+	</byte_to_string_maps>
+
+</eoe_config>
