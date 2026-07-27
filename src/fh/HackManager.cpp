@@ -309,7 +309,7 @@ word fh::HackManager::apply_ForceDoor(const fe::Config& p_config, std::vector<by
 // main orchestrator - injects the script routines specified by users through the configuration xml
 // and extends the scripting language itself
 std::size_t fh::HackManager::apply_script_library(const fe::Config& p_config, std::vector<byte>& p_rom,
-	std::size_t p_file_offset, const std::vector<HackLib>& p_lib) const {
+	std::size_t p_file_offset, const std::vector<HackLib>& p_lib, std::size_t p_base_opcode_count) const {
 
 	const std::set<HackLib> FLAG_REQUIRED{ HackLib::SetFlag, HackLib::ClearFlag, HackLib::IfFlag };
 	const std::set<HackLib> QUEST_FLAG_REQUIRED{ HackLib::SetQuestFlag, HackLib::ClearQuestFlag, HackLib::IfQuestFlag };
@@ -318,7 +318,7 @@ std::size_t fh::HackManager::apply_script_library(const fe::Config& p_config, st
 	std::set<HackLib> BITMASK_TABLE_REQUIRED{ FLAG_REQUIRED };
 	BITMASK_TABLE_REQUIRED.insert(begin(QUEST_FLAG_REQUIRED), end(QUEST_FLAG_REQUIRED));
 
-	std::vector<word> script_impl_addresses{ read_vanilla_script_opcode_addrs(p_rom) };
+	std::vector<word> script_impl_addresses{ read_script_opcode_addrs(p_rom, p_base_opcode_count) };
 
 	const auto rom_addr_start{ klib::Asm6502::get_rom_address(p_file_offset) };
 	assert(rom_addr_start.Bank == 12);
@@ -763,7 +763,7 @@ word fh::HackManager::get_next_cpu_addr(word cpu_addr, std::size_t hack_size, st
 	return static_cast<word>(next_addr);
 }
 
-std::vector<word> fh::HackManager::read_vanilla_script_opcode_addrs(const std::vector<byte>& p_rom) const {
+std::vector<word> fh::HackManager::read_script_opcode_addrs(const std::vector<byte>& p_rom, std::size_t p_opcode_count) const {
 	std::vector<word> result;
 
 	word ptrs_hi{ klib::Asm6502::read_word(p_rom, 12, ROM::IScripts_JumpTable_Ref_U) };
@@ -772,7 +772,7 @@ std::vector<word> fh::HackManager::read_vanilla_script_opcode_addrs(const std::v
 	std::size_t offset_hi{ klib::Asm6502::get_file_offset(12, ptrs_hi) };
 	std::size_t offset_lo{ klib::Asm6502::get_file_offset(12, ptrs_lo) };
 
-	for (std::size_t i{ 0 }; i < c::VANILLA_SCRIPT_COUNT; ++i)
+	for (std::size_t i{ 0 }; i < p_opcode_count; ++i)
 		result.push_back(static_cast<word>(p_rom.at(offset_lo + i) | p_rom.at(offset_hi + i) << 8));
 
 	return result;

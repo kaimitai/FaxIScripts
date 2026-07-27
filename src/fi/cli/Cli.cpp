@@ -190,11 +190,11 @@ void fi::Cli::asm_to_nes(const std::string& p_asm_filename,
 	}
 
 	m_config.load_config_data(appc::CONFIG_XML, appc::CONFIG_OVERRIDE_FILE_NAME, rom);
-	auto required_impls_str{ fi::load_iscript_opcodes_from_config(m_config.bmap(fi::c::ID_ISCRIPT_OPCODES),
+	auto opcode_defs{ fi::load_iscript_opcodes_from_config(m_config.bmap(fi::c::ID_ISCRIPT_OPCODES),
 		m_config.bmap(fi::c::ID_ISCRIPT_OPCODE_IMPLS)) };
 	std::size_t l_iscript_rg2_start{ m_config.constant(c::ID_ISCRIPT_RG2_START) };
 
-	if (!required_impls_str.empty()) {
+	if (!opcode_defs.required_impls.empty()) {
 		fh::HackManager hack_mgr;
 
 		if (p_strict)
@@ -202,7 +202,7 @@ void fi::Cli::asm_to_nes(const std::string& p_asm_filename,
 
 		std::vector<fh::HackLib> required_libs;
 
-		for (const auto& impl : required_impls_str) {
+		for (const auto& impl : opcode_defs.required_impls) {
 			try {
 				required_libs.push_back(klib::str::parse_enum_ci<fh::HackLib>(impl));
 			}
@@ -212,7 +212,7 @@ void fi::Cli::asm_to_nes(const std::string& p_asm_filename,
 		}
 
 		const auto l_iscript_rg2_start_new{ hack_mgr.apply_script_library(m_config, rom,
-			l_iscript_rg2_start, required_libs) };
+			l_iscript_rg2_start, required_libs, opcode_defs.base_opcode_count) };
 
 		std::cout << "Installed new script library routines (" <<
 			(l_iscript_rg2_start_new - l_iscript_rg2_start) << " bytes)\n";

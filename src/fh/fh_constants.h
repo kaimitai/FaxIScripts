@@ -77,8 +77,6 @@ namespace fh {
 		constexpr char ID_FLAGS_WRAM_TO_SRAM[]{ "flags_wram_to_sram" };
 
 		constexpr char ID_ISCRIPT_RG2_START[]{ "iscript_data_rg2_start" };
-
-		constexpr byte VANILLA_SCRIPT_COUNT{ 24 };
 	}
 }
 

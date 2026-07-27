@@ -71,7 +71,7 @@ namespace fh {
 		word get_next_cpu_addr(word cpu_addr, std::size_t hack_size, std::size_t max_addr = 0xc000) const;
 		word cfg_word(const fe::Config& p_config, const std::string& p_id) const;
 		byte cfg_byte(const fe::Config& p_config, const std::string& p_id) const;
-		std::vector<word> read_vanilla_script_opcode_addrs(const std::vector<byte>& p_rom) const;
+		std::vector<word> read_script_opcode_addrs(const std::vector<byte>& p_rom, std::size_t p_opcode_count) const;
 		std::size_t write_script_opcode_table(std::vector<byte>& p_rom, word cpu_addr,
 			const std::vector<word>& p_jump_table) const;
 		std::vector<word> read_screen_event_handler_addrs(const std::vector<byte>& p_rom) const;
@@ -82,7 +82,7 @@ namespace fh {
 		std::size_t apply_tilemap_change_subsystem(const fe::Config& p_config, std::vector<byte>& p_rom,
 			const fh::TilemapChanges& tm_changes) const;
 		std::size_t apply_script_library(const fe::Config& p_config, std::vector<byte>& p_rom,
-			std::size_t p_file_offset, const std::vector<HackLib>& p_lib) const;
+			std::size_t p_file_offset, const std::vector<HackLib>& p_lib, std::size_t p_base_opcode_count) const;
 	};
 
 }
