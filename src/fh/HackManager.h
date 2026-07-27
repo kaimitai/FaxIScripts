@@ -15,7 +15,7 @@ namespace fh {
 	enum class HackLib {
 		SetFlag, ClearFlag, IfFlag, SetQuestFlag, ClearQuestFlag, IfQuestFlag,
 		RunScreenHandler, GetXP, IfWorld, IfScreen, IfStage, Die,
-		JSR, Return, ForceDoor
+		JSR, Return, ForceDoor, IfYX, IfDoorYX
 	};
 
 	class HackManager {
@@ -43,6 +43,10 @@ namespace fh {
 		word apply_JSR(const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const;
 		word apply_Return(const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const;
 		word apply_ForceDoor(const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const;
+		word apply_IfYX(std::vector<byte>& p_rom, word cpu_addr,
+			word helper_get_player_block_pos_addr, word helper_if_a_equals_addr) const;
+		word apply_IfDoorYX(std::vector<byte>& p_rom, word cpu_addr,
+			word helper_if_a_equals_addr) const;
 
 		// shared helpers for the script action library
 		word apply_helper_DecodeScriptFlag(const fe::Config& p_config, std::vector<byte>& p_rom,
@@ -50,6 +54,9 @@ namespace fh {
 		word apply_helper_DecodeQuestFlag(const fe::Config& p_config, std::vector<byte>& p_rom,
 			word cpu_addr) const;
 		word apply_helper_IfAEquals(const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const;
+		word apply_helper_GetPlayerBlockPos(std::vector<byte>& p_rom, word cpu_addr) const;
+
+		bool requires_any(const std::vector<HackLib>& p_lib, const std::set<HackLib>& p_required) const;
 
 		// other hacks
 		word install_hack_clear_flag_memory(const fe::Config& p_config, std::vector<byte>& p_rom) const;

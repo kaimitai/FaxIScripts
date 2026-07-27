@@ -21,6 +21,7 @@ namespace fh {
 		constexpr word Game_InitMMCAndBank{ 0xcbbf };
 		constexpr word Sound_PlayEffect{ 0xd0e4 };
 		constexpr word Area_SetBlocks{ 0xd7c5 };
+		constexpr word Area_ConvertPixelsToBlockPos{ 0xe86c };
 		constexpr word GameLoop_RunScreenEventHandlers_CMP_06{ 0xef55 };
 		constexpr word GameLoop_RunScreenEventHandlers_LDA_EventTable{ 0xef5a };
 	}
@@ -30,6 +31,11 @@ namespace fh {
 		constexpr byte ZP_Temp08{ 0x08 };
 		constexpr byte ZP_CurrentWorld{ 0x24 };
 		constexpr byte ZP_CurrentScreen{ 0x63 };
+		constexpr byte ZP_DoorBlockPos{ 0x6a };
+		constexpr byte ZP_PlayerPosX = 0x9e;
+		constexpr byte ZP_PlayerPosY = 0xa1;
+		constexpr byte ZP_PlayerPosArgX = 0xb5;
+		constexpr byte ZP_PlayerPosArgY = 0xb6;
 		constexpr byte ZP_ScriptAddr{ 0xdb };
 		constexpr byte ZP_ScriptAddrU{ 0xdc };
 		constexpr byte ZP_ScriptOffset{ 0xdd };

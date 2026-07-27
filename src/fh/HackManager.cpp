@@ -63,6 +63,27 @@ word fh::HackManager::apply_helper_IfAEquals(const fe::Config& p_config, std::ve
 	return get_next_cpu_addr(cpu_addr, code.apply_hack_and_clear(p_rom, 12, cpu_addr));
 }
 
+// Converts the player's current pixel position to a block position.
+// Returns: X = (Y_block << 4) | X_block
+word fh::HackManager::apply_helper_GetPlayerBlockPos(std::vector<byte>& p_rom,
+	word cpu_addr) const {
+	klib::Asm6502 code;
+
+	code.lda_zp(RAM::ZP_PlayerPosX);
+	code.clc();
+	code.adc_imm(0x07);                 // normalize to player center
+	code.sta_zp(RAM::ZP_PlayerPosArgX);
+
+	code.lda_zp(RAM::ZP_PlayerPosY);
+	code.sta_zp(RAM::ZP_PlayerPosArgY);
+
+	code.jsr(ROM::Area_ConvertPixelsToBlockPos);
+
+	code.rts();
+
+	return get_next_cpu_addr(cpu_addr, code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+}
+
 // script library hacks
 word fh::HackManager::apply_SetFlag(const fe::Config& p_config, std::vector<byte>& p_rom,
 	word cpu_addr, word flag_decode_helper_addr, word bitmask_table_addr) const {
@@ -301,7 +322,28 @@ word fh::HackManager::apply_ForceDoor(const fe::Config& p_config, std::vector<by
 	code.lda_imm(0x00);
 	code.sta_abs(RAM::DoorKeyRequirement);
 
-	code.jmp(cfg_word(p_config,	c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+
+	return get_next_cpu_addr(cpu_addr, code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+}
+
+word fh::HackManager::apply_IfYX(std::vector<byte>& p_rom, word cpu_addr,
+	word helper_get_player_block_pos_addr, word helper_if_a_equals_addr) const {
+	klib::Asm6502 code;
+
+	code.jsr(helper_get_player_block_pos_addr); // X = packed YX
+	code.txa();                                 // A = packed YX
+	code.jmp(helper_if_a_equals_addr);          // compare with script operand
+
+	return get_next_cpu_addr(cpu_addr, code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+}
+
+word fh::HackManager::apply_IfDoorYX(std::vector<byte>& p_rom, word cpu_addr,
+	word helper_if_a_equals_addr) const {
+	klib::Asm6502 code;
+
+	code.lda_zp(RAM::ZP_DoorBlockPos);
+	code.jmp(helper_if_a_equals_addr);
 
 	return get_next_cpu_addr(cpu_addr, code.apply_hack_and_clear(p_rom, 12, cpu_addr));
 }
@@ -313,7 +355,8 @@ std::size_t fh::HackManager::apply_script_library(const fe::Config& p_config, st
 
 	const std::set<HackLib> FLAG_REQUIRED{ HackLib::SetFlag, HackLib::ClearFlag, HackLib::IfFlag };
 	const std::set<HackLib> QUEST_FLAG_REQUIRED{ HackLib::SetQuestFlag, HackLib::ClearQuestFlag, HackLib::IfQuestFlag };
-	const std::set<HackLib> RAM_CHECK_REQUIRED{ HackLib::IfWorld, HackLib::IfScreen, HackLib::IfStage };
+	const std::set<HackLib> RAM_CHECK_REQUIRED{ HackLib::IfWorld, HackLib::IfScreen, HackLib::IfStage, HackLib::IfYX, HackLib::IfDoorYX };
+	const std::set<HackLib> BLOCK_POS_REQUIRED{ HackLib::IfYX };
 	// flag functions need access to the bitmask lookup table
 	std::set<HackLib> BITMASK_TABLE_REQUIRED{ FLAG_REQUIRED };
 	BITMASK_TABLE_REQUIRED.insert(begin(QUEST_FLAG_REQUIRED), end(QUEST_FLAG_REQUIRED));
@@ -329,46 +372,43 @@ std::size_t fh::HackManager::apply_script_library(const fe::Config& p_config, st
 	word flag_decode_helper_addr{ 0 };
 	word quest_flag_decode_helper_addr{ 0 };
 	word ram_check_helper_addr{ 0 };
+	word block_pos_helper_addr{ 0 };
 
 	// check if the bitmask lookup table needs to be installed
-	for (HackLib llib : BITMASK_TABLE_REQUIRED)
-		if (std::find(begin(p_lib), end(p_lib), llib) != end(p_lib)) {
-			const std::vector<byte> BITMASK_TABLE{ 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80 };
-			bitmask_table_addr = cpu_addr;
-			cpu_addr = get_next_cpu_addr(bitmask_table_addr, klib::Asm6502::apply_bytes(p_rom, BITMASK_TABLE, 12, bitmask_table_addr));
-			break;
-		}
+	if (requires_any(p_lib, BITMASK_TABLE_REQUIRED)) {
+		const std::vector<byte> BITMASK_TABLE{ 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80 };
+		bitmask_table_addr = cpu_addr;
+		cpu_addr = get_next_cpu_addr(bitmask_table_addr, klib::Asm6502::apply_bytes(p_rom, BITMASK_TABLE, 12, bitmask_table_addr));
+	}
 
 	// check if the flag-check helper must be installed
-	for (HackLib llib : FLAG_REQUIRED)
-		if (std::find(begin(p_lib), end(p_lib), llib) != end(p_lib)) {
-			// install hack which clears flag-memory since vanilla does not
-			install_hack_clear_flag_memory(p_config, p_rom);
-			// install wram to sram for flag data for en-transl and derivatives
-			if (p_config.boolean_or(c::ID_FLAGS_WRAM_TO_SRAM, false))
-				install_static_hack_flags_to_sram(p_config, p_rom);
-			// install the persistent flag operand decoder
-			flag_decode_helper_addr = cpu_addr;
-			cpu_addr = apply_helper_DecodeScriptFlag(p_config, p_rom, flag_decode_helper_addr);
-			break;
-		}
+	if (requires_any(p_lib, FLAG_REQUIRED)) {
+		// install hack which clears flag-memory since vanilla does not
+		install_hack_clear_flag_memory(p_config, p_rom);
+		// install wram to sram for flag data for en-transl and derivatives
+		if (p_config.boolean_or(c::ID_FLAGS_WRAM_TO_SRAM, false))
+			install_static_hack_flags_to_sram(p_config, p_rom);
+		// install the persistent flag operand decoder
+		flag_decode_helper_addr = cpu_addr;
+		cpu_addr = apply_helper_DecodeScriptFlag(p_config, p_rom, flag_decode_helper_addr);
+	}
 
 	// check if the quest flag-check helper must be installed
-	for (HackLib llib : QUEST_FLAG_REQUIRED) {
-		if (std::find(begin(p_lib), end(p_lib), llib) != end(p_lib)) {
-			quest_flag_decode_helper_addr = cpu_addr;
-			cpu_addr = apply_helper_DecodeQuestFlag(p_config, p_rom, cpu_addr);
-			break;
-		}
+	if (requires_any(p_lib, QUEST_FLAG_REQUIRED)) {
+		quest_flag_decode_helper_addr = cpu_addr;
+		cpu_addr = apply_helper_DecodeQuestFlag(p_config, p_rom, cpu_addr);
 	}
 
 	// check if the ram checker helper must be installed
-	for (HackLib llib : RAM_CHECK_REQUIRED) {
-		if (std::find(begin(p_lib), end(p_lib), llib) != end(p_lib)) {
-			ram_check_helper_addr = cpu_addr;
-			cpu_addr = apply_helper_IfAEquals(p_config, p_rom, cpu_addr);
-			break;
-		}
+	if (requires_any(p_lib, RAM_CHECK_REQUIRED)) {
+		ram_check_helper_addr = cpu_addr;
+		cpu_addr = apply_helper_IfAEquals(p_config, p_rom, cpu_addr);
+	}
+
+	// check if the block normalizer helper helper must be installed
+	if (requires_any(p_lib, BLOCK_POS_REQUIRED)) {
+		block_pos_helper_addr = cpu_addr;
+		cpu_addr = apply_helper_GetPlayerBlockPos(p_rom, cpu_addr);
 	}
 
 	for (HackLib llib : p_lib) {
@@ -436,6 +476,14 @@ std::size_t fh::HackManager::apply_script_library(const fe::Config& p_config, st
 			cpu_addr = apply_ForceDoor(p_config, p_rom, cpu_addr);
 			break;
 		}
+		case HackLib::IfYX: {
+			cpu_addr = apply_IfYX(p_rom, cpu_addr, block_pos_helper_addr, ram_check_helper_addr);
+			break;
+		}
+		case HackLib::IfDoorYX: {
+			cpu_addr = apply_IfDoorYX(p_rom, cpu_addr, ram_check_helper_addr);
+			break;
+		}
 
 		default:
 			throw std::runtime_error("Unsupported script library routine.");
@@ -446,6 +494,15 @@ std::size_t fh::HackManager::apply_script_library(const fe::Config& p_config, st
 	cpu_addr += static_cast<word>(write_script_opcode_table(p_rom, cpu_addr, script_impl_addresses));
 
 	return klib::Asm6502::get_file_offset(rom_addr_start.Bank, cpu_addr);
+}
+
+// given the extended library, check if any helpers are required
+bool fh::HackManager::requires_any(const std::vector<HackLib>& p_lib, const std::set<HackLib>& p_required) const {
+	for (HackLib llib : p_required)
+		if (std::find(begin(p_lib), end(p_lib), llib) != end(p_lib))
+			return true;
+
+	return false;
 }
 
 // tilemap change subsystem

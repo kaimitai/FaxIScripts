@@ -819,6 +819,8 @@
 			<entry byte="$0c" str="Impl=JSR,Flow=Jump" />
 			<entry byte="$0d" str="Impl=Return,Flow=End,Terminal=true" />
 			<entry byte="$0e" str="Impl=ForceDoor" />
+			<entry byte="$0f" str="Impl=IfYX,ArgType=Byte,Flow=Jump" />
+			<entry byte="$10" str="Impl=IfDoorYX,ArgType=Byte,Flow=Jump" />
 		</byte_to_string_map>
 		<!-- string mapping used by the iScript assembler and disassembler -->
 		<byte_to_string_map name="iscript_string_characters" region="us,eu,randum,us-rev-a">
