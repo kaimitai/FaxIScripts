@@ -15,7 +15,7 @@ namespace fh {
 	enum class HackLib {
 		SetFlag, ClearFlag, IfFlag, SetQuestFlag, ClearQuestFlag, IfQuestFlag,
 		RunScreenHandler, GetXP, IfWorld, IfScreen, IfStage, Die,
-		JSR, Return
+		JSR, Return, ForceDoor
 	};
 
 	class HackManager {
@@ -42,6 +42,7 @@ namespace fh {
 		word apply_Die(const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const;
 		word apply_JSR(const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const;
 		word apply_Return(const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const;
+		word apply_ForceDoor(const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const;
 
 		// shared helpers for the script action library
 		word apply_helper_DecodeScriptFlag(const fe::Config& p_config, std::vector<byte>& p_rom,

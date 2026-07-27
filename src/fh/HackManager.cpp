@@ -293,6 +293,19 @@ word fh::HackManager::apply_Return(const fe::Config& p_config, std::vector<byte>
 	return get_next_cpu_addr(cpu_addr, code.apply_hack_and_clear(p_rom, 12, cpu_addr));
 }
 
+word fh::HackManager::apply_ForceDoor(const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const {
+	klib::Asm6502 code;
+
+	// the requirement check has already failed and invoked this script
+	// override that result so the caller proceeds through the door afterall
+	code.lda_imm(0x00);
+	code.sta_abs(RAM::DoorKeyRequirement);
+
+	code.jmp(cfg_word(p_config,	c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+
+	return get_next_cpu_addr(cpu_addr, code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+}
+
 // main orchestrator - injects the script routines specified by users through the configuration xml
 // and extends the scripting language itself
 std::size_t fh::HackManager::apply_script_library(const fe::Config& p_config, std::vector<byte>& p_rom,
@@ -417,6 +430,10 @@ std::size_t fh::HackManager::apply_script_library(const fe::Config& p_config, st
 		}
 		case HackLib::Return: {
 			cpu_addr = apply_Return(p_config, p_rom, cpu_addr);
+			break;
+		}
+		case HackLib::ForceDoor: {
+			cpu_addr = apply_ForceDoor(p_config, p_rom, cpu_addr);
 			break;
 		}
 
