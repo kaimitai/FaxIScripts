@@ -33,6 +33,8 @@ The advanced systems are completely optional. Projects that do not enable them p
   - [How it Works](#how-it-works)
   - [Assembly Syntax](#assembly-syntax)
   - [Example: Persisting Mattock-breakable Blocks](#example-persisting-mattock-breakable-blocks)
+  - [Configuration](#configuration)
+  - [Limitations](#limitations)
 - [Bank 15 Hack Injection Points](#bank-15-hack-injection-points)
 - [RAM Used by Custom Hacks](#ram-used-by-custom-hacks)
 
@@ -516,6 +518,16 @@ Since tilemap changes are driven by flags, they persist automatically as long as
 
 <hr>
 
+### Limitations
+
+Currently the dynamic tilemap changes have these limitations:
+
+- At most 63 screens can have tilemap changes on any world
+- At most 127 metatile changes for any screen
+- Each screen can only be associated with one flag and one set of metatile changes
+
+<hr>
+
 ## Bank 15 Hack Injection Points
 
 ROM hacks can be injected by both Echoes of Eolis and FaxIScripts. For bank 15 we use space where normally unreachable code lives to inject these. The config ID-column shows the name of the configuration constant in ```eoe_config.xml``` which corresponds to the injection points. Users can configure them with config overrides if needed.
@@ -538,11 +550,11 @@ Runtime extensions also reserve some RAM locations.
 ## RAM used by custom hacks
 
 | Feature | RAM Address | Comments | Config ID |
-|---|---|---|---|---|
-| Extended flag system | $0101-$011f | Used  by the opcodes SetFlag, IfFlag, ClearFlag and the tilemap change subsystem | |
-| Tilemap Change subsystem | $e2-$e5 | Used as temporary variables when drawing the tilemap changes | |
+|---|---|---|---|
+| Extended flag system | $0101-$011f | Used  by the opcodes SetFlag, IfFlag, ClearFlag and the tilemap change subsystem | - |
+| Tilemap Change subsystem | $e2-$e5 | Used as temporary variables when drawing the tilemap changes | - |
 | Custom script opcodes JSR and Return | $0182-$0183 | Used to store the return address | hack_script_jsr_ram_addr_lo, hack_script_jsr_ram_addr_hi |
-| Stage Door Hack | $07fe-$07ff | Stores the pending destination stage during cross-stage door transitions | |
+| Stage Door Hack | $07fe-$07ff | Stores the pending destination stage during cross-stage door transitions | - |
 
 The extended flags are cleared on game initialization (rest and power cycles), but will not be stored in mantras. They will only persist across sessions if stored in SRAM.
 
