@@ -26,6 +26,14 @@
 		<const name="hack_tm_change_wait_frames" value="4" />
 		<!-- which sound effect to play when placing a tile - $ff for none -->
 		<const name="hack_tm_change_sound_effect" value="$17" />
+
+		<!-- bank for tilemap change subsystem -->
+		<const name="hack_tm_change_bank" region="en-transl" value="30" />
+		<const name="hack_tm_change_bank" value="9" />
+
+		<!-- cpu address in that bank for the tilemap change subsystem -->
+		<const name="hack_tm_change_cpu_addr" region="en-transl" value="$8000" />
+		<const name="hack_tm_change_cpu_addr" value="$a000" />
 	</consts>
 
 	<!-- value set overrides -->
@@ -72,7 +80,7 @@
 			<entry byte="21" str="Mnemonic=EndGame,Flow=End,Terminal=true" />
 			<entry byte="22" str="Mnemonic=IfMsgPrompt,ArgType=Byte,Flow=Jump,ArgDomain=TextString" />
 			<entry byte="23" str="Mnemonic=Jump,Flow=Jump,Terminal=true" />
-			<!-- library implementations, add new entries here as needed -->
+			<!-- library implementations, edit or add new entries here as needed -->
 			<entry byte="24" str="Impl=IfFlag" />
 			<entry byte="25" str="Impl=SetFlag" />
 			<entry byte="26" str="Impl=IfWorld" />

@@ -13,7 +13,7 @@ These features allow projects to:
 - Create conditional tilemap changes that permanently alter the world
 - Inject runtime code automatically without manually relocating assembly
 
-The advanced systems are completely optional. Projects that do not enable them produce behavior identical to the original game.
+The advanced systems are completely optional. Projects that do not enable them produce behavior identical to the original game. No knowledge of 6502 assembly is required to use the built-in runtime library. Most projects simply enable the desired opcodes and use them from ordinary FaxIScripts assembly.
 
 <hr>
 
@@ -32,6 +32,7 @@ The advanced systems are completely optional. Projects that do not enable them p
   - [Overview](#overview)
   - [How it Works](#how-it-works)
   - [Assembly Syntax](#assembly-syntax)
+  - [Typical Workflow](#typical-workflow)
   - [Example: Persisting Mattock-breakable Blocks](#example-persisting-mattock-breakable-blocks)
   - [Configuration](#configuration)
   - [Limitations](#limitations)
@@ -42,19 +43,29 @@ The advanced systems are completely optional. Projects that do not enable them p
 
 ## Getting Started
 
-Advanced features are configured through `eoe_config_override.xml`.
+Echoes of Eolis and FaxIScripts load their default configuration from ```eoe_config.xml```. This file should never be modified. It is part of the application and may be replaced when upgrading to a newer version.
 
-Most projects only need to:
+Instead, project-specific configuration belongs in ```eoe_config_override.xml```. Any settings present in the override file replace the corresponding defaults in ```eoe_config.xml```, while all omitted settings continue to use the built-in values.
 
-1. Enable the runtime opcode implementations they intend to use.
-2. Assemble their script file as usual.
-3. Use the new opcodes from assembly.
+Many projects never need an override file. However, the advanced scripting system uses it to define the project's custom script language, making an override file the recommended starting point for the features described in this document.
+
+A skeleton override file, ```eoe_config_override-advanced.xml```, is included in the ```util``` directory. Copy it to the directory containing the faxedit and faxiscripts executables, rename it to ```eoe_config_override.xml```, and modify it as needed.
+
+When the advanced scripting features are used, ```eoe_config_override.xml``` does more than configure the tools - it also defines the project's scripting language. The iscript_opcodes map specifies which opcodes exist, their mnemonics, argument types, and any runtime implementations they use. **The XML is no longer just configuration - it is the specification of the project's scripting language.**
+
+Both FaxIScripts and Echoes of Eolis read this information. FaxIScripts uses it when assembling scripts and disassembling ROM files, while Echoes of Eolis uses the same definitions to disassemble and display scripts correctly in the editor.
+
+The custom scripting opcodes are defined in ```iscript_opcodes``` in the configuration xml. Opcodes 0-23 define the vanilla scripting language, and should typically be left as-is. Opcodes 24 and up will be configured based on a project's needs. The opcode numbers themselves are arbitrary. Any unused values from 24 upward may be used, as long as the list is dense. For example, if 24 and 26 are defined, then 25 must also be defined.
+
+Most advanced projects only need to:
+
+1. Enable the runtime opcode implementations they intend to use by editing or adding entries to ```iscript_opcodes``` that specify an ```Impl``` value. The ```Impl``` selects one of the built-in runtime implementations provided by FaxIScripts.
+2. Use the new opcodes in your assembly source files
+3. Assemble their script file as usual
 
 FaxIScripts automatically determines which runtime helpers are required, assembles them into free space, rebuilds the script dispatch table when necessary, and reports the amount of ROM space consumed.
 
 No manual relocation, address calculation, or runtime installation is required by the script author.
-
-A skeleton override config file, ```eoe_config_override-advanced.xml``` is stored in the util folder. This file can be copied to the folder where the ```faxedit``` and ```faxiscripts```  executables are stored, and renamed to eoe_config_override.xml. Add more opcodes to the end of the ```iscript_opcodes``` -map in the file and experiment. Valid Impl-values are listed below in the library reference.
 
 <hr>
 
@@ -86,29 +97,23 @@ The runtime library is assembled on demand. Helper routines and opcode implement
 The flow of the advanced features is roughly as follows.
 
 ```text
-          Assembly (.asm)
-                │
-                ▼
-          FaxIScripts
-                │
-    ┌───────────┼───────────┐
-    │           │           │
-    │ Assemble  │ Build     │ Install
-    │ scripts   │ runtime   │ ROM hacks
-    │           │ library   │
-    └───────────┼───────────┘
-                │
-                ▼
-          Modified ROM
-                │
-                ▼
-      Echoes of Eolis
-                │
-    ┌───────────┼───────────┐
-    │           │           │
- Edit maps      |         Test
-                |
-     Assign screen handlers
+      Assembly (.asm)
+             │
+             ▼
+       FaxIScripts
+             │
+             ▼
+       Modified ROM
+             │
+             ▼
+  Echoes of Eolis
+     │
+     ├── Edit maps
+     ├── Assign screen handlers
+     └── Save
+             │
+             ▼
+            Test
 ```
 
 
@@ -198,7 +203,7 @@ We only specify the implementation (Impl) value, since the application knows the
 
 would allow you to write "Ret" instead of "Return" in the asm-files. If a mnemonic is not given, it defaults to the Impl-value itself.
 
-Assuming these opcodes are defined to be used, the assembler will inject them into bank 12 free space along with the script bytecode itself. 
+Once these opcodes have been defined, the assembler injects their implementations into free space in bank 12 together with the script bytecode.
 
 We know that failure scripts are called per key requirement, so we will create a shared code block using JSR and Return that can be reached from each of these. When a door requirement fails, we will check a corresponding flag, and if it is set we will force ourselves through the door.
 
@@ -398,6 +403,39 @@ The assembler will sort the data, but world needs to be defined before screens, 
 
 In Echoes of Eolis a keyboard shortcut ```Shift+Ctrl+C``` will copy the selected tilemap rectangle on this format, making it easier to create the tilemap change data. The flag number still needs to be specified by users however.
 
+<hr>
+
+#### Typical Workflow
+
+
+
+```text
+Temporarily edit screens in Echoes of Eolis
+                │
+                ▼
+        Copy tilemap changes
+                │
+                ▼
+Paste into section [tilemap_changes] in the asm-file
+                │
+                ▼
+        Write script logic
+                │
+                ▼
+     Assemble with FaxIScripts
+                │
+                ▼
+   Reload ROM in Echoes of Eolis
+Set screen handler 3 for screens with dynamic tilemap changes
+                │
+                ▼
+  Patch ROM and test in emulator
+```
+
+The special copy operation ```Shift+Ctrl+C``` in EoE will only copy rectangular areas. If you want other shapes for the tilemap changes you will have to modify the output yourself.
+
+<hr>
+
 #### Example: Persisting Mattock-breakable blocks
 
 As a minimum we need to have the following opcodes available;
@@ -433,7 +471,7 @@ flag ?    ; TODO: specify trigger flag
 3,11,66
 ```
 
-The copied data describes only the tiles that differ from the original ROM. Undo the edits in the GUI so the ROM itself remains unchanged, then add the generated block to the assembler source. Let us use flag 100. At the bottom of the asm-file we will then have a section which looks like this;
+The copied data describes tiles and positions we want to dynamically change during runtime. Undo the edits in the GUI so the ROM itself remains unchanged, then add the generated block to the assembler source. Let us use flag 100. At the bottom of the asm-file we will then have a section which looks like this;
 
 ```
 [tilemap_changes]
@@ -491,7 +529,7 @@ By default the subsystem is installed in bank 9 cpu address $a000 for 16-bank RO
 
 The final step is add the screen event handler to the screen. If you had the ROM open in Echoes of Eolis while building this assembly file, you can use "Apply external rom changes" to get the changes in. Otherwise open the file in EoE. Navigate to Trunk screen 12. Go to Sprites and click "Add Event Handler". Assign event handler 3, which is the custom tilemap change handler installed by FaxIScripts. The handler will now execute every time this screen is entered.
 
-If the game code itself did not apply the tilemap change immediately when using the mattock, you could do the following to force the event handler to run;
+The game itself applies a tilemap change immediately when using the mattock, so we do not need to trigger the handler from the script in this case. In other cases you may want to set a flag and then call the screen handler immediately from a script. That is what the script opcode ```RunScreenHandler``` is for. We could have written the following at the end of the mattock script;
 
 ```
 SetFlag 100
@@ -514,7 +552,17 @@ While this example only replaces two Mattock-breakable blocks, the tilemap chang
 - Environmental changes after defeating a boss or completing a quest
 - Puzzle elements that permanently alter the world
 
-Since tilemap changes are driven by flags, they persist automatically as long as the corresponding flags are preserved (for example through SRAM support).
+Since tilemap changes are driven by flags, they persist automatically as long as the corresponding flags are preserved (for example through SRAM support). For ROMs without SRAM support, all the extended flags will be cleared on reset and power off.
+
+<hr>
+
+### Configuration
+
+When the dynamic tilemap changes take place, it is possible to configure the amount of frames to wait between drawing each new metatile. This is set in configuration constant ```hack_tm_change_wait_frames```.
+
+It is also possible to play a sound effect for each metatile. This is set in configuration constant ```hack_tm_change_sound_effect```. (set this to $ff to disable sound effects)
+
+The tilemap change subsystem will be installed in the bank given by config item ```hack_tm_change_bank``` and the cpu address given by ```hack_tm_change_cpu_addr``` in that bank. For the translation hack and derivatives this defaults to ```[$1e:$8000]``` and for all other regions ```[$09:$a000]```. This can be changed in the configuration override file if it conflicts with other data in those locations.
 
 <hr>
 
