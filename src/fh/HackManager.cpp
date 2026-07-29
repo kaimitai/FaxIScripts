@@ -137,6 +137,129 @@ word fh::HackManager::apply_IfFlag(const fe::Config& p_config, std::vector<byte>
 	return get_next_cpu_addr(cpu_addr, code.apply_hack_and_clear(p_rom, 12, cpu_addr));
 }
 
+word fh::HackManager::apply_SelectFlag(const fe::Config& p_config,
+	std::vector<byte>& p_rom, word cpu_addr) const {
+	klib::Asm6502 code;
+
+	const word SelectedFlagRamAddr{ cfg_word(p_config, c::ID_HACK_SCRIPT_SELECTED_FLAG_RAM_ADDR) };
+
+	// A = flag number
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE));
+	// remember the selected flag number
+	code.sta_mem(SelectedFlagRamAddr);
+	// continue executing the script
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+
+	return get_next_cpu_addr(cpu_addr, code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+}
+
+word fh::HackManager::apply_SetSelectedFlag(const fe::Config& p_config,
+	std::vector<byte>& p_rom, word cpu_addr, word bitmask_table_addr) const {
+	klib::Asm6502 code;
+
+	const word SelectedFlagRamAddr{ cfg_word(p_config, c::ID_HACK_SCRIPT_SELECTED_FLAG_RAM_ADDR) };
+
+	// A = selected flag number
+	code.lda_mem(SelectedFlagRamAddr);
+
+	// if no flag has been selected, do nothing
+	code.cmp_imm(0xff);
+	code.beq("@done");
+
+	// decode flag number -> X = byte index, Y = bit index
+	code.pha();
+	code.lsr_a(3);
+	code.tax();
+
+	code.pla();
+	code.and_imm(0x07);
+	code.tay();
+
+	// set the bit
+	code.lda_abs_x(RAM::Flags);
+	code.ora_abs_y(bitmask_table_addr);
+	code.sta_abs_x(RAM::Flags);
+
+	code.label("@done");
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+
+	return get_next_cpu_addr(cpu_addr, code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+}
+
+word fh::HackManager::apply_ClearSelectedFlag(const fe::Config& p_config,
+	std::vector<byte>& p_rom, word cpu_addr, word bitmask_table_addr) const {
+	klib::Asm6502 code;
+
+	const word SelectedFlagRamAddr{ cfg_word(p_config, c::ID_HACK_SCRIPT_SELECTED_FLAG_RAM_ADDR) };
+
+	// A = selected flag number
+	code.lda_mem(SelectedFlagRamAddr);
+
+	// if no flag has been selected, do nothing
+	code.cmp_imm(0xff);
+	code.beq("@done");
+
+	// decode flag number -> X = byte index, Y = bit index
+	code.pha();
+	code.lsr_a(3);
+	code.tax();
+
+	code.pla();
+	code.and_imm(0x07);
+	code.tay();
+
+	// clear the bit
+	code.lda_abs_x(RAM::Flags);
+	code.sta_zp(RAM::ZP_Temp07);
+
+	code.lda_abs_y(bitmask_table_addr);
+	code.eor_imm(0xff);
+
+	code.and_zp(RAM::ZP_Temp07);
+	code.sta_abs_x(RAM::Flags);
+
+	code.label("@done");
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+
+	return get_next_cpu_addr(cpu_addr, code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+}
+
+word fh::HackManager::apply_IfSelectedFlag(const fe::Config& p_config,
+	std::vector<byte>& p_rom, word cpu_addr, word bitmask_table_addr) const {
+	klib::Asm6502 code;
+
+	const word SelectedFlagRamAddr{ cfg_word(p_config, c::ID_HACK_SCRIPT_SELECTED_FLAG_RAM_ADDR) };
+
+	// A = selected flag number
+	code.lda_mem(SelectedFlagRamAddr);
+
+	// if no flag has been selected, treat it as clear
+	code.cmp_imm(0xff);
+	code.beq("@clear");
+
+	// decode flag number -> X = byte index, Y = bit index
+	code.pha();
+	code.lsr_a(3);
+	code.tax();
+
+	code.pla();
+	code.and_imm(0x07);
+	code.tay();
+
+	// test the bit
+	code.lda_abs_x(RAM::Flags);
+	code.and_abs_y(bitmask_table_addr);
+	code.bne("@set");
+
+	code.label("@clear");
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_SKIPADDRANDINVOKE));
+
+	code.label("@set");
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_JUMPTONEXTADDR));
+
+	return get_next_cpu_addr(cpu_addr, code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+}
+
 word fh::HackManager::apply_SetQuestFlag(const fe::Config& p_config, std::vector<byte>& p_rom,
 	word cpu_addr, word quest_flag_decode_helper_addr, word bitmask_table_addr) const {
 	klib::Asm6502 code;
@@ -353,7 +476,8 @@ word fh::HackManager::apply_IfDoorYX(std::vector<byte>& p_rom, word cpu_addr,
 std::size_t fh::HackManager::apply_script_library(const fe::Config& p_config, std::vector<byte>& p_rom,
 	std::size_t p_file_offset, const std::vector<HackLib>& p_lib, std::size_t p_base_opcode_count) const {
 
-	const std::set<HackLib> FLAG_REQUIRED{ HackLib::SetFlag, HackLib::ClearFlag, HackLib::IfFlag };
+	const std::set<HackLib> FLAG_REQUIRED{ HackLib::SetFlag, HackLib::ClearFlag, HackLib::IfFlag,
+	HackLib::SelectFlag, HackLib::SetSelectedFlag, HackLib::ClearSelectedFlag, HackLib::IfSelectedFlag };
 	const std::set<HackLib> QUEST_FLAG_REQUIRED{ HackLib::SetQuestFlag, HackLib::ClearQuestFlag, HackLib::IfQuestFlag };
 	const std::set<HackLib> RAM_CHECK_REQUIRED{ HackLib::IfWorld, HackLib::IfScreen, HackLib::IfStage, HackLib::IfYX, HackLib::IfDoorYX };
 	const std::set<HackLib> BLOCK_POS_REQUIRED{ HackLib::IfYX };
@@ -388,7 +512,7 @@ std::size_t fh::HackManager::apply_script_library(const fe::Config& p_config, st
 		// install wram to sram for flag data for en-transl and derivatives
 		if (p_config.boolean_or(c::ID_FLAGS_WRAM_TO_SRAM, false))
 			install_static_hack_flags_to_sram(p_config, p_rom);
-		// install the persistent flag operand decoder
+		// install the persistent flag decoder helper
 		flag_decode_helper_addr = cpu_addr;
 		cpu_addr = apply_helper_DecodeScriptFlag(p_config, p_rom, flag_decode_helper_addr);
 	}
@@ -426,6 +550,22 @@ std::size_t fh::HackManager::apply_script_library(const fe::Config& p_config, st
 		}
 		case HackLib::IfFlag: {
 			cpu_addr = apply_IfFlag(p_config, p_rom, cpu_addr, flag_decode_helper_addr, bitmask_table_addr);
+			break;
+		}
+		case HackLib::SelectFlag: {
+			cpu_addr = apply_SelectFlag(p_config, p_rom, cpu_addr);
+			break;
+		}
+		case HackLib::SetSelectedFlag: {
+			cpu_addr = apply_SetSelectedFlag(p_config, p_rom, cpu_addr, bitmask_table_addr);
+			break;
+		}
+		case HackLib::ClearSelectedFlag: {
+			cpu_addr = apply_ClearSelectedFlag(p_config, p_rom, cpu_addr, bitmask_table_addr);
+			break;
+		}
+		case HackLib::IfSelectedFlag: {
+			cpu_addr = apply_IfSelectedFlag(p_config, p_rom, cpu_addr, bitmask_table_addr);
 			break;
 		}
 		case HackLib::SetQuestFlag: {

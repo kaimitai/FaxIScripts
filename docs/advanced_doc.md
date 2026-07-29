@@ -159,6 +159,10 @@ This minimizes ROM usage while allowing new opcode implementations to reuse comm
 | SetFlag | Byte | Sets an extended flag (0-247) | SetFlag 110 ; sets flag 110 |
 | ClearFlag | Byte | Clears an extended flag (0-247) | ClearFlag 110 ; clears flag 110 |
 | IfFlag | Byte, Label | Jumps if the extended flag is set | IfFlag 110 @target ; jumps to @target if flag 110 is set |
+| SelectFlag | Byte | Selects an extended flag for later use by the selected-flag opcodes | SelectFlag 110 ; prepares use of flag 110 |
+| SetSelectedFlag | None | Sets the currently selected extended flag | |
+| ClearSelectedFlag | None | Clears the currently selected extended flag | |
+| IfSelectedFlag | Label | Jumps if the currently selected extended flag is set | |
 | SetQuestFlag | Byte | Sets a vanilla quest flag (0-7) | SetQuestFlag 3 ; sets  quest flag 3 |
 | ClearQuestFlag | Byte | Clears a vanilla quest flag (0-7) | ClearQuestFlag 3 ; clears quest flag 3 |
 | IfQuestFlag | Byte, Label | Jumps if the vanilla quest flag is set | IfQuestFlag 3 @target ; jumps to @target if quest flag 3 is set |
@@ -176,23 +180,30 @@ This minimizes ROM usage while allowing new opcode implementations to reuse comm
 
 **Note**: Runtime implementations are intended for use with custom opcodes. Vanilla opcodes (0x00–0x17) continue to use the game's original implementations unless explicitly remapped. This preserves compatibility with existing scripts while allowing projects to extend the scripting language with new functionality.
 
-IfYX and IfDoorYX both take an argument on the form $yx, a hex value where the high nibble is y-position and low nibble is x-position in metatile space.
+```SelectFlag``` stores an extended flag number in a temporary runtime variable. ```SetSelectedFlag```, ```ClearSelectedFlag``` and ```IfSelectedFlag``` operate on that selected flag instead of taking a flag number directly. This is particularly useful when multiple scripts share common logic for determining which flag should be used before deciding what operation to perform on it.
 
-The difference between them is that IfYX considers the player's current position, and IfDoorYX considers the position of the door being interacted with. IfDoorYX should only be used within scripts that are called via in-game door logic.
+The value ```$ff``` is reserved as an **invalid flag**. ```SelectFlag $ff``` clears the current selection. If no valid flag has been selected, ```SetSelectedFlag``` and ```ClearSelectedFlag``` perform no action, while ```IfSelectedFlag``` behaves as though the selected flag is clear. This allows shared subroutines to safely indicate "no matching flag" without requiring additional checks by the caller.
+
+```JSR``` and ```Return``` support a single active subroutine call. Nested ```JSR``` calls are not supported.
+
+```IfYX``` and ```IfDoorYX``` both take an argument on the form ```$yx```, a hex value where the high nibble is y-position and low nibble is x-position in metatile space.
+
+The difference between them is that ```IfYX``` considers the player's current position, and ```IfDoorYX``` considers the position of the door being interacted with. ```IfDoorYX``` should only be used within scripts invoked by in-game door logic.
 
 ## Example: Keep all doors in world 1 (Trunk) unlocked
 
 We will need the following custom opcodes in ```iscript_opcodes``` in ```eoe_config_override.xml```
 
 ```xml
-<entry byte="24" str="Impl=IfFlag" />
-<entry byte="25" str="Impl=SetFlag" />
-<entry byte="26" str="Impl=IfWorld" />
-<entry byte="27" str="Impl=IfScreen" />
-<entry byte="28" str="Impl=IfDoorYX" />
-<entry byte="29" str="Impl=JSR" />
-<entry byte="30" str="Impl=Return" />
-<entry byte="31" str="Impl=ForceDoor" />
+  <entry byte="24" str="Impl=IfSelectedFlag" />
+  <entry byte="25" str="Impl=SetSelectedFlag" />
+  <entry byte="26" str="Impl=IfWorld" />
+  <entry byte="27" str="Impl=IfScreen" />
+  <entry byte="28" str="Impl=IfDoorYX" />
+  <entry byte="29" str="Impl=JSR" />
+  <entry byte="30" str="Impl=Return" />
+  <entry byte="31" str="Impl=ForceDoor" />
+  <entry byte="32" str="Impl=SelectFlag" />
 ```
 
 We only specify the implementation (Impl) value, since the application knows the function signatures. The order here does not matter, but each opcode needs a unique byte value - and all Impl-entries must follow all non Impl-entries. If you want custom mnemonics that is possible too, for example:
@@ -205,20 +216,77 @@ would allow you to write "Ret" instead of "Return" in the asm-files. If a mnemon
 
 Once these opcodes have been defined, the assembler injects their implementations into free space in bank 12 together with the script bytecode.
 
-We know that failure scripts are called per key requirement, so we will create a shared code block using JSR and Return that can be reached from each of these. When a door requirement fails, we will check a corresponding flag, and if it is set we will force ourselves through the door.
+##### High-Level Strategy
 
-We will make sure to set one flag per door the first time a key is used.
+The vanilla game decides whether a door can be entered before the associated success or failure script executes. We cannot change that flow directly, but we can use the new scripting opcodes to remember which doors have been unlocked and override future failures.
 
-In world 1, doors are locked with Key J, Key Q and Key Jo. These have failure scripts 2, 123 and 126, respectively.
+Our strategy is to separate the problem into two parts:
+
+1. **Identify the current door**. A shared subroutine examines the current world, screen, and (when necessary) door position, then stores the corresponding extended flag using ```SelectFlag```.
+2. **Perform the desired operation**. Individual scripts simply call the shared selector and then decide what to do with the selected flag. Failure scripts test it with ```IfSelectedFlag```, while the successful key-use script permanently unlocks the door with ```SetSelectedFlag```.
+
+This keeps all door-identification logic in one place. If a door is moved, removed, or a new one is added, only the shared selector needs to be updated. Every script that depends on door identity automatically benefits from the change.
+
+For reference, these are the default failure scripts for doors locked by keys:
+
+| Key Type | Script Entrypoint |
+|----------|-----------|
+| Jack | 2 |
+| Queen | 123 |
+| King | 124 |
+| Ace | 125 |
+| Joker | 126 |
+
+The key-used successfully script has entrypoint ```132```.
+
+```text
+                           +----------------------+
+                           |   Door interaction   |
+                           +----------+-----------+
+                                      |
+                                      ▼
+                            JSR @select_door_flag
+                                      |
+                                      ▼
+                  +-----------------------------------------+
+                  | SelectFlag = corresponding door flag    |
+                  | (or $ff if no matching door exists)     |
+                  +-------------------+---------------------+
+                                      |
+                     +----------------+----------------+
+                     |                                 |
+                     ▼                                 ▼
+              Success script                    Failure script
+             (entrypoint 132)                (entrypoints 2/123/126)
+                     |                                 |
+               SetSelectedFlag                   IfSelectedFlag
+                     |                                 |
+                     |                    +------------+------------+
+                     |                    |                         |
+                     |                  clear                      set
+                     |                    |                         |
+                     |              show vanilla                ForceDoor
+                     |             failure message                 End
+                     |
+         door permanently unlocked
+```
+
+#### Implementation
+
+In world 1, doors are locked with Key J, Key Q and Key Jo. These have failure scripts 2, 123 and 126, respectively - so in this example we will only concern ourselves with these.
 
 In world 1, there are locked doors on screens 11, 30 and 40. On screen 40 there are two locked doors, so we need to distinguish them.
 
 We will use flags 200, 201, 202 and 203 for these 4 doors.
 
-First we make a shared subroutine to check the flags somewhere in the [iscript]-section.
+First we create a shared subroutine that selects the persistent flag corresponding to the current door. We can put this anywhere in the ```[iscript]``` section, for example at the end.
 
 ```asm
-@door_check:
+; selects the persistent flag corresponding to the current door
+; if no matching door is found, the selected flag remains $ff
+@select_door_flag:
+  SelectFlag $ff ; clear the selected flag
+  
   IfWorld 1 @is_trunk
   Return ; this was not trunk - return to regular handling
 
@@ -226,134 +294,97 @@ First we make a shared subroutine to check the flags somewhere in the [iscript]-
   IfScreen 11 @trunk_11
   IfScreen 30 @trunk_30
   IfScreen 40 @trunk_40
-  Return ; could not really happen - return can be omitted
+  Return ; defensive return - not a locked door on any of these screens
   
   ; we know only one door exists on screen 11, so no more checks are needed
   @trunk_11:
-  IfFlag 200 @check_successful
-  Return ; the flag has not been set - return to regular handling
+  SelectFlag 200
+  Return
   
   @trunk_30:
-  IfFlag 201 @check_successful
-  Return ; the flag has not been set - return to regular handling
+  SelectFlag 201
+  Return
   
   @trunk_40:  ; we have two doors on this screen, and need to distinguish them
   IfDoorYX $10 @trunk_40_a ; door with coords (x=0, y=1)
   IfDoorYX $3d @trunk_40_b ; door with coords (x=13, y=3)
-  Return ; could not really happen - return can be omitted
+  Return ; defensive return - not a locked door on either of these locations
   
   @trunk_40_a:
-  IfFlag 202 @check_successful
-  Return; flag not set - return to regular handling
+  SelectFlag 202
+  Return
   
   @trunk_40_b:
-  IfFlag 203 @check_successful
-  Return ; flag not set - return to regular handling
-
-@check_successful:
-  Msg "Entering door"
-  ForceDoor ; the corresponding flag was set, enter the door
-  End ; success - so end the script without returning and showing the "key needed"-message
-
+  SelectFlag 203
+  Return
 ```
 
-Since we know the door locations up front, and we only invoke this code block when handling a door, we know at least one branch will be taken. Some of the Return-statements here were not necessary.
+The first instruction clears the current selection by storing the sentinel value ```$ff```. If no matching door is found, the subroutine simply returns with no flag selected. As described earlier, ```SetSelectedFlag``` becomes a no-op and ```IfSelectedFlag``` behaves as though the flag is clear.
 
-Next we will call this shared block from the Jack, Queen and Joker failure scripts. We JSR to the shared door checker which only returns if the check failed - meaning the flag was not set.
+The defensive ```Return``` statements are not strictly required here since we know the door locations up front, but they make the routine safe if additional screens or doors are added later.
+
+We also add a small shared code block for overriding the default failure-scripts. We can add this after the block we just added.
+
+```asm
+@door_already_unlocked:
+  Msg "Entering..."
+  ForceDoor
+  End
+```
+
+This code will force us through the door even if we didn't have the requirement, and it will end the script - so that the default failure message about a required key is not shown.
+
+We need to update the key used successfully-script to set the door flag.
+
+```asm
+.entrypoint 132
+.textbox GENERIC
+    JSR @select_door_flag
+    SetSelectedFlag
+    MsgNoskip "I have unlocked<n>the door."
+    End
+```
+
+Before displaying the normal "key used" message, we select the flag corresponding to the current door and set it permanently. If no matching door was found, the selected flag remains ```$ff```, causing ```SetSelectedFlag``` to do nothing.
+
+Then for each of the three failure scripts we care about for world 1, we select the door's flag and check it. If the flag has already been set, we jump to the success handler and bypass the failure.
 
 ```asm
 .entrypoint 2
 .textbox GENERIC
-    JSR @door_check
-    Msg "There is a mark<n>of <q>Jack<q><n>by the key hole."
+    JSR @select_door_flag
+    IfSelectedFlag @door_already_unlocked ; the door flag was set, jump to the success handler
+    Msg "There is the<n>mark of <q>Jack<q><n>by the keyhole!"
     End
 ```
 
 ```asm
 .entrypoint 123
 .textbox GENERIC
-    JSR @door_check
-    MsgNoskip "There is the<n>mark of <q>Queen<q><n>by the key hole."
+    JSR @select_door_flag
+    IfSelectedFlag @door_already_unlocked ; the door flag was set, jump to the success handler
+    MsgNoskip "There is the<n>mark of <q>Queen<q><n>by the keyhole!"
     End
 ```
 
 ```asm
 .entrypoint 126
 .textbox GENERIC
-    JSR @door_check
-    MsgNoskip "There is the<n>mark of <q>Joker<q><n>by the key hole."
+    JSR @select_door_flag
+    IfSelectedFlag @door_already_unlocked ; the door flag was set, jump to the success handler
+    MsgNoskip "There is the<n>mark of <q>Joker<q><n>by the keyhole!"
     End
 ```
-
-With this in place, we will pass through the door without having the needed requirement if flags have been set. Finally we have to actually SET the flags the first time we go through any of these doors. This will be done in the key used successfully script, with index 132.
-
-Next we create a second shared subroutine that records which doors have already been unlocked. Each label must be uniquely defined, so I will prefix these with s_.
-
-Add this code block somewhere in the [iscript]-section too;
-
-```asm
-@door_set:
-  IfWorld 1 @s_is_trunk
-  Return ; this was not trunk - return to regular handling
-
-@s_is_trunk:
-  IfScreen 11 @s_trunk_11
-  IfScreen 30 @s_trunk_30
-  IfScreen 40 @s_trunk_40
-  Return ; could not really happen - return can be omitted
-  
-  ; we know only one door exists on screen 11, so no more checks are needed
-  @s_trunk_11:
-  SetFlag 200
-  Return
-  
-  @s_trunk_30:
-  SetFlag 201
-  Return
-  
-  @s_trunk_40:  ; we have two doors on this screen, and need to distinguish them
-  IfDoorYX $10 @s_trunk_40_a ; door with coords (x=0, y=1)
-  IfDoorYX $3d @s_trunk_40_b ; door with coords (x=13, y=3)
-  Return ; could not really happen - return can be omitted
-  
-  @s_trunk_40_a:
-  SetFlag 202
-  Return
-  
-  @s_trunk_40_b:
-  SetFlag 203
-  Return
-```
-
-And finally call this subroutine from the key used script;
-
-```
-.entrypoint 132
-.textbox GENERIC
-    JSR @door_set
-    MsgNoskip "I've used key."
-    End
-```
-
-The result is that each locked door becomes permanently unlocked the first time the corresponding key is used. Subsequent attempts to enter the same door succeed immediately, while all other locked doors continue to behave normally until their own flags have been set.
-
-This example just handled Trunk, but more world checks can be added of course;
-
-```
-IfWorld 0 @is_eolis
-IfWorld 1 @is_trunk
-IfWorld 2 @is_mist
-```
-
-...and so on.
 
 The assembler output in this case would say
 
 ```
-Installed new script library routines (210 bytes)
+Installed new script library routines (247 bytes)
 ```
 
 which was the cost of adding these custom opcodes. Custom opcodes compete for space with the actual script code, so try to only add opcodes you will actually use.
+
+The result of this example is that each door becomes permanently unlocked the first time the correct key is used. All subsequent attempts to enter that same door succeed immediately, while every other locked door continues to behave normally until it has been unlocked once. Because the door-to-flag mapping is centralized in a single subroutine, adding or moving doors only requires updating that one routine.
 
 **Note**: Door success and failure scripts execute after the textbox has already been opened by the engine. Consequently, calling ForceDoor from a failure script still displays a textbox. This is a limitation of the vanilla script system rather than the ForceDoor opcode itself.
 
@@ -599,7 +630,8 @@ Runtime extensions also reserve some RAM locations.
 
 | Feature | RAM Address | Comments | Config ID |
 |---|---|---|---|
-| Extended flag system | $0101-$011f | Used  by the opcodes SetFlag, IfFlag, ClearFlag and the tilemap change subsystem | - |
+| Extended flag system | $0101-$011f | Used by the opcodes SetFlag, IfFlag, ClearFlag and the tilemap change subsystem | - |
+| Selected extended flag | $0184 | Used by the opcodes SelectFlag, IfSelectedFlag, ClearSelectedFlag and IfSelectedFlag | hack_script_selected_flag_ram_addr |
 | Tilemap Change subsystem | $e2-$e5 | Used as temporary variables when drawing the tilemap changes | - |
 | Custom script opcodes JSR and Return | $0182-$0183 | Used to store the return address | hack_script_jsr_ram_addr_lo, hack_script_jsr_ram_addr_hi |
 | Stage Door Hack | $07fe-$07ff | Stores the pending destination stage during cross-stage door transitions | - |

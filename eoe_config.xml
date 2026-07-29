@@ -390,6 +390,8 @@
 		<!-- RAM addresses used by the iScript JSR/Return opcodes to store the return address -->
 		<const name="hack_script_jsr_ram_addr_lo" value="$0182" />
 		<const name="hack_script_jsr_ram_addr_hi" value="$0183" />
+		<!-- RAM address used by the SelectFlag-opcodes to store the selected flag number -->
+		<const name="hack_script_selected_flag_ram_addr" value="$0184" />
 	</consts>
 	<!-- value sets -->
 	<sets>
@@ -821,6 +823,10 @@
 			<entry byte="$0e" str="Impl=ForceDoor" />
 			<entry byte="$0f" str="Impl=IfYX,ArgType=Byte,Flow=Jump" />
 			<entry byte="$10" str="Impl=IfDoorYX,ArgType=Byte,Flow=Jump" />
+			<entry byte="$11" str="Impl=SelectFlag,ArgType=Byte" />
+			<entry byte="$12" str="Impl=SetSelectedFlag" />
+			<entry byte="$13" str="Impl=ClearSelectedFlag" />
+			<entry byte="$14" str="Impl=IfSelectedFlag,Flow=Jump" />
 		</byte_to_string_map>
 		<!-- string mapping used by the iScript assembler and disassembler -->
 		<byte_to_string_map name="iscript_string_characters" region="us,eu,randum,us-rev-a">

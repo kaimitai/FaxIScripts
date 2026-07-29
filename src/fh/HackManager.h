@@ -13,7 +13,8 @@ using word = uint16_t;
 namespace fh {
 
 	enum class HackLib {
-		SetFlag, ClearFlag, IfFlag, SetQuestFlag, ClearQuestFlag, IfQuestFlag,
+		SetFlag, ClearFlag, IfFlag, SelectFlag, SetSelectedFlag, IfSelectedFlag, ClearSelectedFlag,
+		SetQuestFlag, ClearQuestFlag, IfQuestFlag,
 		RunScreenHandler, GetXP, IfWorld, IfScreen, IfStage, Die,
 		JSR, Return, ForceDoor, IfYX, IfDoorYX
 	};
@@ -27,6 +28,13 @@ namespace fh {
 			word cpu_addr, word flag_decode_helper_addr, word bitmask_table_addr) const;
 		word apply_IfFlag(const fe::Config& p_config, std::vector<byte>& p_rom,
 			word cpu_addr, word flag_decode_helper_addr, word bitmask_table_addr) const;
+		word apply_SelectFlag(const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const;
+		word apply_SetSelectedFlag(const fe::Config& p_config, std::vector<byte>& p_rom,
+			word cpu_addr, word bitmask_table_addr) const;
+		word apply_ClearSelectedFlag(const fe::Config& p_config, std::vector<byte>& p_rom,
+			word cpu_addr, word bitmask_table_addr) const;
+		word apply_IfSelectedFlag(const fe::Config& p_config, std::vector<byte>& p_rom,
+			word cpu_addr, word bitmask_table_addr) const;
 		word apply_SetQuestFlag(const fe::Config& p_config, std::vector<byte>& p_rom,
 			word cpu_addr, word quest_flag_decode_helper_addr, word bitmask_table_addr) const;
 		word apply_ClearQuestFlag(const fe::Config& p_config, std::vector<byte>& p_rom,
