@@ -1,3 +1,5 @@
+<hr>
+
 # Advanced Modding
 
 <hr>
@@ -117,7 +119,7 @@ The flow of the advanced features is roughly as follows.
 ```
 
 
-#### Configuring Runtime Opcodes
+### Configuring Runtime Opcodes
 
 Runtime opcode implementations are configured through ```eoe_config_override.xml```.
 
@@ -163,7 +165,7 @@ This minimizes ROM usage while allowing new opcode implementations to reuse comm
 | SetSelectedFlag | None | Sets the currently selected extended flag | |
 | ClearSelectedFlag | None | Clears the currently selected extended flag | |
 | IfSelectedFlag | Label | Jumps if the currently selected extended flag is set | |
-| SetQuestFlag | Byte | Sets a vanilla quest flag (0-7) | SetQuestFlag 3 ; sets  quest flag 3 |
+| SetQuestFlag | Byte | Sets a vanilla quest flag (0-7) | SetQuestFlag 3 ; sets quest flag 3 |
 | ClearQuestFlag | Byte | Clears a vanilla quest flag (0-7) | ClearQuestFlag 3 ; clears quest flag 3 |
 | IfQuestFlag | Byte, Label | Jumps if the vanilla quest flag is set | IfQuestFlag 3 @target ; jumps to @target if quest flag 3 is set |
 | JSR | Label | Jumps to the label and stores current address (jump to subroutine) | JSR @sub ; jump to @sub and prepares a return |
@@ -178,7 +180,7 @@ This minimizes ROM usage while allowing new opcode implementations to reuse comm
 | GetXP | Short (0-65,535) | Gives player xp; note that "next rank" can only increase by 1 each time XP is given | GetXP 100 ; player gets 100xp |
 | Die | None | Kills the player when the script ends | |
 
-**Note**: Runtime implementations are intended for use with custom opcodes. Vanilla opcodes (0x00–0x17) continue to use the game's original implementations unless explicitly remapped. This preserves compatibility with existing scripts while allowing projects to extend the scripting language with new functionality.
+**Note**: Runtime implementations are intended for use with custom opcodes. Vanilla opcodes (0-23) continue to use the game's original implementations unless explicitly remapped. This preserves compatibility with existing scripts while allowing projects to extend the scripting language with new functionality.
 
 ```SelectFlag``` stores an extended flag number in a temporary runtime variable. ```SetSelectedFlag```, ```ClearSelectedFlag``` and ```IfSelectedFlag``` operate on that selected flag instead of taking a flag number directly. This is particularly useful when multiple scripts share common logic for determining which flag should be used before deciding what operation to perform on it.
 
@@ -189,6 +191,21 @@ The value ```$ff``` is reserved as an **invalid flag**. ```SelectFlag $ff``` cle
 ```IfYX``` and ```IfDoorYX``` both take an argument on the form ```$yx```, a hex value where the high nibble is y-position and low nibble is x-position in metatile space.
 
 The difference between them is that ```IfYX``` considers the player's current position, and ```IfDoorYX``` considers the position of the door being interacted with. ```IfDoorYX``` should only be used within scripts invoked by in-game door logic.
+
+The extended flags are for general use, whereas the quest flags have special meaning in the game:
+
+| Quest Flag | Description |
+|------------|-------------|
+| 0 | The Tower of Fortress spring has been opened |
+| 1 | The spring in the sky has been opened |
+| 2 | The Joker Door spring has been opened |
+| 3 | Quest Wing Boots have been obtained (Dropped by Zorugeriru in the Tower of Fortress) |
+| 4 | The Quest Mattock has been obtained (Dropped by Wyvern in the Tower of Trunk) |
+| 5 | The path to Mascon has been opened (final spring has been opened by pushing the blocks) |
+| 6 | Unused |
+| 7 | Unused |
+
+<hr>
 
 ## Example: Keep all doors in world 1 (Trunk) unlocked
 
@@ -206,7 +223,7 @@ We will need the following custom opcodes in ```iscript_opcodes``` in ```eoe_con
   <entry byte="32" str="Impl=SelectFlag" />
 ```
 
-We only specify the implementation (Impl) value, since the application knows the function signatures. The order here does not matter, but each opcode needs a unique byte value - and all Impl-entries must follow all non Impl-entries. If you want custom mnemonics that is possible too, for example:
+We only specify the implementation (Impl) value, since FaxIScripts knows the function signatures. The order here does not matter, but each opcode needs a unique byte value - and all ```Impl``` entries must appear after all non-```Impl``` entries. If you want custom mnemonics that is possible too, for example:
 
 ```xml
 <entry byte="30" str="Impl=Return,Mnemonic=Ret" />
@@ -345,6 +362,23 @@ We need to update the key used successfully-script to set the door flag.
     End
 ```
 
+Since we are relying on the failure script to force us through the doors, it is possible that a player had the required key equipped when trying to enter a door - and then the failure script would never have been called. We could do something like the following to tell players they did not need to use the key, by checking if the door was already unlocked in the success script too:
+
+```asm
+.entrypoint 132
+.textbox GENERIC
+    JSR @select_door_flag
+    IfSelectedFlag @key_wasted
+
+    SetSelectedFlag
+    MsgNoskip "I have unlocked<n>the door."
+    End
+
+@key_wasted:
+    MsgNoskip "The door was<n>already unlocked<n>and the key was<n>wasted."
+    End
+```
+
 Before displaying the normal "key used" message, we select the flag corresponding to the current door and set it permanently. If no matching door was found, the selected flag remains ```$ff```, causing ```SetSelectedFlag``` to do nothing.
 
 Then for each of the three failure scripts we care about for world 1, we select the door's flag and check it. If the flag has already been set, we jump to the success handler and bypass the failure.
@@ -388,22 +422,29 @@ The result of this example is that each door becomes permanently unlocked the fi
 
 **Note**: Door success and failure scripts execute after the textbox has already been opened by the engine. Consequently, calling ForceDoor from a failure script still displays a textbox. This is a limitation of the vanilla script system rather than the ForceDoor opcode itself.
 
+**Note**: Echoes of Eolis has a function under ```Settings > Advanced``` for generating the ```@select_door_flag```-script block automatically based on which locked doors exist in your ROM. This is to save users from tediously making this code whenever their door data changes.
+
+![Persistent Door Helper](./img/persistent_door_helper.png)
+
+The ```Generate asm```-button will generate the asm to the clipboard, and can be pasted directly into the asm-file. You can use this button to refresh the script code whenever your door data changes.
+
+If ```Defensive Return-Statements``` is turned on, the generated asm will include Return-statements that guard against missed lookups. This is not necessary as long as you want **every** key-locked door to stay persistent. You save a few bytes of script code by turning it off.
+
 <hr>
 
 ### Tilemap Change System
 
 #### Overview
 
-The tilemap change subsystem allows individual metatiles to be modified dynamically at runtime. Unlike permanent ROM edits, tilemap changes are conditional and are evaluated each time a screen is entered. They can also be forced via a direct call to the screen handler code in assembly, or via the script engine with opcode ```RunScreenHandler```.
+The tilemap change subsystem allows individual metatiles to be modified dynamically at runtime. Unlike permanent ROM edits, tilemap changes are conditional and are evaluated each time a screen is entered. They can also be forced via a direct call to the screen event handler code in assembly, or via the script engine with opcode ```RunScreenHandler```.
 
 The primary use case is creating persistent world changes, such as opened passages, collapsed walls, destroyed obstacles, new doors and ladders, or other environmental changes controlled by extended flags.
-
 
 ### How it Works
 
 - The assembler reads the [tilemap_changes] section
 - It generates a compact binary data structure
-- The data is injected into the configured ROM bank and cpu address
+- The data is injected into the configured ROM bank and CPU address
 - A custom screen event handler is installed automatically
 - When the player enters a screen, the handler checks whether any tilemap changes apply
 - Matching tile changes are applied before gameplay resumes
@@ -433,6 +474,16 @@ This says that for world 0, screen 5 - if flag 100 is set the following tilemap 
 The assembler will sort the data, but world needs to be defined before screens, and flags need to be defined before tilemap changes.
 
 In Echoes of Eolis a keyboard shortcut ```Shift+Ctrl+C``` will copy the selected tilemap rectangle on this format, making it easier to create the tilemap change data. The flag number still needs to be specified by users however.
+
+Screen Event Handlers in the original game are as follows:
+
+| Handler ID | Description |
+|------------|-------------|
+| 0 | Boss Room (boss music plays until all boss-sprites have been killed) |
+| 1 | Final Spring Opening (call the drop-ladder to Mascon routine if the corresponding quest flag has been set) |
+| 2 | End-Game Room (end-game routine is called once all sprites have been removed from the screen) |
+
+When the ```[tilemap_changes]```-section is present, we are adding a new handler with ID ```3``` which looks up the dynamic tilemap change data, and if there is a match - and the corresponding flag has been set - performs the tilemap update when players enter that screen.
 
 <hr>
 
@@ -479,7 +530,7 @@ As a minimum we need to have the following opcodes available;
 
 In practice we probably want to add many more than these, but for this example these will suffice.
 
-In a real scenario we certainly want the script opcode to force the tilemap changing screen handler to run on command.
+In a real scenario we certainly want the script opcode to force the tilemap changing screen event handler to run on command.
 
 ```xml
   <entry byte="27" str="Mnemonic=Render,Impl=RunScreenHandler" />
@@ -554,13 +605,15 @@ Installed tilemap change subsystem (177 bytes)
 
 The reported size includes both the generated runtime code and the compiled tilemap change data. It therefore grows as additional tilemap changes are added.
 
-By default the subsystem is installed in bank 9 cpu address $a000 for 16-bank ROMs, or bank 30 address $8000 for 32-bank ROMs. This is configurable.
+By default the subsystem is installed in bank 9 CPU address $a000 for 16-bank ROMs, or bank 30 address $8000 for 32-bank ROMs. This is configurable.
 
 **Important**: For 16 bank ROMs you need to make sure this subsystem does not overwrite tilemap data which can also live in bank 9.
 
-The final step is add the screen event handler to the screen. If you had the ROM open in Echoes of Eolis while building this assembly file, you can use "Apply external rom changes" to get the changes in. Otherwise open the file in EoE. Navigate to Trunk screen 12. Go to Sprites and click "Add Event Handler". Assign event handler 3, which is the custom tilemap change handler installed by FaxIScripts. The handler will now execute every time this screen is entered.
+The final step is to add the screen event handler to the screen. If you had the ROM open in Echoes of Eolis while building this assembly file, you can use "Apply external rom changes" to get the changes in. Otherwise open the file in EoE. Navigate to Trunk screen 12. Go to Sprites and click "Add Event Handler". Assign event handler 3, which is the custom tilemap change handler installed by FaxIScripts. The handler will now execute every time this screen is entered.
 
-The game itself applies a tilemap change immediately when using the mattock, so we do not need to trigger the handler from the script in this case. In other cases you may want to set a flag and then call the screen handler immediately from a script. That is what the script opcode ```RunScreenHandler``` is for. We could have written the following at the end of the mattock script;
+![Tilemap Change Event Handler example](./img/event_handler_tilemap_change_example.png)
+
+The game itself updates the tilemap immediately when the Mattock is used, so we do not need to trigger the handler from the script in this case. In other cases you may want to set a flag and then call the screen event handler immediately from a script. That is what the script opcode ```RunScreenHandler``` is for. We could have written the following at the end of the mattock script;
 
 ```
 SetFlag 100
@@ -593,7 +646,7 @@ When the dynamic tilemap changes take place, it is possible to configure the amo
 
 It is also possible to play a sound effect for each metatile. This is set in configuration constant ```hack_tm_change_sound_effect```. (set this to $ff to disable sound effects)
 
-The tilemap change subsystem will be installed in the bank given by config item ```hack_tm_change_bank``` and the cpu address given by ```hack_tm_change_cpu_addr``` in that bank. For the translation hack and derivatives this defaults to ```[$1e:$8000]``` and for all other regions ```[$09:$a000]```. This can be changed in the configuration override file if it conflicts with other data in those locations.
+The tilemap change subsystem will be installed in the bank given by config item ```hack_tm_change_bank``` and the CPU address given by ```hack_tm_change_cpu_addr``` in that bank. For the translation hack and derivatives this defaults to ```[$1e:$8000]``` and for all other regions ```[$09:$a000]```. This can be changed in the configuration override file if it conflicts with other data in those locations.
 
 <hr>
 
@@ -631,7 +684,7 @@ Runtime extensions also reserve some RAM locations.
 | Feature | RAM Address | Comments | Config ID |
 |---|---|---|---|
 | Extended flag system | $0101-$011f | Used by the opcodes SetFlag, IfFlag, ClearFlag and the tilemap change subsystem | - |
-| Selected extended flag | $0184 | Used by the opcodes SelectFlag, IfSelectedFlag, ClearSelectedFlag and IfSelectedFlag | hack_script_selected_flag_ram_addr |
+| Selected extended flag | $0184 | Used by the opcodes SelectFlag, IfSelectedFlag, SetSelectedFlag and ClearSelectedFlag | hack_script_selected_flag_ram_addr |
 | Tilemap Change subsystem | $e2-$e5 | Used as temporary variables when drawing the tilemap changes | - |
 | Custom script opcodes JSR and Return | $0182-$0183 | Used to store the return address | hack_script_jsr_ram_addr_lo, hack_script_jsr_ram_addr_hi |
 | Stage Door Hack | $07fe-$07ff | Stores the pending destination stage during cross-stage door transitions | - |
