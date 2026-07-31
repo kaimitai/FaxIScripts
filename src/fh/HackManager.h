@@ -89,7 +89,8 @@ namespace fh {
 		std::vector<word> read_script_opcode_addrs(const std::vector<byte>& p_rom, std::size_t p_opcode_count) const;
 		std::size_t write_script_opcode_table(std::vector<byte>& p_rom, word cpu_addr,
 			const std::vector<word>& p_jump_table) const;
-		std::vector<word> read_screen_event_handler_addrs(const std::vector<byte>& p_rom) const;
+		std::vector<word> read_screen_event_handler_addrs(const fe::Config& p_config, const std::vector<byte>& p_rom) const;
+		std::size_t detect_screen_event_handler_count(const fe::Config& p_config, const std::vector<byte>& p_rom) const;
 
 	public:
 		HackManager(void) = default;

@@ -76,6 +76,7 @@ namespace fh {
 		constexpr char ID_TM_CHANGE_HANDLER_TABLE_CPU_ADDR[]{ "hack_tm_handler_table_cpu_addr" };
 		constexpr char ID_TM_CHANGE_HANDLER_WAIT_FRAMES[]{ "hack_tm_change_wait_frames" };
 		constexpr char ID_TM_CHANGE_HANDLER_SOUND_EFFECT[]{ "hack_tm_change_sound_effect" };
+		constexpr char ID_TM_CHANGE_HANDLER_IDX[]{ "hack_tm_change_handler_index" };
 
 		constexpr char ID_HACK_SCRIPT_JSR_RAM_ADDR_LO[]{ "hack_script_jsr_ram_addr_lo" };
 		constexpr char ID_HACK_SCRIPT_JSR_RAM_ADDR_HI[]{ "hack_script_jsr_ram_addr_hi" };
@@ -84,6 +85,7 @@ namespace fh {
 		constexpr char ID_FLAGS_WRAM_TO_SRAM[]{ "flags_wram_to_sram" };
 
 		constexpr char ID_ISCRIPT_RG2_START[]{ "iscript_data_rg2_start" };
+		constexpr char ID_COMMAND_BYTE_COUNT_OFFSET[]{ "command_byte_count_offset" };
 	}
 }
 

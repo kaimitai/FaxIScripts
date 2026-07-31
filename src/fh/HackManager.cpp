@@ -312,14 +312,14 @@ word fh::HackManager::apply_IfQuestFlag(const fe::Config& p_config, std::vector<
 	return get_next_cpu_addr(cpu_addr, code.apply_hack_and_clear(p_rom, 12, cpu_addr));
 }
 
-// runs screen handler 3 - data-driven tilemap changes
+// runs custom screen handler - data-driven tilemap changes (by default handler index 3)
 // we can certainly assume that RAM::CurrentScreen_SpecialEventID is 0xff when this is invoked
 // so we are not storing and restoring it
 word fh::HackManager::apply_RunScreenHandler(const fe::Config& p_config, std::vector<byte>& p_rom,
 	word cpu_addr) const {
 	klib::Asm6502 code;
 
-	code.lda_imm(0x03);
+	code.lda_imm(cfg_byte(p_config, c::ID_TM_CHANGE_HANDLER_IDX));
 	code.sta_abs(RAM::CurrentScreen_SpecialEventID);
 
 	code.jsr(ROM::GameLoop_RunScreenEventHandlers);
@@ -674,8 +674,15 @@ std::size_t fh::HackManager::apply_tilemap_change_subsystem(const fe::Config& p_
 
 word fh::HackManager::install_hack_tm_event_handler(const fe::Config& p_config, std::vector<byte>& p_rom,
 	byte tm_lookup_bank, word tm_lookup_cpu_addr) const {
+	// the handler index for our custom handler
+	const byte custom_handler_index{ cfg_byte(p_config, c::ID_TM_CHANGE_HANDLER_IDX) };
+
 	// read the jump table of the three canonical event handlers
-	std::vector<word> event_handlers{ read_screen_event_handler_addrs(p_rom) };
+	std::vector<word> event_handlers{ read_screen_event_handler_addrs(p_config, p_rom) };
+
+	// we can only append immediately, or overwrite
+	if (custom_handler_index > event_handlers.size())
+		throw std::runtime_error("Tilemap change handler index exceeds the number of installed screen event handlers.");
 
 	klib::Asm6502 code;
 
@@ -706,15 +713,21 @@ word fh::HackManager::install_hack_tm_event_handler(const fe::Config& p_config, 
 		get_next_cpu_addr(Hack_ScreenEventHandler, code.apply_hack_and_clear(p_rom, 15, Hack_ScreenEventHandler),
 			0x10000) };
 
-	// remake the event handler table by copying the three original addresses
+	// remake the event handler table by copying the original addresses
+	// and appending / overwriting the custom handler
+	// the dispatcher enters handlers using RTS, so entries are address - 1
+	if (custom_handler_index == event_handlers.size())
+		event_handlers.push_back(Hack_ScreenEventHandler - 1);
+	else
+		event_handlers[custom_handler_index] = Hack_ScreenEventHandler - 1;
+
 	for (word handler : event_handlers)
 		code.dw(handler);
-	// The dispatcher enters handlers using RTS, so entries are address - 1.
-	code.dw(Hack_ScreenEventHandler - 1);
+
 	code.apply_hack_and_clear(p_rom, 15, Hack_ScreenEventHandlerTable);
 
-	// static change: extend the valid event-table byte count from 6 to 8
-	code.cmp_imm(0x08);
+	// static change: update the valid event-table byte count
+	code.cmp_imm(static_cast<byte>(event_handlers.size() * 2));
 	code.apply_hack_and_clear(p_rom, 15, ROM::GameLoop_RunScreenEventHandlers_CMP_06);
 	// static change: dispatcher expects the high byte first, then the low byte.
 	code.lda_abs_y(Hack_ScreenEventHandlerTable + 1);
@@ -987,7 +1000,8 @@ std::size_t fh::HackManager::write_script_opcode_table(std::vector<byte>& p_rom,
 	return klib::Asm6502::apply_words_as_split_table(p_rom, p_jump_table, 12, table_cpu_addr);
 }
 
-std::vector<word> fh::HackManager::read_screen_event_handler_addrs(const std::vector<byte>& p_rom) const {
+std::vector<word> fh::HackManager::read_screen_event_handler_addrs(const fe::Config& p_config,
+	const std::vector<byte>& p_rom) const {
 	const word dispatcher_addr{ ROM::GameLoop_RunScreenEventHandlers_LDA_EventTable };
 
 	// TODO: sanity check that the two LDA operands differ by exactly one
@@ -995,8 +1009,13 @@ std::vector<word> fh::HackManager::read_screen_event_handler_addrs(const std::ve
 
 	std::vector<word> result;
 
-	for (std::size_t i{ 0 }; i < 3; ++i)
+	for (std::size_t i{ 0 }; i < detect_screen_event_handler_count(p_config, p_rom); ++i)
 		result.push_back(klib::Asm6502::read_word(p_rom, 15, static_cast<word>(table_ref + 2 * i)));
 
 	return result;
+}
+
+std::size_t fh::HackManager::detect_screen_event_handler_count(const fe::Config& p_config,
+	const std::vector<byte>& p_rom) const {
+	return p_rom.at(p_config.constant(c::ID_COMMAND_BYTE_COUNT_OFFSET)) / 2;
 }
