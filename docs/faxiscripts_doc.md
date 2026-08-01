@@ -1,6 +1,6 @@
 # FaxIScripts - User Documentation
 
-This is the user documentation for FaxIScripts (v0.84), an assembler for the internal scripting languages used by Faxanadu for the NES. The application code and binaries can be found on its [GitHub repository](https://github.com/kaimitai/faxiscripts/). It is assumed that users are somewhat acquainted with Faxanadu on the NES.
+This is the user documentation for FaxIScripts (v0.9), an assembler for the internal scripting languages used by Faxanadu for the NES. The application code and binaries can be found on its [GitHub repository](https://github.com/kaimitai/faxiscripts/). It is assumed that users are somewhat acquainted with Faxanadu on the NES.
 
 There are three types of scripts in the game:
   * Interaction Scripts (iScripts)
@@ -511,6 +511,8 @@ Check:
 
 ### Known Bugs
 
+#### Multi-Line Mantra Bug
+
 After building the iScripts, there is a chance that when you get a mantra from a Guru, the mantra will not insert a newline at the correct location if the mantra spans more than one line.
 
 This is due to a highly esoteric bug in the game engine, described [here](https://notes.chipx86.com/Projects/Reverse-Engineering+Projects/Faxanadu+Disassembly/Bugs#Bad+Memory+Reads+During+Guru+Password+Display).
@@ -531,6 +533,38 @@ For the original game data, the reserved section would look like this after appl
 ```
 
 Here we added the only string shown before ShowMantra to the lowest unreserved index, which is 1.
+
+#### Garbage Graphics on the Outro Screen
+
+There is a subtle edge case in the vanilla `EndGame` script opcode.
+
+If `EndGame` is executed while `PPU_ScrollScreen` (`$0D`) is odd, the ending graphics are uploaded correctly but the PPU displays the wrong nametable, making the background appear corrupted.
+
+The ending routine (`SplashAnimation_DrawScenery`) always uploads the ending screen to nametable **$2000**. However, during rendering, the NMI handler rebuilds `PPUCTRL` as follows:
+
+```asm
+LDA $0D        ; PPU_ScrollScreen
+AND #$01
+ORA $0A        ; PPU_ControlFlags
+STA PPUCTRL
+```
+
+where:
+
+* `$0A` = `PPU_ControlFlags`
+* `$0D` = `PPU_ScrollScreen`
+
+This means:
+
+* If `$0D` is **even**, nametable **$2000** is displayed.
+* If `$0D` is **odd**, nametable **$2400** is displayed.
+
+The outro code always writes the ending background to **$2000**, but it never resets or normalizes `PPU_ScrollScreen` before the upload. As a result, if `$0D` is odd when `EndGame` is called, the PPU displays `$2400` instead, even though the correct ending graphics were uploaded to `$2000`.
+
+The fix is simply to clear `PPU_ScrollScreen` (`$0D`) or otherwise force nametable `$2000` before the outro begins.
+
+This issue can be difficult to notice because many contexts invoke `EndGame` with an even `PPU_ScrollScreen` value (for example, NPC scripts executed inside buildings often have `$0D = 2`), so the assumption usually holds.
+
 
 <hr>
 
@@ -1140,6 +1174,15 @@ The reason for the application name being FaxIScripts was that originally this w
 <hr>
 
 ### Changelog
+
+* 2026-08-01: version 0.9
+  * Added an extensible script runtime library with configurable script opcodes
+  * Added support for custom gameplay mechanics through new built-in script opcodes
+  * Added persistent world state with up to 248 extended flags (optional SRAM support available for the English Translation Hack)
+  * Added persistent tilemap changes driven by extended flags
+  * Added script opcode for keeping doors unlocked via extended flags
+  * Improved compatibility with ROM hacks through configurable runtime injection
+  * Added comprehensive [advanced modding documentation](./advanced_doc.md)
 
 * 2026-06-25: version 0.84
    * iScript opcode definitions can now be customized through the configuration file, making it easier to support ROM hacks with modified or extended script engines

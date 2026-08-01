@@ -14,6 +14,8 @@ FaxIScripts has a natural companion in [Echoes of Eolis](https://github.com/kaim
 
 See the [documentation](./docs/faxiscripts_doc.md) for a detailed overview of the supported formats, assembly syntax, available opcodes, and command-line options.
 
+FaxIScripts also includes an optional Advanced Modding system for extending the game's script engine with custom opcodes, persistent world state, tilemap changes, and other runtime features. See the [Advanced Modding documentation](./docs/advanced_doc.md) for an introduction.
+
 See the [changelog](./docs/faxiscripts_doc.md#changelog) for version history.
 
 <hr>

@@ -51,7 +51,7 @@
 			<entry byte="$00" str="Final Spring Opening" />
 			<entry byte="$01" str="Boss Room" />
 			<entry byte="$02" str="End-Game Room" />
-			<entry byte="$03" str="Tilemap Change" />
+			<entry byte="$03" str="Tilemap Changes" />
 		</byte_to_string_map>
 
 		<byte_to_string_map name="iscript_opcodes">
@@ -80,17 +80,33 @@
 			<entry byte="21" str="Mnemonic=EndGame,Flow=End,Terminal=true" />
 			<entry byte="22" str="Mnemonic=IfMsgPrompt,ArgType=Byte,Flow=Jump,ArgDomain=TextString" />
 			<entry byte="23" str="Mnemonic=Jump,Flow=Jump,Terminal=true" />
-			<!-- library implementations, edit or add new entries here as needed -->
-			<entry byte="24" str="Impl=IfFlag" />
-			<entry byte="25" str="Impl=SetFlag" />
+
+			<!--
+					Built-in runtime library.
+
+					Remove opcodes you do not need, or add additional Impl entries.
+					Impl entries must appear after all non-Impl entries, and the opcode
+					numbers must remain dense (do not leave gaps).
+			-->
+
+			<entry byte="24" str="Impl=IfSelectedFlag" />
+			<entry byte="25" str="Impl=SetSelectedFlag" />
 			<entry byte="26" str="Impl=IfWorld" />
 			<entry byte="27" str="Impl=IfScreen" />
 			<entry byte="28" str="Impl=IfDoorYX" />
 			<entry byte="29" str="Impl=JSR" />
 			<entry byte="30" str="Impl=Return" />
 			<entry byte="31" str="Impl=ForceDoor" />
-			<entry byte="32" str="Mnemonic=Render,Impl=RunScreenHandler" />
+			<entry byte="32" str="Impl=SelectFlag" />
+			<entry byte="33" str="Impl=SetFlag" />
+			<entry byte="34" str="Impl=SetQuestFlag" />
+			<entry byte="35" str="Impl=GetXP" />
+			<entry byte="36" str="Impl=IfYX" />
+			<entry byte="37" str="Impl=IfFlag" />
+			<entry byte="38" str="Impl=RunScreenHandler" />
+			<entry byte="39" str="Impl=Die" />
 		</byte_to_string_map>
+
 	</byte_to_string_maps>
 
 </eoe_config>
