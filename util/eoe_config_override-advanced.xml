@@ -87,6 +87,8 @@
 					Remove opcodes you do not need, or add additional Impl entries.
 					Impl entries must appear after all non-Impl entries, and the opcode
 					numbers must remain dense (do not leave gaps).
+					
+					The entries below are examples rather than a recommended or required set.
 			-->
 
 			<entry byte="24" str="Impl=IfSelectedFlag" />

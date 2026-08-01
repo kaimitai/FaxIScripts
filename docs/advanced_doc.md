@@ -17,6 +17,8 @@ These features allow projects to:
 
 The advanced systems are completely optional. Projects that do not enable them produce behavior identical to the original game. No knowledge of 6502 assembly is required to use the built-in runtime library. Most projects simply enable the desired opcodes and use them from ordinary FaxIScripts assembly.
 
+This document assumes you are already familiar with the basic FaxIScripts assembly syntax described in the main documentation.
+
 <hr>
 
 ## Table of Contents
@@ -53,7 +55,11 @@ Many projects never need an override file. However, the advanced scripting syste
 
 A skeleton override file, ```eoe_config_override-advanced.xml```, is included in the ```util``` directory. Copy it to the directory containing the faxedit and faxiscripts executables, rename it to ```eoe_config_override.xml```, and modify it as needed.
 
-When the advanced scripting features are used, ```eoe_config_override.xml``` does more than configure the tools - it also defines the project's scripting language. The iscript_opcodes map specifies which opcodes exist, their mnemonics, argument types, and any runtime implementations they use. **The XML is no longer just configuration - it is the specification of the project's scripting language.**
+The provided file is only a starting point. It enables a representative selection of the built-in runtime opcodes, but most projects should remove unused entries, reorder them if desired, and add or replace implementations as their scripting language evolves.
+
+Think of the runtime library as a toolbox. Each ```Impl``` entry selects one tool from that toolbox. The selected tools become new script opcodes in your project's scripting language.
+
+When the advanced scripting features are used, ```eoe_config_override.xml``` does more than configure the tools - it also defines the project's scripting language. The iscript_opcodes map specifies which opcodes exist, their mnemonics, argument types, and any runtime implementations they use. **The XML is no longer just configuration - it defines the project's scripting language.**
 
 Both FaxIScripts and Echoes of Eolis read this information. FaxIScripts uses it when assembling scripts and disassembling ROM files, while Echoes of Eolis uses the same definitions to disassemble and display scripts correctly in the editor.
 
@@ -68,6 +74,30 @@ Most advanced projects only need to:
 FaxIScripts automatically determines which runtime helpers are required, assembles them into free space, rebuilds the script dispatch table when necessary, and reports the amount of ROM space consumed.
 
 No manual relocation, address calculation, or runtime installation is required by the script author.
+
+#### Quick Setup
+
+1. Copy ```util/eoe_config_override-advanced.xml``` next to the executables and rename it to ```eoe_config_override.xml```.
+2. Open the ```iscript_opcodes``` map in this file.
+3. Leave opcode entries 0-23 unchanged. These define the vanilla scripting language.
+4. Review the example runtime opcodes starting at entry 24. Remove any you do not need, add others, or rearrange them as desired. Opcode numbers must remain unique and dense (no gaps in numbering). **You can change the opcode set at any time later; existing assembly will continue to build as long as every opcode it uses is still defined in the map**.
+5. Use the configured mnemonics in your assembly source and assemble as usual.
+
+
+```text
+eoe_config_override.xml
+          │
+          ▼
+  opcode definitions
+          │
+          ├──────────────┐
+          ▼              ▼
+      FaxIScripts  Echoes of Eolis
+          │              │
+       assemble     disassemble for showing scripts in GUI
+          │              │
+          └─► same ROM ◄─┘
+```
 
 <hr>
 
@@ -608,7 +638,7 @@ By default the subsystem is installed in bank 9 CPU address $a000 for 16-bank RO
 
 The final step is to add the screen event handler to the screen. If you had the ROM open in Echoes of Eolis while building this assembly file, you can use button "**Apply External ROM Changes**" to reload the modified scripts from ROM. Otherwise open the file in EoE. Navigate to Trunk screen 12. Go to Sprites and click "Add Event Handler". Assign event handler 3, which is the custom tilemap change handler installed by FaxIScripts. The handler will now execute every time this screen is entered.
 
-**Note**: Echoes of Eolis reads ```eoe_config.xml``` and ```eoe_config_override.xml``` only when the program starts. If you change the script language definition (for example by adding, removing, or modifying entries in ```iscript_opcodes``` in the override file), you must close and reopen Echoes of Eolis after assembling. Applying external ROM changes only reloads the ROM data; it does not reload the scripting language definition.
+**Note**: Echoes of Eolis reads ```eoe_config.xml``` and ```eoe_config_override.xml``` only when the program starts. If you change the script language definition (for example by adding, removing, or modifying entries in ```iscript_opcodes``` in the override file), you must close and reopen Echoes of Eolis after assembling. Applying external ROM changes only reloads the ROM data; it does not reload the scripting language definition. If the output gives you a message like "Could not parse iScript #(number)" after loading ROM, or applying external changes, there is most likely a mismatch between the script language definition the ROM was assembled with, and the language definition Echoes of Eolis expects. **This does not indicate that the ROM is invalid. The only consequence is that Echoes of Eolis cannot disassemble and display the interaction scripts until it is restarted. Interaction scripts are read-only in Echoes of Eolis, so restarting the application is sufficient to resolve the problem.**
 
 ![Tilemap Change Event Handler example](./img/event_handler_tilemap_change_example.png)
 
