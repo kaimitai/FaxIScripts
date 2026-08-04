@@ -132,14 +132,14 @@ void fi::AsmReader::parse_section_iscript(const fe::Config& p_config, std::size_
 			byte textbox_no{ extract_textbox(line) };
 
 			// byte_offset_to_instruction_idx[offset] = m_instructions.size();
-			m_instructions.push_back(fi::Instruction(
-				fi::Instruction_type::Directive,
-				textbox_no,
-				1,
-				std::nullopt,
-				std::nullopt,
-				offset++
-			));
+			m_instructions.push_back(fi::Instruction{
+				.type = fi::Instruction_type::Directive,
+				.opcode_byte = textbox_no,
+				.size = 1,
+				.jump_target = std::nullopt,
+				.byte_offset = offset++,
+				.operands = {}
+				});
 		}
 		// else it must be an opcode
 		else {
@@ -152,24 +152,18 @@ void fi::AsmReader::parse_section_iscript(const fe::Config& p_config, std::size_
 			}
 
 			byte opcode_byte = mnemonics[mnemo];
-			std::optional<uint16_t> arg;
+			std::vector<uint16_t> operands;
 			std::optional<uint16_t> target_address;
 
 			const fi::Opcode& op = fi::opcodes.at(opcode_byte);
 
 			// let's validate the params first
-			// TODO: Make member of Opcode-class
-			std::size_t expected_token_count{ 1 }; // the opcode itself
-			if (op.arg_type != fi::ArgType::None)
-				expected_token_count += 1;
-			if (op.flow == fi::Flow::Jump ||
-				op.flow == fi::Flow::Read)
-				expected_token_count += 1;
+			const auto expected_tokens{ op.token_count() };
 
-			if (expected_token_count != tokens.size())
+			if (expected_tokens != tokens.size())
 				throw std::runtime_error(
 					std::format("Opcode '{}' expects {} arguments, got {} (@line: \"{}\")",
-						mnemo, expected_token_count - 1, tokens.size() - 1, line)
+						mnemo, expected_tokens - 1, tokens.size() - 1, line)
 				);
 
 			// based on the template we calculate everything
@@ -177,44 +171,45 @@ void fi::AsmReader::parse_section_iscript(const fe::Config& p_config, std::size_
 			// offsets but not necessarily labels
 			std::size_t current_token{ 1 };
 
-			// start by checking if we have inlined strings
-			if (op.domain == fi::ArgDomain::TextString) {
+			// parse explicit operands
+			for (const auto& arg : op.args) {
 
-				std::string operand_str;
-				bool push_str{ true };
-				if (is_string_token(tokens.at(current_token))) {
-					operand_str = tokens.at(current_token);
-					operand_str = operand_str.substr(1, operand_str.size() - 2);
-				}
-				else {
-					// if numeric, push the string the index points to
-					int str_idx{
-					static_cast<int>(resolve_token(tokens.at(current_token)))
-					};
+				if (arg.domain == fi::ArgDomain::TextString) {
 
-					if (m_strings.find(str_idx) != end(m_strings))
-						operand_str = m_strings.at(str_idx).get_string();
+					std::string operand_str;
+					bool push_str{ true };
+
+					if (is_string_token(tokens.at(current_token))) {
+						operand_str = tokens.at(current_token);
+						operand_str = operand_str.substr(1, operand_str.size() - 2);
+					}
 					else {
-						// fall back to 0
-						// not a valid string index but the game allows it
-						// so we have to allow it too
-						arg = 0;
-						push_str = false;
+						int str_idx{ static_cast<int>(resolve_token(tokens.at(current_token))) };
+
+						if (m_strings.find(str_idx) != end(m_strings))
+							operand_str = m_strings.at(str_idx).get_string();
+						else {
+							// fall back to 0
+							operands.push_back(0);
+							push_str = false;
+						}
 					}
 
+					if (push_str) {
+						unique_strings.insert(operand_str);
+						string_to_instr_idx[operand_str].insert(m_instructions.size());
+
+						// placeholder; patched later by relocate_strings()
+						operands.push_back(0);
+					}
+				}
+				else {
+					operands.push_back(static_cast<uint16_t>(resolve_token(tokens.at(current_token))));
 				}
 
-				if (push_str) {
-					unique_strings.insert(operand_str);
-					string_to_instr_idx[operand_str].insert(m_instructions.size());
-				}
-				++current_token; // skip straight to label if any
+				++current_token;
 			}
 
-			// has arg and is not string
-			if (op.domain != fi::ArgDomain::TextString &&
-				op.arg_type != fi::ArgType::None)
-				arg = static_cast<uint16_t>(resolve_token(tokens.at(current_token++)));
 			// lay down the shop byte offset immediately
 			if (op.flow == fi::Flow::Read)
 				target_address = static_cast<uint16_t>(
@@ -228,14 +223,14 @@ void fi::AsmReader::parse_section_iscript(const fe::Config& p_config, std::size_
 
 			// finally emit the instruction
 			// byte_offset_to_instruction_idx[offset] = m_instructions.size();
-			m_instructions.push_back(fi::Instruction(
-				fi::Instruction_type::OpCode,
-				opcode_byte,
-				op.size(),
-				arg,
-				target_address,
-				offset
-			));
+			m_instructions.push_back(fi::Instruction{
+				.type = fi::Instruction_type::OpCode,
+				.opcode_byte = opcode_byte,
+				.size = op.size(),
+				.jump_target = target_address,
+				.byte_offset = offset,
+				.operands = std::move(operands)
+				});
 			offset += op.size();
 		}
 	}
@@ -261,9 +256,10 @@ void fi::AsmReader::parse_section_iscript(const fe::Config& p_config, std::size_
 	auto str_remap{ relocate_strings(unique_strings) };
 
 	// update all string references for opcodes which used them
+	// TODO: Consider allowing several string args and make a map from (instr no, operand no -> string)
 	for (const auto& kv : str_remap)
 		for (auto instr_no : string_to_instr_idx[kv.first])
-			m_instructions[instr_no].operand = static_cast<uint16_t>(kv.second);
+			m_instructions[instr_no].operands.at(0) = static_cast<uint16_t>(kv.second);
 
 	// we don't know if our instruction byte offsets are correct yet, if we
 	// overflow we need to split, so let us check

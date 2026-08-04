@@ -110,13 +110,13 @@ void fi::IScriptLoader::parse_blob_from_entrypoint(size_t offset,
 		}
 
 		const Opcode& op = it->second;
-		std::optional<uint16_t> arg;
+		std::vector<uint16_t> operands;
 
-		if (op.arg_type == ArgType::Byte) {
-			arg = read_byte(cursor);
-		}
-		else if (op.arg_type == ArgType::Short) {
-			arg = read_short(cursor);
+		for (const auto& arg : op.args) {
+			if (arg.type == ArgType::Byte)
+				operands.push_back(read_byte(cursor));
+			else if (arg.type == ArgType::Short)
+				operands.push_back(read_short(cursor));
 		}
 
 		std::optional<std::size_t> target_addr;
@@ -142,22 +142,28 @@ void fi::IScriptLoader::parse_blob_from_entrypoint(size_t offset,
 						shop_offset += 3;
 					}
 
-					arg = static_cast<uint16_t>(m_shops.size());
-					m_shop_addresses[target_addr.value()] = static_cast<std::size_t>(arg.value());
+					operands.push_back(static_cast<uint16_t>(m_shops.size()));
+					m_shop_addresses[target_addr.value()] = static_cast<std::size_t>(operands.back());
 					m_shops.push_back(newshop);
 
 				}
 				else {
 					// already seen shop, use its index
-					arg = static_cast<uint16_t>(shop_iter->second);
+					operands.push_back(static_cast<uint16_t>(shop_iter->second));
 				}
 			}
 		}
 
 		m_instructions.insert(
 			std::make_pair(instr_offset,
-				fi::Instruction(fi::Instruction_type::OpCode, opcode_byte, it->second.size(),
-					arg, target_addr)));
+				fi::Instruction{
+					.type = fi::Instruction_type::OpCode,
+					.opcode_byte = opcode_byte,
+					.size = it->second.size(),
+					.jump_target = target_addr,
+					.byte_offset = instr_offset,
+					.operands = std::move(operands),
+				}));
 
 		if (op.flow == Flow::Jump) {
 			// parse all branches recursively, but store and restore cursors
@@ -211,9 +217,9 @@ void fi::IScriptLoader::normalize_shop_indexes() {
 			auto opcode_it = opcodes.find(instr.opcode_byte);
 			if (opcode_it != opcodes.end() &&
 				opcode_it->second.flow == Flow::Read &&
-				instr.operand.has_value()) {
-				instr.operand = static_cast<uint16_t>(
-					old_to_new.at(static_cast<std::size_t>(instr.operand.value())));
+				!instr.operands.empty()) {
+				instr.operands.at(0) = static_cast<uint16_t>(
+					old_to_new.at(static_cast<std::size_t>(instr.operands.at(0))));
 			}
 		}
 	}

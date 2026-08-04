@@ -88,35 +88,36 @@ void fi::AsmWriter::generate_asm_file(const fe::Config& p_config,
 				get_next_label(offset, lastentry, lastlabel, l_labels));
 		}
 
-		if (ep != end(l_eps)) {
+		if (instr.type == fi::Instruction_type::Directive) {
 			af += std::format(".textbox {}\n", get_define(fi::ArgDomain::TextBox, instr.opcode_byte));
 		}
 		else {
 			const auto& op{ fi::opcodes.find(instr.opcode_byte)->second };
 			af += std::format("    {}", op.name);
 
-			if (op.domain == fi::ArgDomain::TextString) {
-				std::size_t str_ind{ static_cast<std::size_t>(instr.operand.value()) };
+			for (std::size_t i{ 0 }; i < op.args.size(); ++i) {
+				const auto& arg{ op.args[i] };
+				const auto operand{ instr.operands.at(i) };
 
-				if (str_ind == 0 ||
-					str_ind > p_strings.size())
-					af += std::format(" {} ; invalid string index", str_ind);
-				else {
-					std::string l_out_str{ p_strings.at(str_ind - 1).get_string() };
-					af += std::format(" \"{}\"", l_out_str);
-					l_used_strings.insert(l_out_str);
+				if (arg.domain == fi::ArgDomain::TextString) {
+					std::size_t str_ind{ static_cast<std::size_t>(operand) };
+
+					if (str_ind == 0 ||
+						str_ind > p_strings.size())
+						af += std::format(" {} ; invalid string index", str_ind);
+					else {
+						std::string l_out_str{ p_strings.at(str_ind - 1).get_string() };
+						af += std::format(" \"{}\"", l_out_str);
+						l_used_strings.insert(l_out_str);
+					}
 				}
-
-			}
-			else if (op.arg_type != fi::ArgType::None) {
-				if (op.arg_type == fi::ArgType::Byte)
+				else if (arg.type == fi::ArgType::Byte) {
 					af += std::format(" {}",
-						get_define(op.domain, static_cast<byte>(instr.operand.value()))
-					);
-				else
-					af += std::format(" {}",
-						instr.operand.value()
-					);
+						get_define(arg.domain, static_cast<byte>(operand)));
+				}
+				else {
+					af += std::format(" {}", operand);
+				}
 			}
 
 			if (op.flow == fi::Flow::Jump)
@@ -125,18 +126,20 @@ void fi::AsmWriter::generate_asm_file(const fe::Config& p_config,
 						lastentry, lastlabel, l_labels)
 				);
 			else if (op.flow == fi::Flow::Read) {
-				if (instr.operand.value() >= p_shops.size()) {
-					af += std::format(" ${:02x} ; ERROR: Invalid shop index", instr.operand.value());
+				const auto shop_idx{ static_cast<std::size_t>(instr.operands.at(0)) };
+
+				if (shop_idx >= p_shops.size()) {
+					af += std::format(" ${:02x} ; ERROR: Invalid shop index", shop_idx);
 				}
 				else {
 					if (p_shop_comments) {
 						// we have a shop, add it to comments
-						af += std::format(" {} ; {}", instr.operand.value(),
-							serialize_shop_as_string(p_shops.at(instr.operand.value()))
+						af += std::format(" {} ; {}", shop_idx,
+							serialize_shop_as_string(p_shops.at(shop_idx))
 						);
 					}
 					else {
-						af += std::format(" {}", instr.operand.value());
+						af += std::format(" {}", shop_idx);
 					}
 				}
 			}
