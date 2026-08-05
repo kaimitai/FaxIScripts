@@ -104,8 +104,9 @@ void fi::AsmReader::parse_section_iscript(const fe::Config& p_config, std::size_
 	// se we can rebuild the master string table later
 	// and weed out unused strings while handling reserved strings
 	std::set<std::string> unique_strings;
-	// keep track of all instructions using certain strings directly or indirectly
-	std::map<std::string, std::set<std::size_t>> string_to_instr_idx;
+	// map each referenced string to the instruction and operand positions that use it
+	using StringOperandRef = std::pair<std::size_t, std::size_t>;
+	std::map<std::string, std::set<StringOperandRef>> string_operand_refs;
 
 	// and so it begins...
 	for (std::string line : m_sections.at(fi::SectionType::IScript)) {
@@ -184,9 +185,9 @@ void fi::AsmReader::parse_section_iscript(const fe::Config& p_config, std::size_
 						operand_str = operand_str.substr(1, operand_str.size() - 2);
 					}
 					else {
-						int str_idx{ static_cast<int>(resolve_token(tokens.at(current_token))) };
+						const int str_idx{ static_cast<int>(resolve_token(tokens.at(current_token))) };
 
-						if (m_strings.find(str_idx) != end(m_strings))
+						if (m_strings.contains(str_idx))
 							operand_str = m_strings.at(str_idx).get_string();
 						else {
 							// fall back to 0
@@ -196,8 +197,13 @@ void fi::AsmReader::parse_section_iscript(const fe::Config& p_config, std::size_
 					}
 
 					if (push_str) {
+						const std::size_t operand_index{ operands.size() };
+
 						unique_strings.insert(operand_str);
-						string_to_instr_idx[operand_str].insert(m_instructions.size());
+						string_operand_refs[operand_str].insert({
+							m_instructions.size(),
+							operand_index
+							});
 
 						// placeholder; patched later by relocate_strings()
 						operands.push_back(0);
@@ -256,10 +262,14 @@ void fi::AsmReader::parse_section_iscript(const fe::Config& p_config, std::size_
 	auto str_remap{ relocate_strings(unique_strings) };
 
 	// update all string references for opcodes which used them
-	// TODO: Consider allowing several string args and make a map from (instr no, operand no -> string)
-	for (const auto& kv : str_remap)
-		for (auto instr_no : string_to_instr_idx[kv.first])
-			m_instructions[instr_no].operands.at(0) = static_cast<uint16_t>(kv.second);
+	for (const auto& [text, refs] : string_operand_refs) {
+		const auto string_index{ str_remap.at(text) };
+
+		for (const auto& [instruction_index, operand_index] : refs) {
+			m_instructions.at(instruction_index).operands.at(operand_index) =
+				static_cast<uint16_t>(string_index);
+		}
+	}
 
 	// we don't know if our instruction byte offsets are correct yet, if we
 	// overflow we need to split, so let us check
