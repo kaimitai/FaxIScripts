@@ -138,6 +138,18 @@ std::map<byte, std::vector<byte>> fe::Config::bmap_as_numeric_vectors(const std:
 	return result;
 }
 
+std::map<byte, std::string> fe::Config::bmap_dense(const std::string& p_id) const {
+	std::map<byte, std::string> result;
+	const auto& l_bmap{ bmap(p_id) };
+
+	byte curval{ 0 };
+
+	for (const auto& kv : l_bmap)
+		result.emplace(curval++, kv.second);
+
+	return result;
+}
+
 const std::map<std::string, std::string>& fe::Config::str_map(const std::string& p_id) const {
 	static const std::map<std::string, std::string> empty_map;
 
