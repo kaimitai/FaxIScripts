@@ -806,30 +806,6 @@
 			<entry byte="$16" str="Mnemonic=IfMsgPrompt,Args=Byte:TextString,Flow=Jump" />
 			<entry byte="$17" str="Mnemonic=Jump,Flow=Jump,Terminal=true" />
 		</byte_to_string_map>
-		<!-- built-in extended script opcode signatures - do not modify! -->
-		<byte_to_string_map name="iscript_opcode_impls">
-			<entry byte="$00" str="Impl=SetFlag,ArgType=Byte" />
-			<entry byte="$01" str="Impl=ClearFlag,ArgType=Byte" />
-			<entry byte="$02" str="Impl=IfFlag,ArgType=Byte,Flow=Jump" />
-			<entry byte="$03" str="Impl=SetQuestFlag,ArgType=Byte" />
-			<entry byte="$04" str="Impl=ClearQuestFlag,ArgType=Byte" />
-			<entry byte="$05" str="Impl=IfQuestFlag,ArgType=Byte,Flow=Jump" />
-			<entry byte="$06" str="Impl=RunScreenHandler" />
-			<entry byte="$07" str="Impl=GetXP,ArgType=Short" />
-			<entry byte="$08" str="Impl=IfWorld,ArgType=Byte,Flow=Jump" />
-			<entry byte="$09" str="Impl=IfScreen,ArgType=Byte,Flow=Jump" />
-			<entry byte="$0a" str="Impl=IfStage,ArgType=Byte,Flow=Jump" />
-			<entry byte="$0b" str="Impl=Die" />
-			<entry byte="$0c" str="Impl=JSR,Flow=Jump" />
-			<entry byte="$0d" str="Impl=Return,Flow=End,Terminal=true" />
-			<entry byte="$0e" str="Impl=ForceDoor" />
-			<entry byte="$0f" str="Impl=IfYX,ArgType=Byte,Flow=Jump" />
-			<entry byte="$10" str="Impl=IfDoorYX,ArgType=Byte,Flow=Jump" />
-			<entry byte="$11" str="Impl=SelectFlag,ArgType=Byte" />
-			<entry byte="$12" str="Impl=SetSelectedFlag" />
-			<entry byte="$13" str="Impl=ClearSelectedFlag" />
-			<entry byte="$14" str="Impl=IfSelectedFlag,Flow=Jump" />
-		</byte_to_string_map>
 		<!-- string mapping used by the iScript assembler and disassembler -->
 		<byte_to_string_map name="iscript_string_characters" region="us,eu,randum,us-rev-a">
 			<!-- printable characters -->
@@ -1792,4 +1768,30 @@
 			<entry byte="68" str="add_x_offset:8" />
 		</byte_to_string_map>
 	</byte_to_string_maps>
+	<string_to_string_maps>
+		<!-- built-in extended script opcode signatures - do not modify! -->
+		<string_to_string_map name="iscript_opcode_impls">
+			<entry key="SetFlag" value="Args=Byte" />
+			<entry key="ClearFlag" value="Args=Byte" />
+			<entry key="IfFlag" value="Args=Byte,Flow=Jump" />
+			<entry key="SetQuestFlag" value="Args=Byte" />
+			<entry key="ClearQuestFlag" value="Args=Byte" />
+			<entry key="IfQuestFlag" value="Args=Byte,Flow=Jump" />
+			<entry key="RunScreenHandler" />
+			<entry key="GetXP" value="Args=Short" />
+			<entry key="IfWorld" value="Args=Byte,Flow=Jump" />
+			<entry key="IfScreen" value="Args=Byte,Flow=Jump" />
+			<entry key="IfStage" value="Args=Byte,Flow=Jump" />
+			<entry key="Die" />
+			<entry key="JSR" value="Flow=Jump" />
+			<entry key="Return" value="Flow=End,Terminal=true" />
+			<entry key="ForceDoor" />
+			<entry key="IfYX" value="Args=Byte,Flow=Jump" />
+			<entry key="IfDoorYX" value="Args=Byte,Flow=Jump" />
+			<entry key="SelectFlag" value="Args=Byte" />
+			<entry key="SetSelectedFlag" />
+			<entry key="ClearSelectedFlag" />
+			<entry key="IfSelectedFlag" value="Flow=Jump" />
+		</string_to_string_map>
+	</string_to_string_maps>
 </eoe_config>

@@ -74,7 +74,7 @@ namespace fi {
 
 	ScriptOpcodeInfo load_iscript_opcodes_from_config(
 		const std::map<byte, std::string>& p_opcode_defs,
-		const std::map<byte, std::string>& p_impl_defs);
+		const std::map<std::string, std::string>& p_impl_defs);
 
 }
 

@@ -15,9 +15,9 @@ void fe::Config::load_config_data(const std::string& p_config_xml,
 	const std::string& p_config_override_xml,
 	const std::vector<byte>& p_rom) {
 	xml::load_configuration(p_config_override_xml, m_region, m_constants,
-		m_pointers, m_sets, m_byte_maps, m_bools, p_rom, false);
+		m_pointers, m_sets, m_byte_maps, m_string_maps, m_bools, p_rom, false);
 	xml::load_configuration(p_config_xml, m_region, m_constants,
-		m_pointers, m_sets, m_byte_maps, m_bools, p_rom);
+		m_pointers, m_sets, m_byte_maps, m_string_maps, m_bools, p_rom);
 }
 
 std::size_t fe::Config::constant(const std::string& p_id) const {
@@ -138,6 +138,15 @@ std::map<byte, std::vector<byte>> fe::Config::bmap_as_numeric_vectors(const std:
 	return result;
 }
 
+const std::map<std::string, std::string>& fe::Config::str_map(const std::string& p_id) const {
+	static const std::map<std::string, std::string> empty_map;
+
+	if (m_string_maps.find(p_id) == end(m_string_maps))
+		return empty_map;
+	else
+		return m_string_maps.at(p_id);
+}
+
 bool fe::Config::boolean(const std::string& p_id) const {
 	if (m_bools.find(p_id) == end(m_bools))
 		throw std::runtime_error(std::format("Configuration Boolean '{}' not found", p_id));
@@ -208,6 +217,7 @@ void fe::Config::clear(void) {
 	m_constants.clear();
 	m_pointers.clear();
 	m_sets.clear();
+	m_string_maps.clear();
 	m_bools.clear();
 }
 
@@ -242,6 +252,13 @@ std::string fe::Config::to_string(void) const {
 		result += std::format("map name: {}\n", kv.first);
 		for (const auto& kkv : kv.second)
 			result += std::format("  ${:02x}: '{}'\n", kkv.first, kkv.second);
+	}
+
+	result += "\n--- string to string maps ---\n";
+	for (const auto& kv : m_string_maps) {
+		result += std::format("map name: {}\n", kv.first);
+		for (const auto& kkv : kv.second)
+			result += std::format("  '{}': '{}'\n", kkv.first, kkv.second);
 	}
 
 	result += "\n--- sets ---\n";

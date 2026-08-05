@@ -163,24 +163,25 @@ static fi::Opcode parse_opcode_def(const std::string& p_definition, std::vector<
 	return parsed.opcode;
 }
 
-static void load_opcode_implementations(const std::map<byte, std::string>& p_impl_defs) {
+static void load_opcode_implementations(const std::map<std::string, std::string>& p_impl_defs) {
 	fi::implementation_opcodes.clear();
 
-	for (const auto& [_, definition] : p_impl_defs) {
+	for (const auto& [impl_name, definition] : p_impl_defs) {
 		auto parsed{ parse_opcode_properties(definition) };
 
-		if (!parsed.impl)
-			throw std::runtime_error("Opcode implementation definition missing Impl");
+		if (parsed.impl)
+			throw std::runtime_error(std::format(
+				"Opcode implementation '{}' must not specify Impl", impl_name));
 
-		parsed.opcode.name = *parsed.impl;
+		parsed.opcode.name = impl_name;
 
-		const auto key{ klib::str::to_lower(*parsed.impl) };
+		const auto key{ klib::str::to_lower(impl_name) };
 		fi::implementation_opcodes.emplace(key, parsed.opcode);
 	}
 }
 
 fi::ScriptOpcodeInfo fi::load_iscript_opcodes_from_config(const std::map<byte, std::string>& p_opcode_defs,
-	const std::map<byte, std::string>& p_impl_defs) {
+	const std::map<std::string, std::string>& p_impl_defs) {
 	constexpr bool THROW_ON_OPCODE_DIFFS{ false };
 
 	fi::ScriptOpcodeInfo result;
