@@ -63,6 +63,7 @@ namespace fi {
 		std::optional<std::size_t> jump_target;
 		std::optional<std::size_t> byte_offset;
 		std::vector<uint16_t> operands;
+		std::optional<std::size_t> shop_index;
 
 		std::vector<byte> get_bytes(void) const;
 	};

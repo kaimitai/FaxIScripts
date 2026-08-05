@@ -102,6 +102,7 @@ void fi::IScriptLoader::parse_blob_from_entrypoint(size_t offset,
 
 		size_t instr_offset = cursor;
 		uint8_t opcode_byte = read_byte(cursor);
+		std::optional<std::size_t> shop_index;
 
 		auto it = opcodes.find(opcode_byte);
 		if (it == opcodes.end()) {
@@ -142,14 +143,14 @@ void fi::IScriptLoader::parse_blob_from_entrypoint(size_t offset,
 						shop_offset += 3;
 					}
 
-					operands.push_back(static_cast<uint16_t>(m_shops.size()));
-					m_shop_addresses[target_addr.value()] = static_cast<std::size_t>(operands.back());
+					shop_index = m_shops.size();
+					m_shop_addresses[target_addr.value()] = shop_index.value();
 					m_shops.push_back(newshop);
 
 				}
 				else {
 					// already seen shop, use its index
-					operands.push_back(static_cast<uint16_t>(shop_iter->second));
+					shop_index = shop_iter->second;
 				}
 			}
 		}
@@ -163,6 +164,7 @@ void fi::IScriptLoader::parse_blob_from_entrypoint(size_t offset,
 					.jump_target = target_addr,
 					.byte_offset = instr_offset,
 					.operands = std::move(operands),
+					.shop_index = shop_index
 				}));
 
 		if (op.flow == Flow::Jump) {
@@ -217,9 +219,8 @@ void fi::IScriptLoader::normalize_shop_indexes() {
 			auto opcode_it = opcodes.find(instr.opcode_byte);
 			if (opcode_it != opcodes.end() &&
 				opcode_it->second.flow == Flow::Read &&
-				!instr.operands.empty()) {
-				instr.operands.at(0) = static_cast<uint16_t>(
-					old_to_new.at(static_cast<std::size_t>(instr.operands.at(0))));
+				instr.shop_index.has_value()) {
+				instr.shop_index = old_to_new.at(*instr.shop_index);
 			}
 		}
 	}

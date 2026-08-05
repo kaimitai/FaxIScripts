@@ -126,7 +126,7 @@ void fi::AsmWriter::generate_asm_file(const fe::Config& p_config,
 						lastentry, lastlabel, l_labels)
 				);
 			else if (op.flow == fi::Flow::Read) {
-				const auto shop_idx{ static_cast<std::size_t>(instr.operands.at(0)) };
+				const auto shop_idx{ instr.shop_index.value() };
 
 				if (shop_idx >= p_shops.size()) {
 					af += std::format(" ${:02x} ; ERROR: Invalid shop index", shop_idx);
