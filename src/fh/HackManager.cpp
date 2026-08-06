@@ -1,6 +1,7 @@
 #include "HackManager.h"
 #include "fh_constants.h"
 #include "./../common/klib/Asm6502.h"
+#include "./../common/klib/Kstring.h"
 #include <algorithm>
 #include <cassert>
 #include <set>
@@ -569,6 +570,329 @@ word fh::HackManager::apply_SetAddr(const fe::Config& p_config, std::vector<byte
 		code.apply_hack_and_clear(p_rom, 12, cpu_addr));
 }
 
+namespace {
+
+	// The AtlasDev visual effects declare their signature by name in the
+	// configuration's iscript_opcode_impls table, so the emitter asks the
+	// configuration how many operands the project wants rather than baking a
+	// single arity into the code.  One Byte operand emits the original
+	// one-operand handler; the tuned form emits the configurable one.
+	std::size_t atlasdev_operand_count(const fe::Config& p_config, const std::string& p_impl) {
+		const auto impls{ klib::str::to_lowercase_string_map(
+			p_config.str_map("iscript_opcode_impls")) };
+		const auto it{ impls.find(klib::str::to_lower(p_impl)) };
+		if (it == end(impls))
+			throw std::runtime_error("No signature declared for implementation " + p_impl);
+
+		std::size_t result{ 0 };
+		for (const auto& part : klib::str::split_string(it->second, ',')) {
+			const auto entry{ klib::str::to_lower(klib::str::trim(part)) };
+			if (entry.starts_with("args="))
+				result = klib::str::split_string(entry.substr(5), '+').size();
+			else if (entry.starts_with("argtype=") && entry != "argtype=none")
+				result = 1;
+		}
+
+		return result;
+	}
+
+	std::size_t atlasdev_arity(const fe::Config& p_config, const std::string& p_impl,
+		std::size_t p_tuned) {
+		const auto result{ atlasdev_operand_count(p_config, p_impl) };
+		if (result != 1 && result != p_tuned)
+			throw std::runtime_error(p_impl +
+				" must declare exactly one Byte operand (legacy form) or its full tuned signature");
+		return result;
+	}
+
+}
+
+// AtlasDevShakeScreen Frames [Amplitude Period]
+//
+// Frames    total NMI frames the effect blocks for; 0 is a no-op.
+// Amplitude offset magnitude in pixels added to and subtracted from the entry
+//           scroll byte $0C.  1..8 read as a shake; 0 holds still; values
+//           above ~16 read as a jump cut rather than a shake.  The legacy
+//           one-operand form is Amplitude 2.
+// Period    NMI frames between direction flips.  1 is the legacy per-frame
+//           alternation; 4..8 read as a sway.  0 means "never flip inside a
+//           255-frame effect" (the countdown wraps), i.e. a static offset.
+//
+// Presets, each one checked on hardware:
+//   SHAKE_RUMBLE    60 1 1     low buzz, minimum visible amplitude
+//   SHAKE_CLASSIC   60 2 1     same motion as the one-operand form
+//   SHAKE_HEAVY     60 4 1     heavy impact
+//   SHAKE_SLOW_SWAY 60 3 6     slow sway; reads as swimming, not impact
+//   SHAKE_QUAKE     90 8 2     long, wide earthquake
+//
+// The entry value of $0C is restored exactly on completion in both forms.
+// Interiors whose non-visible nametable page holds a stale screen strobe that
+// page on the inward phase; that is kept deliberately, it gives a second
+// effect for free, so treat it as documented behaviour rather than a defect.
+word fh::HackManager::apply_AtlasDevShakeScreen(const fe::Config& p_config,
+	std::vector<byte>& p_rom, word cpu_addr) const {
+	klib::Asm6502 code;
+	const auto operands{ atlasdev_arity(p_config, "AtlasDevShakeScreen", 3) };
+
+	if (operands == 1) {
+		code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); // total frames
+		code.cmp_imm(0x00);                                       // LoadByte returns Z from STY
+		code.beq("@done");
+		code.pha();                                                // stack: count
+		code.lda_mem(0x000c); code.pha();                         // stack: base,count
+		code.label("@frame");
+		code.tsx(); code.lda_abs_x(0x0102); code.and_imm(0x01); // TSX; count parity
+		code.beq("@left");
+		code.lda_abs_x(0x0101); code.clc(); code.adc_imm(0x02);
+		code.sta_mem(0x000c); code.lda_imm(0x01); code.bne("@wait");
+		code.label("@left");
+		code.lda_abs_x(0x0101); code.sec(); code.sbc_imm(0x02); // SBC #2
+		code.sta_mem(0x000c);
+		code.label("@wait");
+		code.jsr(ROM::WaitForInterrupt);                           // NMI owns $2005
+		code.tsx(); code.dec_abs_x(0x0102);             // TSX; DEC count,X
+		code.bne("@frame");
+		code.lda_abs_x(0x0101); code.sta_mem(0x000c);              // exact restoration
+		code.pla(); code.pla();
+		code.label("@done");
+		code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+		return get_next_cpu_addr(cpu_addr, code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+	}
+
+	// Every operand must be consumed before any early exit, otherwise the
+	// script cursor would resume inside this instruction's operand bytes.
+	// Stack after the six pushes, with X from TSX:
+	//   phase=$0101,X dir=$0102,X base=$0103,X
+	//   period=$0104,X amplitude=$0105,X frames=$0106,X
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); code.pha(); // frames
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); code.pha(); // amplitude
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); code.pha(); // period
+	code.tsx(); code.lda_abs_x(0x0103);                    // TSX; A = frames
+	code.bne("@run");
+	code.pla(); code.pla(); code.pla();
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+	code.label("@run");
+	code.lda_mem(0x000c); code.pha();                          // entry scroll
+	code.lda_imm(0x01); code.pha();                            // outward phase first
+	code.tsx(); code.lda_abs_x(0x0103); code.pha();         // phase = period
+	code.label("@frame");
+	code.tsx(); code.lda_abs_x(0x0102);                     // TSX; direction
+	code.beq("@inward");
+	code.lda_abs_x(0x0103); code.clc(); code.adc_abs_x(0x0105); // base + amplitude
+	code.clc(); code.bcc("@store");
+	code.label("@inward");
+	code.lda_abs_x(0x0103); code.sec(); code.sbc_abs_x(0x0105); // base - amplitude
+	code.label("@store");
+	code.sta_mem(0x000c);                                      // NMI owns $2005
+	code.jsr(ROM::WaitForInterrupt);
+	code.tsx(); code.dec_abs_x(0x0101);             // TSX; DEC phase,X
+	code.bne("@tick");
+	code.lda_abs_x(0x0104); code.sta_abs_x(0x0101);            // reload phase
+	code.lda_abs_x(0x0102); code.eor_imm(0x01); code.sta_abs_x(0x0102);
+	code.label("@tick");
+	code.dec_abs_x(0x0106);                            // DEC frames,X
+	code.bne("@frame");
+	code.lda_abs_x(0x0103); code.sta_mem(0x000c);              // exact restoration
+	code.pla(); code.pla(); code.pla(); code.pla(); code.pla(); code.pla();
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+	return get_next_cpu_addr(cpu_addr, code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+}
+
+// AtlasDevFadeOut Frames [Depth] / AtlasDevFadeIn Frames [Depth]
+//
+// Frames  total NMI frames; 0 publishes the terminal state immediately.
+// Depth   how many of the four vanilla fade stages to traverse, 1..4.
+//         4 is the legacy full fade to black.  1..3 stop at a partial
+//         darkness that is exactly reversible, because vanilla $D0AD always
+//         recomputes each stage from the selected source palette at $03D0
+//         rather than from the live palette: stage k is an absolute image,
+//         not an accumulated subtraction.
+//
+// Presets, each one checked on hardware:
+//   FADE_DIM   45 1     barely dim; keeps the room readable
+//   FADE_DUSK  45 2     dusk
+//   FADE_GLOOM 45 3     deep gloom, shapes still visible
+//   FADE_BLACK 60 4     full fade to black
+//
+// Both handlers distribute Depth stages over Frames NMI frames with an
+// integer error accumulator, so short durations skip shades rather than
+// silently lengthening the effect.  The accumulator is byte-wide and its
+// carry is preserved, which is what keeps durations $FD..$FF exact.
+//
+// Sprites are deliberately untouched: these handlers drive the vanilla
+// background-palette path, exactly as vanilla's own Screen_FadeToBlack does
+// at all five of its call sites.  See the docs for why no Sprites operand
+// ships.
+//
+// Stack after the pushes, with X from TSX:
+//   stage=$0101,X error=$0102,X total=$0103,X depth=$0104,X remaining=$0105,X
+word fh::HackManager::apply_AtlasDevFadeOut(const fe::Config& p_config,
+	std::vector<byte>& p_rom, word cpu_addr) const {
+	klib::Asm6502 code;
+	const auto operands{ atlasdev_arity(p_config, "AtlasDevFadeOut", 2) };
+
+	if (operands == 1) {
+		code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE));
+		code.cmp_imm(0x00); // LoadByte's final STY means its incoming Z is not A's Z
+		code.bne("@timed");
+		code.lda_imm(0x03); code.sta_mem(0x0430);
+		code.jsr(ROM::PPUBuffer_WaitEmpty); code.lda_mem(0x03d0);
+		code.jsr(ROM::Screen_SetFadePalette);
+		code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+		code.label("@timed");
+		code.pha(); code.pha(); code.lda_imm(0); code.pha(); code.pha();
+		code.label("@frame");
+		code.tsx(); code.lda_abs_x(0x0102); code.clc(); code.adc_imm(4);
+		code.bcs("@subtract"); // preserve the ninth bit for totals $FD..$FF
+		code.label("@advance");
+		code.cmp_abs_x(0x0103); code.bcc("@calculated"); code.sec();
+		code.label("@subtract");
+		code.sbc_abs_x(0x0103); code.sta_abs_x(0x0102);
+		code.lda_abs_x(0x0101); code.clc(); code.adc_imm(1); code.sta_abs_x(0x0101);
+		code.lda_abs_x(0x0102); code.bcc("@advance");
+		code.label("@calculated");
+		code.sta_abs_x(0x0102); code.lda_abs_x(0x0101); code.beq("@wait");
+		code.sec(); code.sbc_imm(1); code.sta_mem(0x0430);
+		code.jsr(ROM::PPUBuffer_WaitEmpty); code.lda_mem(0x03d0);
+		code.jsr(ROM::Screen_SetFadePalette);
+		code.label("@wait");
+		code.jsr(ROM::WaitForInterrupt); code.tsx(); code.dec_abs_x(0x0104);
+		code.bne("@frame");
+		code.pla(); code.pla(); code.pla(); code.pla();
+		code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+		return get_next_cpu_addr(cpu_addr, code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+	}
+
+	// Stack after the pushes, with X from TSX:
+	//   stage=$0101,X error=$0102,X total=$0103,X depth=$0104,X remaining=$0105,X
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); code.pha(); // frames
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE));            // depth
+	// Vanilla's own fade guards the four-entry delta table at $D0E0 the same
+	// way ($DA42); an unclamped stage index would read code bytes as deltas.
+	code.cmp_imm(5); code.bcc("@ceiling"); code.lda_imm(4);
+	code.label("@ceiling");
+	code.cmp_imm(1); code.bcs("@floor"); code.lda_imm(1);
+	code.label("@floor");
+	code.pha();
+	code.tsx(); code.lda_abs_x(0x0102);                    // TSX; A = frames
+	code.bne("@timed");
+	code.lda_abs_x(0x0101); code.sec(); code.sbc_imm(1); // terminal stage
+	code.sta_mem(0x0430);
+	code.jsr(ROM::PPUBuffer_WaitEmpty); code.lda_mem(0x03d0);
+	code.jsr(ROM::Screen_SetFadePalette);
+	code.pla(); code.pla();
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+	code.label("@timed");
+	code.pha(); code.lda_imm(0); code.pha(); code.pha();       // total, error, stage
+	code.label("@frame");
+	code.tsx(); code.lda_abs_x(0x0102); code.clc(); code.adc_abs_x(0x0104);
+	code.bcs("@subtract"); // preserve the ninth bit for totals $FD..$FF
+	code.label("@advance");
+	code.cmp_abs_x(0x0103); code.bcc("@calculated"); code.sec();
+	code.label("@subtract");
+	code.sbc_abs_x(0x0103); code.sta_abs_x(0x0102);
+	code.lda_abs_x(0x0101); code.clc(); code.adc_imm(1); code.sta_abs_x(0x0101);
+	code.lda_abs_x(0x0102); code.bcc("@advance");
+	code.label("@calculated");
+	code.sta_abs_x(0x0102); code.lda_abs_x(0x0101); code.beq("@wait");
+	code.sec(); code.sbc_imm(1); code.sta_mem(0x0430);
+	code.jsr(ROM::PPUBuffer_WaitEmpty); code.lda_mem(0x03d0);
+	code.jsr(ROM::Screen_SetFadePalette);
+	code.label("@wait");
+	code.jsr(ROM::WaitForInterrupt); code.tsx(); code.dec_abs_x(0x0105);
+	code.bne("@frame");
+	code.pla(); code.pla(); code.pla(); code.pla(); code.pla();
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+	return get_next_cpu_addr(cpu_addr, code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+}
+
+word fh::HackManager::apply_AtlasDevFadeIn(const fe::Config& p_config,
+	std::vector<byte>& p_rom, word cpu_addr) const {
+	klib::Asm6502 code;
+	const auto operands{ atlasdev_arity(p_config, "AtlasDevFadeIn", 2) };
+
+	if (operands == 1) {
+		code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE));
+		code.cmp_imm(0x00); // LoadByte's final STY means its incoming Z is not A's Z
+		code.bne("@timed");
+		code.jsr(ROM::PPUBuffer_WaitEmpty); code.jsr(ROM::Screen_LoadBackgroundPalette);
+		code.lda_imm(0xff); code.sta_mem(0x0430);
+		code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+		code.label("@timed");
+		code.pha(); code.pha(); code.lda_imm(0); code.pha(); code.pha();
+		code.label("@frame");
+		code.tsx(); code.lda_abs_x(0x0102); code.clc(); code.adc_imm(4);
+		code.bcs("@subtract"); // preserve the ninth bit for totals $FD..$FF
+		code.label("@advance");
+		code.cmp_abs_x(0x0103); code.bcc("@calculated"); code.sec();
+		code.label("@subtract");
+		code.sbc_abs_x(0x0103); code.sta_abs_x(0x0102);
+		code.lda_abs_x(0x0101); code.clc(); code.adc_imm(1); code.sta_abs_x(0x0101);
+		code.lda_abs_x(0x0102); code.bcc("@advance");
+		code.label("@calculated");
+		code.sta_abs_x(0x0102); code.lda_abs_x(0x0101); code.beq("@wait");
+		code.cmp_imm(4); code.bcs("@full");
+		code.eor_imm(3); code.sta_mem(0x0430); // 1->2, 2->1, 3->0
+		code.jsr(ROM::PPUBuffer_WaitEmpty); code.lda_mem(0x03d0);
+		code.jsr(ROM::Screen_SetFadePalette);
+		code.lda_imm(1); code.bne("@wait");
+		code.label("@full");
+		code.jsr(ROM::PPUBuffer_WaitEmpty); code.jsr(ROM::Screen_LoadBackgroundPalette);
+		code.lda_imm(0xff); code.sta_mem(0x0430);
+		code.label("@wait");
+		code.jsr(ROM::WaitForInterrupt); code.tsx(); code.dec_abs_x(0x0104);
+		code.bne("@frame");
+		code.pla(); code.pla(); code.pla(); code.pla();
+		code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+		return get_next_cpu_addr(cpu_addr, code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+	}
+
+	// Stack after the pushes, with X from TSX:
+	//   stage=$0101,X error=$0102,X total=$0103,X depth=$0104,X remaining=$0105,X
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); code.pha(); // frames
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE));            // depth
+	code.cmp_imm(5); code.bcc("@ceiling"); code.lda_imm(4);   // guard $D0E0's four entries
+	code.label("@ceiling");
+	code.cmp_imm(1); code.bcs("@floor"); code.lda_imm(1);
+	code.label("@floor");
+	code.pha();
+	code.tsx(); code.lda_abs_x(0x0102);                    // TSX; A = frames
+	code.bne("@timed");
+	code.jsr(ROM::PPUBuffer_WaitEmpty); code.jsr(ROM::Screen_LoadBackgroundPalette);
+	code.lda_imm(0xff); code.sta_mem(0x0430);
+	code.pla(); code.pla();
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+	code.label("@timed");
+	code.pha(); code.lda_imm(0); code.pha(); code.pha();       // total, error, stage
+	code.label("@frame");
+	code.tsx(); code.lda_abs_x(0x0102); code.clc(); code.adc_abs_x(0x0104);
+	code.bcs("@subtract"); // preserve the ninth bit for totals $FD..$FF
+	code.label("@advance");
+	code.cmp_abs_x(0x0103); code.bcc("@calculated"); code.sec();
+	code.label("@subtract");
+	code.sbc_abs_x(0x0103); code.sta_abs_x(0x0102);
+	code.lda_abs_x(0x0101); code.clc(); code.adc_imm(1); code.sta_abs_x(0x0101);
+	code.lda_abs_x(0x0102); code.bcc("@advance");
+	code.label("@calculated");
+	code.sta_abs_x(0x0102); code.lda_abs_x(0x0101); code.beq("@wait");
+	code.cmp_abs_x(0x0104); code.bcs("@full");   // stage >= depth: full restore
+	code.lda_abs_x(0x0104); code.sec(); code.sbc_abs_x(0x0101); // depth-stage
+	code.sec(); code.sbc_imm(1);        // ... minus one
+	code.sta_mem(0x0430);
+	code.jsr(ROM::PPUBuffer_WaitEmpty); code.lda_mem(0x03d0);
+	code.jsr(ROM::Screen_SetFadePalette);
+	code.lda_imm(1); code.bne("@wait");
+	code.label("@full");
+	code.jsr(ROM::PPUBuffer_WaitEmpty); code.jsr(ROM::Screen_LoadBackgroundPalette);
+	code.lda_imm(0xff); code.sta_mem(0x0430);
+	code.label("@wait");
+	code.jsr(ROM::WaitForInterrupt); code.tsx(); code.dec_abs_x(0x0105);
+	code.bne("@frame");
+	code.pla(); code.pla(); code.pla(); code.pla(); code.pla();
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+	return get_next_cpu_addr(cpu_addr, code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+}
+
 // main orchestrator - injects the script routines specified by users through the configuration xml
 // and extends the scripting language itself
 std::size_t fh::HackManager::apply_script_library(const fe::Config& p_config, std::vector<byte>& p_rom,
@@ -750,6 +1074,19 @@ std::size_t fh::HackManager::apply_script_library(const fe::Config& p_config, st
 		case HackLib::SetAddr:
 			cpu_addr = apply_SetAddr(p_config, p_rom, cpu_addr, load_word_helper_addr.value());
 			break;
+
+		case HackLib::AtlasDevShakeScreen: {
+			cpu_addr = apply_AtlasDevShakeScreen(p_config, p_rom, cpu_addr);
+			break;
+		}
+		case HackLib::AtlasDevFadeOut: {
+			cpu_addr = apply_AtlasDevFadeOut(p_config, p_rom, cpu_addr);
+			break;
+		}
+		case HackLib::AtlasDevFadeIn: {
+			cpu_addr = apply_AtlasDevFadeIn(p_config, p_rom, cpu_addr);
+			break;
+		}
 
 		default:
 			throw std::runtime_error("Unsupported script library routine.");
