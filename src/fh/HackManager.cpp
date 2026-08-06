@@ -492,17 +492,17 @@ std::size_t fh::HackManager::apply_script_library(const fe::Config& p_config, st
 
 	word cpu_addr{ rom_addr_start.CpuAddr };
 	// cpu addresses of optional helpers
-	word bitmask_table_addr{ 0 };
-	word flag_decode_helper_addr{ 0 };
-	word quest_flag_decode_helper_addr{ 0 };
-	word ram_check_helper_addr{ 0 };
-	word block_pos_helper_addr{ 0 };
+	std::optional<word> bitmask_table_addr,
+		flag_decode_helper_addr,
+		quest_flag_decode_helper_addr,
+		ram_check_helper_addr,
+		block_pos_helper_addr;
 
 	// check if the bitmask lookup table needs to be installed
 	if (requires_any(p_lib, BITMASK_TABLE_REQUIRED)) {
 		const std::vector<byte> BITMASK_TABLE{ 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80 };
 		bitmask_table_addr = cpu_addr;
-		cpu_addr = get_next_cpu_addr(bitmask_table_addr, klib::Asm6502::apply_bytes(p_rom, BITMASK_TABLE, 12, bitmask_table_addr));
+		cpu_addr = get_next_cpu_addr(bitmask_table_addr.value(), klib::Asm6502::apply_bytes(p_rom, BITMASK_TABLE, 12, bitmask_table_addr.value()));
 	}
 
 	// check if the flag-check helper must be installed
@@ -514,7 +514,7 @@ std::size_t fh::HackManager::apply_script_library(const fe::Config& p_config, st
 			install_static_hack_flags_to_sram(p_config, p_rom);
 		// install the persistent flag decoder helper
 		flag_decode_helper_addr = cpu_addr;
-		cpu_addr = apply_helper_DecodeScriptFlag(p_config, p_rom, flag_decode_helper_addr);
+		cpu_addr = apply_helper_DecodeScriptFlag(p_config, p_rom, flag_decode_helper_addr.value());
 	}
 
 	// check if the quest flag-check helper must be installed
@@ -541,15 +541,15 @@ std::size_t fh::HackManager::apply_script_library(const fe::Config& p_config, st
 		switch (llib) {
 
 		case HackLib::SetFlag: {
-			cpu_addr = apply_SetFlag(p_config, p_rom, cpu_addr, flag_decode_helper_addr, bitmask_table_addr);
+			cpu_addr = apply_SetFlag(p_config, p_rom, cpu_addr, flag_decode_helper_addr.value(), bitmask_table_addr.value());
 			break;
 		}
 		case HackLib::ClearFlag: {
-			cpu_addr = apply_ClearFlag(p_config, p_rom, cpu_addr, flag_decode_helper_addr, bitmask_table_addr);
+			cpu_addr = apply_ClearFlag(p_config, p_rom, cpu_addr, flag_decode_helper_addr.value(), bitmask_table_addr.value());
 			break;
 		}
 		case HackLib::IfFlag: {
-			cpu_addr = apply_IfFlag(p_config, p_rom, cpu_addr, flag_decode_helper_addr, bitmask_table_addr);
+			cpu_addr = apply_IfFlag(p_config, p_rom, cpu_addr, flag_decode_helper_addr.value(), bitmask_table_addr.value());
 			break;
 		}
 		case HackLib::SelectFlag: {
@@ -557,27 +557,27 @@ std::size_t fh::HackManager::apply_script_library(const fe::Config& p_config, st
 			break;
 		}
 		case HackLib::SetSelectedFlag: {
-			cpu_addr = apply_SetSelectedFlag(p_config, p_rom, cpu_addr, bitmask_table_addr);
+			cpu_addr = apply_SetSelectedFlag(p_config, p_rom, cpu_addr, bitmask_table_addr.value());
 			break;
 		}
 		case HackLib::ClearSelectedFlag: {
-			cpu_addr = apply_ClearSelectedFlag(p_config, p_rom, cpu_addr, bitmask_table_addr);
+			cpu_addr = apply_ClearSelectedFlag(p_config, p_rom, cpu_addr, bitmask_table_addr.value());
 			break;
 		}
 		case HackLib::IfSelectedFlag: {
-			cpu_addr = apply_IfSelectedFlag(p_config, p_rom, cpu_addr, bitmask_table_addr);
+			cpu_addr = apply_IfSelectedFlag(p_config, p_rom, cpu_addr, bitmask_table_addr.value());
 			break;
 		}
 		case HackLib::SetQuestFlag: {
-			cpu_addr = apply_SetQuestFlag(p_config, p_rom, cpu_addr, quest_flag_decode_helper_addr, bitmask_table_addr);
+			cpu_addr = apply_SetQuestFlag(p_config, p_rom, cpu_addr, quest_flag_decode_helper_addr.value(), bitmask_table_addr.value());
 			break;
 		}
 		case HackLib::ClearQuestFlag: {
-			cpu_addr = apply_ClearQuestFlag(p_config, p_rom, cpu_addr, quest_flag_decode_helper_addr, bitmask_table_addr);
+			cpu_addr = apply_ClearQuestFlag(p_config, p_rom, cpu_addr, quest_flag_decode_helper_addr.value(), bitmask_table_addr.value());
 			break;
 		}
 		case HackLib::IfQuestFlag: {
-			cpu_addr = apply_IfQuestFlag(p_config, p_rom, cpu_addr, quest_flag_decode_helper_addr, bitmask_table_addr);
+			cpu_addr = apply_IfQuestFlag(p_config, p_rom, cpu_addr, quest_flag_decode_helper_addr.value(), bitmask_table_addr.value());
 			break;
 		}
 		case HackLib::RunScreenHandler: {
@@ -589,15 +589,15 @@ std::size_t fh::HackManager::apply_script_library(const fe::Config& p_config, st
 			break;
 		}
 		case HackLib::IfWorld: {
-			cpu_addr = apply_IfWorld(p_rom, cpu_addr, ram_check_helper_addr);
+			cpu_addr = apply_IfWorld(p_rom, cpu_addr, ram_check_helper_addr.value());
 			break;
 		}
 		case HackLib::IfScreen: {
-			cpu_addr = apply_IfScreen(p_rom, cpu_addr, ram_check_helper_addr);
+			cpu_addr = apply_IfScreen(p_rom, cpu_addr, ram_check_helper_addr.value());
 			break;
 		}
 		case HackLib::IfStage: {
-			cpu_addr = apply_IfStage(p_rom, cpu_addr, ram_check_helper_addr);
+			cpu_addr = apply_IfStage(p_rom, cpu_addr, ram_check_helper_addr.value());
 			break;
 		}
 		case HackLib::Die: {
@@ -617,11 +617,11 @@ std::size_t fh::HackManager::apply_script_library(const fe::Config& p_config, st
 			break;
 		}
 		case HackLib::IfYX: {
-			cpu_addr = apply_IfYX(p_rom, cpu_addr, block_pos_helper_addr, ram_check_helper_addr);
+			cpu_addr = apply_IfYX(p_rom, cpu_addr, block_pos_helper_addr.value(), ram_check_helper_addr.value());
 			break;
 		}
 		case HackLib::IfDoorYX: {
-			cpu_addr = apply_IfDoorYX(p_rom, cpu_addr, ram_check_helper_addr);
+			cpu_addr = apply_IfDoorYX(p_rom, cpu_addr, ram_check_helper_addr.value());
 			break;
 		}
 

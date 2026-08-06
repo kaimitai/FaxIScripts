@@ -89,7 +89,7 @@ void fi::AsmWriter::generate_asm_file(const fe::Config& p_config,
 				get_next_label(offset, lastentry, lastlabel, l_labels));
 		}
 
-		if (instr.type == fi::Instruction_type::Directive) {
+		if (ep != end(l_eps)) {
 			af += std::format(".textbox {}\n", get_define(fi::ArgDomain::TextBox, instr.opcode_byte));
 		}
 		else {
