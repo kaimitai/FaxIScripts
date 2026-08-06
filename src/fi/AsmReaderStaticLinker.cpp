@@ -217,10 +217,15 @@ void fi::AsmReader::parse_section_iscript(const fe::Config& p_config, std::size_
 			}
 
 			// lay down the shop byte offset immediately
-			if (op.flow == fi::Flow::Read)
-				target_address = static_cast<uint16_t>(
-					l_shop_ptrs.at(resolve_token(tokens.at(current_token++)))
-					);
+			if (op.flow == fi::Flow::Read) {
+				const auto shop_idx{ resolve_token(tokens.at(current_token++)) };
+				const auto iter{ l_shop_ptrs.find(shop_idx) };
+
+				if (iter == end(l_shop_ptrs))
+					throw std::runtime_error(std::format("Invalid shop index {}", shop_idx));
+
+				target_address = static_cast<uint16_t>(iter->second);
+			}
 			else if (op.flow == fi::Flow::Jump) {
 				// labels: defer until we have all instruction offsets
 				auto label{ tokens.at(current_token++) };

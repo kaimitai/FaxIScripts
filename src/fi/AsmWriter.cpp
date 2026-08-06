@@ -6,6 +6,7 @@
 
 #include <format>
 #include <map>
+#include <string_view>
 
 void fi::AsmWriter::generate_asm_file(const fe::Config& p_config,
 	const std::string& p_filename,
@@ -16,7 +17,7 @@ void fi::AsmWriter::generate_asm_file(const fe::Config& p_config,
 	const std::vector<fi::Shop>& p_shops,
 	bool p_shop_comments) const {
 
-	const auto& get_next_label = [](std::size_t p_offset,
+	const auto get_next_label = [](std::size_t p_offset,
 		int p_lastentry, int& p_lastlabel,
 		std::map<std::size_t, std::string>& p_labels) -> std::string {
 			auto labiter{ p_labels.find(p_offset) };
@@ -93,7 +94,16 @@ void fi::AsmWriter::generate_asm_file(const fe::Config& p_config,
 		}
 		else {
 			const auto& op{ fi::opcodes.find(instr.opcode_byte)->second };
-			af += std::format("    {}", op.name);
+
+			std::string line{ std::format("    {}", op.name) };
+			std::string comment;
+
+			const auto append_comment = [&](std::string_view text) {
+				if (!comment.empty())
+					comment += "; ";
+
+				comment += text;
+				};
 
 			for (std::size_t i{ 0 }; i < op.args.size(); ++i) {
 				const auto& arg{ op.args[i] };
@@ -102,49 +112,47 @@ void fi::AsmWriter::generate_asm_file(const fe::Config& p_config,
 				if (arg.domain == fi::ArgDomain::TextString) {
 					std::size_t str_ind{ static_cast<std::size_t>(operand) };
 
-					if (str_ind == 0 ||
-						str_ind > p_strings.size())
-						af += std::format(" {} ; invalid string index", str_ind);
+					if (str_ind == 0)
+						line += " 0";
+					else if (str_ind > p_strings.size()) {
+						line += std::format(" {}", str_ind);
+						append_comment("invalid string index");
+					}
 					else {
 						std::string l_out_str{ p_strings.at(str_ind - 1).get_string() };
-						af += std::format(" \"{}\"", l_out_str);
+						line += std::format(" \"{}\"", l_out_str);
 						l_used_strings.insert(l_out_str);
 					}
 				}
 				else if (arg.type == fi::ArgType::Byte) {
-					af += std::format(" {}",
+					line += std::format(" {}",
 						get_define(arg.domain, static_cast<byte>(operand)));
 				}
 				else {
-					af += std::format(" {}", operand);
+					line += std::format(" {}", operand);
 				}
 			}
 
 			if (op.flow == fi::Flow::Jump)
-				af += std::format(" {}",
+				line += std::format(" {}",
 					get_next_label(instr.jump_target.value(),
 						lastentry, lastlabel, l_labels)
 				);
 			else if (op.flow == fi::Flow::Read) {
 				const auto shop_idx{ instr.shop_index.value() };
 
-				if (shop_idx >= p_shops.size()) {
-					af += std::format(" ${:02x} ; ERROR: Invalid shop index", shop_idx);
-				}
-				else {
-					if (p_shop_comments) {
-						// we have a shop, add it to comments
-						af += std::format(" {} ; {}", shop_idx,
-							serialize_shop_as_string(p_shops.at(shop_idx))
-						);
-					}
-					else {
-						af += std::format(" {}", shop_idx);
-					}
-				}
+				line += std::format(" {}", shop_idx);
+
+				if (shop_idx >= p_shops.size())
+					append_comment("ERROR: Invalid shop index");
+				else if (p_shop_comments)
+					append_comment(serialize_shop_as_string(p_shops.at(shop_idx)));
 			}
 
-			af += "\n";
+			if (!comment.empty())
+				line += std::format(" ; {}", comment);
+
+			af += line + "\n";
 		}
 	}
 
