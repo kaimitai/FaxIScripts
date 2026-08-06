@@ -99,6 +99,7 @@ namespace klib {
 		void sta_zp(byte p_addr);
 		void sta_abs(word p_addr);
 		void sta_abs_x(word p_addr);
+		void sta_ind_y(byte p_addr);
 		void sty_zp(byte p_addr);
 		// virtual helper
 		void sta_mem(word p_addr);

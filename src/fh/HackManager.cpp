@@ -63,6 +63,43 @@ word fh::HackManager::apply_helper_IfAEquals(const fe::Config& p_config, std::ve
 	return get_next_cpu_addr(cpu_addr, code.apply_hack_and_clear(p_rom, 12, cpu_addr));
 }
 
+// if min <= A <= max, jump - otherwise continue script execution
+word fh::HackManager::apply_helper_IfABetween(const fe::Config& p_config, std::vector<byte>& p_rom,
+	word cpu_addr) const {
+	klib::Asm6502 code;
+
+	// preserve value to test
+	code.pha();
+
+	// load minimum
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE));
+	code.sta_zp(RAM::ZP_e2);
+
+	// load maximum
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE));
+	code.sta_zp(RAM::ZP_e3);
+
+	// restore value to test
+	code.pla();
+
+	// if A < min -> fail
+	code.cmp_zp(RAM::ZP_e2);
+	code.bcc("@fail");
+
+	// if A <= max -> success
+	code.cmp_zp(RAM::ZP_e3);
+	code.beq("@success");
+	code.bcc("@success");
+
+	code.label("@fail");
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_SKIPADDRANDINVOKE));
+
+	code.label("@success");
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_JUMPTONEXTADDR));
+
+	return get_next_cpu_addr(cpu_addr, code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+}
+
 // Converts the player's current pixel position to a block position.
 // Returns: X = (Y_block << 4) | X_block
 word fh::HackManager::apply_helper_GetPlayerBlockPos(std::vector<byte>& p_rom,
@@ -78,6 +115,24 @@ word fh::HackManager::apply_helper_GetPlayerBlockPos(std::vector<byte>& p_rom,
 	code.sta_zp(RAM::ZP_PlayerPosArgY);
 
 	code.jsr(ROM::Area_ConvertPixelsToBlockPos);
+
+	code.rts();
+
+	return get_next_cpu_addr(cpu_addr, code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+}
+
+// helper which reads the next script operand as a 16-bit cpu address and stores it in ($e2,$e3)
+word fh::HackManager::apply_helper_LoadWord(const fe::Config& p_config, std::vector<byte>& p_rom,
+	word cpu_addr) const {
+	klib::Asm6502 code;
+
+	// lo byte
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE));
+	code.sta_zp(RAM::ZP_e2);
+
+	// hi byte
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE));
+	code.sta_zp(RAM::ZP_e3);
 
 	code.rts();
 
@@ -471,6 +526,49 @@ word fh::HackManager::apply_IfDoorYX(std::vector<byte>& p_rom, word cpu_addr,
 	return get_next_cpu_addr(cpu_addr, code.apply_hack_and_clear(p_rom, 12, cpu_addr));
 }
 
+word fh::HackManager::apply_IfAddrEquals(std::vector<byte>& p_rom, word cpu_addr,
+	word helper_load_word_addr, word helper_if_a_equals_addr) const {
+	klib::Asm6502 code;
+
+	code.jsr(helper_load_word_addr);
+	code.ldy_imm(0x00);
+	code.lda_ind_y(RAM::ZP_e2);
+	code.jmp(helper_if_a_equals_addr);
+
+	return get_next_cpu_addr(cpu_addr, code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+}
+
+word fh::HackManager::apply_IfAddrBetween(std::vector<byte>& p_rom, word cpu_addr,
+	word helper_load_word_addr, word helper_if_a_between_addr) const {
+	klib::Asm6502 code;
+
+	code.jsr(helper_load_word_addr);
+	code.ldy_imm(0x00);
+	code.lda_ind_y(RAM::ZP_e2);
+	code.jmp(helper_if_a_between_addr);
+
+	return get_next_cpu_addr(cpu_addr, code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+}
+
+word fh::HackManager::apply_SetAddr(const fe::Config& p_config, std::vector<byte>& p_rom,
+	word cpu_addr, word helper_load_word_addr) const {
+	klib::Asm6502 code;
+
+	// ($e2,$e3) = destination address
+	code.jsr(helper_load_word_addr);
+
+	// value operand
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE));
+
+	code.ldy_imm(0x00);
+	code.sta_ind_y(RAM::ZP_e2);
+
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+
+	return get_next_cpu_addr(cpu_addr,
+		code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+}
+
 // main orchestrator - injects the script routines specified by users through the configuration xml
 // and extends the scripting language itself
 std::size_t fh::HackManager::apply_script_library(const fe::Config& p_config, std::vector<byte>& p_rom,
@@ -479,7 +577,10 @@ std::size_t fh::HackManager::apply_script_library(const fe::Config& p_config, st
 	const std::set<HackLib> FLAG_REQUIRED{ HackLib::SetFlag, HackLib::ClearFlag, HackLib::IfFlag,
 	HackLib::SelectFlag, HackLib::SetSelectedFlag, HackLib::ClearSelectedFlag, HackLib::IfSelectedFlag };
 	const std::set<HackLib> QUEST_FLAG_REQUIRED{ HackLib::SetQuestFlag, HackLib::ClearQuestFlag, HackLib::IfQuestFlag };
-	const std::set<HackLib> RAM_CHECK_REQUIRED{ HackLib::IfWorld, HackLib::IfScreen, HackLib::IfStage, HackLib::IfYX, HackLib::IfDoorYX };
+	const std::set<HackLib> COMPARE_EQUALS_REQUIRED{ HackLib::IfWorld, HackLib::IfScreen, HackLib::IfStage, HackLib::IfYX, HackLib::IfDoorYX,
+	HackLib::IfAddrEquals };
+	const std::set<HackLib> COMPARE_BETWEEN_REQUIRED{ HackLib::IfAddrBetween };
+	const std::set<HackLib> LOAD_WORD_REQUIRED{ HackLib::IfAddrEquals, HackLib::IfAddrBetween, HackLib::SetAddr };
 	const std::set<HackLib> BLOCK_POS_REQUIRED{ HackLib::IfYX };
 	// flag functions need access to the bitmask lookup table
 	std::set<HackLib> BITMASK_TABLE_REQUIRED{ FLAG_REQUIRED };
@@ -495,7 +596,9 @@ std::size_t fh::HackManager::apply_script_library(const fe::Config& p_config, st
 	std::optional<word> bitmask_table_addr,
 		flag_decode_helper_addr,
 		quest_flag_decode_helper_addr,
-		ram_check_helper_addr,
+		compare_equals_helper_addr,
+		compare_between_helper_addr,
+		load_word_helper_addr,
 		block_pos_helper_addr;
 
 	// check if the bitmask lookup table needs to be installed
@@ -523,13 +626,25 @@ std::size_t fh::HackManager::apply_script_library(const fe::Config& p_config, st
 		cpu_addr = apply_helper_DecodeQuestFlag(p_config, p_rom, cpu_addr);
 	}
 
-	// check if the ram checker helper must be installed
-	if (requires_any(p_lib, RAM_CHECK_REQUIRED)) {
-		ram_check_helper_addr = cpu_addr;
+	// install the generic A == operand helper
+	if (requires_any(p_lib, COMPARE_EQUALS_REQUIRED)) {
+		compare_equals_helper_addr = cpu_addr;
 		cpu_addr = apply_helper_IfAEquals(p_config, p_rom, cpu_addr);
 	}
 
-	// check if the block normalizer helper helper must be installed
+	// install the generic min <= A <= max helper
+	if (requires_any(p_lib, COMPARE_BETWEEN_REQUIRED)) {
+		compare_between_helper_addr = cpu_addr;
+		cpu_addr = apply_helper_IfABetween(p_config, p_rom, cpu_addr);
+	}
+
+	// check if the load word into (lo, hi) = ($e2, $e3) helper must be installed
+	if (requires_any(p_lib, LOAD_WORD_REQUIRED)) {
+		load_word_helper_addr = cpu_addr;
+		cpu_addr = apply_helper_LoadWord(p_config, p_rom, cpu_addr);
+	}
+
+	// check if the block normalizer helper must be installed
 	if (requires_any(p_lib, BLOCK_POS_REQUIRED)) {
 		block_pos_helper_addr = cpu_addr;
 		cpu_addr = apply_helper_GetPlayerBlockPos(p_rom, cpu_addr);
@@ -589,15 +704,15 @@ std::size_t fh::HackManager::apply_script_library(const fe::Config& p_config, st
 			break;
 		}
 		case HackLib::IfWorld: {
-			cpu_addr = apply_IfWorld(p_rom, cpu_addr, ram_check_helper_addr.value());
+			cpu_addr = apply_IfWorld(p_rom, cpu_addr, compare_equals_helper_addr.value());
 			break;
 		}
 		case HackLib::IfScreen: {
-			cpu_addr = apply_IfScreen(p_rom, cpu_addr, ram_check_helper_addr.value());
+			cpu_addr = apply_IfScreen(p_rom, cpu_addr, compare_equals_helper_addr.value());
 			break;
 		}
 		case HackLib::IfStage: {
-			cpu_addr = apply_IfStage(p_rom, cpu_addr, ram_check_helper_addr.value());
+			cpu_addr = apply_IfStage(p_rom, cpu_addr, compare_equals_helper_addr.value());
 			break;
 		}
 		case HackLib::Die: {
@@ -617,13 +732,24 @@ std::size_t fh::HackManager::apply_script_library(const fe::Config& p_config, st
 			break;
 		}
 		case HackLib::IfYX: {
-			cpu_addr = apply_IfYX(p_rom, cpu_addr, block_pos_helper_addr.value(), ram_check_helper_addr.value());
+			cpu_addr = apply_IfYX(p_rom, cpu_addr, block_pos_helper_addr.value(), compare_equals_helper_addr.value());
 			break;
 		}
 		case HackLib::IfDoorYX: {
-			cpu_addr = apply_IfDoorYX(p_rom, cpu_addr, ram_check_helper_addr.value());
+			cpu_addr = apply_IfDoorYX(p_rom, cpu_addr, compare_equals_helper_addr.value());
 			break;
 		}
+		case HackLib::IfAddrEquals: {
+			cpu_addr = apply_IfAddrEquals(p_rom, cpu_addr, load_word_helper_addr.value(), compare_equals_helper_addr.value());
+			break;
+		}
+		case HackLib::IfAddrBetween: {
+			cpu_addr = apply_IfAddrBetween(p_rom, cpu_addr, load_word_helper_addr.value(), compare_between_helper_addr.value());
+			break;
+		}
+		case HackLib::SetAddr:
+			cpu_addr = apply_SetAddr(p_config, p_rom, cpu_addr, load_word_helper_addr.value());
+			break;
 
 		default:
 			throw std::runtime_error("Unsupported script library routine.");

@@ -126,6 +126,7 @@ constexpr byte OP_STA_ZP{ 0x85 };
 constexpr byte OP_STA_ABS{ 0x8d };
 constexpr byte OP_TXA{ 0x8a };
 constexpr byte OP_BCC{ 0x90 };
+constexpr byte OP_STA_IND_Y{ 0x91 };
 constexpr byte OP_TYA{ 0x98 };
 constexpr byte OP_STA_ABS_X{ 0x9d };
 constexpr byte OP_LDY_IMM{ 0xa0 };
@@ -250,6 +251,11 @@ void klib::Asm6502::sta_abs(word p_addr) {
 void klib::Asm6502::sta_abs_x(word p_addr) {
 	emit(OP_STA_ABS_X);
 	emit_word(p_addr);
+}
+
+void klib::Asm6502::sta_ind_y(byte p_addr) {
+	emit(OP_STA_IND_Y);
+	emit(p_addr);
 }
 
 void klib::Asm6502::sty_zp(byte p_addr) {

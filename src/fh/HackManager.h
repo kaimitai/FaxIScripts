@@ -16,7 +16,8 @@ namespace fh {
 		SetFlag, ClearFlag, IfFlag, SelectFlag, SetSelectedFlag, IfSelectedFlag, ClearSelectedFlag,
 		SetQuestFlag, ClearQuestFlag, IfQuestFlag,
 		RunScreenHandler, GetXP, IfWorld, IfScreen, IfStage, Die,
-		JSR, Return, ForceDoor, IfYX, IfDoorYX
+		JSR, Return, ForceDoor, IfYX, IfDoorYX,
+		IfAddrEquals, IfAddrBetween, SetAddr
 	};
 
 	class HackManager {
@@ -55,6 +56,12 @@ namespace fh {
 			word helper_get_player_block_pos_addr, word helper_if_a_equals_addr) const;
 		word apply_IfDoorYX(std::vector<byte>& p_rom, word cpu_addr,
 			word helper_if_a_equals_addr) const;
+		word apply_IfAddrEquals(std::vector<byte>& p_rom, word cpu_addr,
+			word helper_load_word_addr, word helper_if_a_equals_addr) const;
+		word apply_IfAddrBetween(std::vector<byte>& p_rom, word cpu_addr,
+			word helper_load_word_addr, word helper_if_a_between_addr) const;
+		word apply_SetAddr(const fe::Config& p_config, std::vector<byte>& p_rom,
+			word cpu_addr, word helper_load_word_addr) const;
 
 		// shared helpers for the script action library
 		word apply_helper_DecodeScriptFlag(const fe::Config& p_config, std::vector<byte>& p_rom,
@@ -62,7 +69,9 @@ namespace fh {
 		word apply_helper_DecodeQuestFlag(const fe::Config& p_config, std::vector<byte>& p_rom,
 			word cpu_addr) const;
 		word apply_helper_IfAEquals(const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const;
+		word apply_helper_IfABetween(const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const;
 		word apply_helper_GetPlayerBlockPos(std::vector<byte>& p_rom, word cpu_addr) const;
+		word apply_helper_LoadWord(const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const;
 
 		bool requires_any(const std::vector<HackLib>& p_lib, const std::set<HackLib>& p_required) const;
 

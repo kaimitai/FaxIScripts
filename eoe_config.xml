@@ -1792,6 +1792,9 @@
 			<entry key="SetSelectedFlag" />
 			<entry key="ClearSelectedFlag" />
 			<entry key="IfSelectedFlag" value="Flow=Jump" />
+			<entry key="IfAddrEquals" value="Args=Short+Byte,Flow=Jump" />
+			<entry key="IfAddrBetween" value="Args=Short+Byte+Byte,Flow=Jump" />
+			<entry key="SetAddr" value="Args=Short+Byte" />
 		</string_to_string_map>
 	</string_to_string_maps>
 </eoe_config>
