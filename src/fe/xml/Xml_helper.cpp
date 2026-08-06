@@ -147,8 +147,16 @@ void fe::xml::load_configuration(const std::string& p_config_xml,
 
 					for (auto n_entry{ n_bmap.child(c::TAG_ENTRY) }; n_entry;
 						n_entry = n_entry.next_sibling(c::TAG_ENTRY)) {
+
+						const byte l_key{ parse_numeric_byte(n_entry.attribute(c::ATTR_BYTE).as_string()) };
+
+						if (l_tmp_bmap.find(l_key) != end(l_tmp_bmap))
+							throw std::runtime_error(std::format(
+								"Duplicate byte key {} in byte_to_string_map '{}'",
+								byte_to_hex(l_key), l_name));
+
 						l_tmp_bmap.insert(std::make_pair(
-							parse_numeric_byte(n_entry.attribute(c::ATTR_BYTE).as_string()),
+							l_key,
 							n_entry.attribute(c::ATTR_STRING).as_string()
 						));
 					}
