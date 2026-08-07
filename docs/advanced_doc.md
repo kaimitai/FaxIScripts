@@ -225,6 +225,23 @@ This minimizes ROM usage while allowing new opcode implementations to reuse comm
 | AtlasDevShowNumberInMessage | string, Byte | **Do not use yet.** Reveals the message without its A wait, renders a script register as three digits at the text cursor, then runs the engine's own A wait | AtlasDevShowNumberInMessage "You have" 0 |
 | AtlasDevShowChoiceToVar | Byte, Byte | **Do not use yet.** Runs the vanilla menu selection loop over Count rows and stores the chosen index in a script register, or $FF if the player cancels with B. Count is clamped to 1-8 | AtlasDevShowChoiceToVar 3 0 ; three rows, result into register 0 |
 | AtlasDevShowMessageFromVar | Byte | **Do not use yet.** Shows the message whose id is held in a script register. An out-of-range register, or an id outside 1-193, is a no-op | AtlasDevShowMessageFromVar 0 |
+| AtlasDevIfEntityCountAtLeast | Byte, Label | Jumps when at least Count of the eight entity slots hold a live entity. Count 0 always jumps; Count above 8 never does | AtlasDevIfEntityCountAtLeast 1 @some_left |
+| AtlasDevCountActiveEntities | Byte | **Do not use yet.** Stores how many of the eight entity slots are live, 0-8, into a script register | AtlasDevCountActiveEntities 0 |
+| AtlasDevFindEntity | Byte, Byte | **Do not use yet.** Stores the lowest slot holding the given entity identity into a script register, or $FF when no slot does | AtlasDevFindEntity 58 0 |
+| AtlasDevFreezeEntities | None | Pauses every entity's update until AtlasDevResumeEntities; nothing else clears the pause, so a script that freezes must resume | AtlasDevFreezeEntities |
+| AtlasDevResumeEntities | None | Ends the pause started by AtlasDevFreezeEntities | AtlasDevResumeEntities |
+| AtlasDevIfBossPresent | Label | Jumps when any of the eight slots holds a boss | AtlasDevIfBossPresent @boss_here |
+| AtlasDevIfEntityTypePresent | Byte, Label | Jumps when any slot holds the given entity identity; identities above $64 are always false, so an empty slot can never match | AtlasDevIfEntityTypePresent 68 @lady_here |
+| AtlasDevIfEntitySlotActive | Byte, Label | Jumps when the slot holds a live entity; there is deliberately no negated form, invert the branch target instead | AtlasDevIfEntitySlotActive 0 @slot0_live |
+| AtlasDevIfEntityHidden | Byte, Label | Jumps when the slot's entity is hidden; an invalid slot is not hidden | AtlasDevIfEntityHidden 0 @is_hidden |
+| AtlasDevSetEntityHidden | Byte, Byte | Hides (nonzero) or shows (0) the slot's entity; its behaviour keeps running while unseen | AtlasDevSetEntityHidden 0 1 |
+| AtlasDevSetEntityHealth | Byte, Byte | Sets the slot's live HP; death fires on subtract-borrow, so 0 means dies to the next hit rather than dead | AtlasDevSetEntityHealth 0 5 |
+| AtlasDevSetEntityInvincible | Byte, Byte | Grants that many frames of hit exemption through the engine's own i-frame counter; 0 clears it | AtlasDevSetEntityInvincible 0 60 |
+| AtlasDevSetEntityBehavior | Byte, Byte | Selects one of the engine's behaviours for the slot and re-runs its initializer; behaviour 6 is refused | AtlasDevSetEntityBehavior 0 4 |
+| AtlasDevSetEntitySpeed | Byte, Byte, Byte | Sets a walker's cached speed, fraction then whole pixels; flyers keep their velocity elsewhere and are unaffected | AtlasDevSetEntitySpeed 0 0 3 |
+| AtlasDevSetEntityFacing | Byte, Byte | Faces the slot's entity left (0) or right (nonzero); a free slot is left alone | AtlasDevSetEntityFacing 0 1 |
+| AtlasDevEntityFieldToVar | Byte, Byte, Byte | **Do not use yet.** Reads one per-slot byte, field 0-11, into a script register; fields 0-5 come from the $02CC group, 6-11 from the $0344 group | AtlasDevEntityFieldToVar 0 6 2 |
+| AtlasDevDrawVarNumber | Byte, Byte, Byte, Byte | **Do not use yet.** Draws a script register as a zero-padded decimal at a raw tile position through the HUD's own digit routine; operands are register, X tile, Y tile, digit count 1-7 | AtlasDevDrawVarNumber 0 4 24 3 |
 
 **Note**: Runtime implementations are intended for use with custom opcodes. Vanilla opcodes (0-23) continue to use the game's original implementations unless explicitly remapped. This preserves compatibility with existing scripts while allowing projects to extend the scripting language with new functionality.
 
@@ -278,6 +295,60 @@ had no validation outside a purpose-built fixture that supplied that RAM. One
 known limitation in ```AtlasDevShowNumberInMessage```: the digits are drawn as
 plain tiles at the text cursor and nothing restores the text grid underneath
 them, so they remain visible over a following shorter message.
+
+#### AtlasDev entity opcodes
+
+```AtlasDevIfEntityCountAtLeast``` reads the game's own eight-slot entity table
+at ```$02cc-$02d3``` and jumps when at least ```Count``` of those slots hold a
+live entity. It is meant for wave gating - "once only one guard is left, open
+the door" - and it answers that as a branch, so it needs no script variable
+and no RAM a project has to allocate.
+
+Two operand ranges are worth stating outright because they are defined
+behaviour rather than error cases. ```Count 0``` always jumps, and does so
+without reading the table at all: at least zero entities are always present.
+```Count 9``` and above never jumps, because eight slots cannot hold nine
+entities. Nothing in between needs a range check either; the emitted code
+indexes slots 7 down to 0 and never reads past ```$02d3``` for any operand.
+
+What counts as live is the engine's own definition, not a kill counter. Bit 7
+set in a slot means the slot is free, and the engine clears a slot itself when
+an entity's position leaves the screen. An entity that walks off therefore
+stops counting exactly as a defeated one does. The table describes what is
+loaded right now, so a script that wants "the player killed three guards"
+should track that with flags rather than infer it from the census.
+
+Every opcode above that takes a slot rejects a value outside 0 to 7 rather
+than masking it, and a rejected call still consumes its remaining operands, so
+the script stream never desynchronizes.
+
+Two practical warnings for ```AtlasDevSetEntityHidden```, both observed in
+play. A hidden entity keeps walking, so there is no reliable way to line up an
+interaction with it; never hide the NPC that is supposed to perform the
+un-hide. And ```AtlasDevDrawVarNumber```'s digits are ordinary background
+tiles: a later draw at the same position replaces them, and they otherwise
+persist until the screen is redrawn.
+
+The same locality applies to every write these opcodes make. The engine
+rebuilds the slot arrays from screen data when the player enters a screen, so
+a scripted hide, speed, health or behaviour change lasts exactly until the
+player leaves and comes back. That is the engine's own lifecycle, not a
+limitation of the opcodes; a change that must persist belongs in a flag that a
+script re-applies on each visit.
+
+```AtlasDevCountActiveEntities``` and ```AtlasDevFindEntity``` **should not be
+used yet**. Both write a script register, so a project must define
+```hack_script_var_ram_addr``` and ```hack_script_var_count``` before either
+can be installed; without them ```Config::constant``` throws by name and the
+build stops, rather than a ROM shipping that writes RAM nobody allocated.
+Reach for ```AtlasDevIfEntityCountAtLeast``` instead wherever the question is
+a comparison, which is most of the time; these two are for when the number or
+the slot index is itself wanted.
+
+```AtlasDevFindEntity``` answers "absent" for any identity of ```$80``` or
+above without reading the table. Bit 7 set is the engine's own free marker, so
+no live entity can carry such an identity, and searching for one would
+otherwise match an empty slot and report it as a find.
 
 #### AtlasDev visual effect presets
 
