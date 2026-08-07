@@ -71,7 +71,7 @@ void klib::Asm6502::emit_word(word p_word) {
 	emit(static_cast<byte>((p_word >> 8) & 0xff));
 }
 
-void klib::Asm6502::resolve_labels() {
+void klib::Asm6502::resolve_labels(word p_base_cpu_addr) {
 	for (const auto& branch : m_branch_refs) {
 
 		auto it{ m_labels.find(branch.label) };
@@ -86,6 +86,20 @@ void klib::Asm6502::resolve_labels() {
 			throw std::runtime_error(std::format("Branch out of range: {}", branch.label));
 
 		m_bytes[branch.offset] = static_cast<byte>(static_cast<sbyte>(delta));
+	}
+
+	// Label-targeted JMPs carry a full 16-bit operand, so unlike branches they
+	// have no range limit; the absolute address is the hack's base plus the
+	// label's offset, which apply_hack supplies when the code is placed.
+	for (const auto& jump : m_jump_refs) {
+
+		auto it{ m_labels.find(jump.label) };
+		if (it == m_labels.end())
+			throw std::runtime_error(std::format("Undefined label: {}", jump.label));
+
+		const auto target = static_cast<word>(p_base_cpu_addr + it->second);
+		m_bytes[jump.offset] = static_cast<byte>(target & 0xff);
+		m_bytes[jump.offset + 1] = static_cast<byte>((target >> 8) & 0xff);
 	}
 }
 
@@ -167,6 +181,17 @@ constexpr byte OP_SBC_ABS_X{ 0xfd };
 void klib::Asm6502::jmp(word p_addr) {
 	emit(OP_JMP);
 	emit_word(p_addr);
+}
+
+void klib::Asm6502::jmp(const std::string& p_label) {
+	emit(OP_JMP);
+
+	m_jump_refs.push_back({
+		m_bytes.size(),
+		p_label
+		});
+
+	emit_word(word{ 0 }); // patched later
 }
 
 void klib::Asm6502::jmp_ind(word p_addr) {
@@ -523,7 +548,7 @@ void klib::Asm6502::apply_hack(std::vector<byte>& p_rom, byte p_bank_no,
 
 std::size_t klib::Asm6502::apply_hack_and_clear(std::vector<byte>& p_rom, byte p_bank_no,
 	word p_cpu_addr, word p_cpu_min_addr) {
-	resolve_labels();
+	resolve_labels(p_cpu_addr);
 	std::size_t result{ size() };
 	apply_hack(p_rom, p_bank_no, p_cpu_addr, p_cpu_min_addr);
 	clear();

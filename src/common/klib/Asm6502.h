@@ -25,14 +25,22 @@ namespace klib {
 			std::string label;
 		};
 
+		// A JMP whose target is a label rather than a literal address; the
+		// operand is patched once every label position is known.
+		struct JumpRef {
+			std::size_t offset;
+			std::string label;
+		};
+
 		std::vector<byte> m_bytes;
 		std::unordered_map<std::string, std::size_t> m_labels;
 		std::vector<BranchRef> m_branch_refs;
+		std::vector<JumpRef> m_jump_refs;
 
 		void emit(byte p_byte);
 		void emit(sbyte p_byte);
 		void emit_word(word p_word);
-		void resolve_labels(void);
+		void resolve_labels(word p_base_cpu_addr);
 		void branch(byte p_opcode, const std::string& p_label);
 
 		void apply_hack(std::vector<byte>& p_rom, byte p_bank_no,
@@ -77,6 +85,7 @@ namespace klib {
 
 		// jumps and calls
 		void jmp(word p_addr);
+		void jmp(const std::string& p_label);
 		void jmp_ind(word p_addr);
 		void jsr(word p_addr);
 		void rts(void);

@@ -19,7 +19,9 @@ namespace fh {
 		JSR, Return, ForceDoor, IfYX, IfDoorYX,
 		IfAddrEquals, IfAddrBetween, SetAddr,
 		AtlasDevShakeScreen, AtlasDevFadeOut, AtlasDevFadeIn,
-		AtlasDevSetMusic, AtlasDevPlaySFX, AtlasDevIfMusic
+		AtlasDevSetMusic, AtlasDevPlaySFX, AtlasDevIfMusic,
+		AtlasDevShowSequentialMessages, AtlasDevShowNumberInMessage, AtlasDevShowChoiceToVar, AtlasDevClearPortrait, AtlasDevEntitySayMessage, AtlasDevShowMessageFromVar, AtlasDevHideTextbox, AtlasDevSetPortrait,
+		AtlasDevOpenTextbox, AtlasDevCloseDialogue
 	};
 
 	class HackManager {
@@ -71,6 +73,17 @@ namespace fh {
 		word apply_AtlasDevSetMusic(const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const;
 		word apply_AtlasDevPlaySFX(const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const;
 		word apply_AtlasDevIfMusic(const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const;
+
+		word apply_AtlasDevShowSequentialMessages(const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const;
+		word apply_AtlasDevShowNumberInMessage(const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const;
+		word apply_AtlasDevShowChoiceToVar(const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const;
+		word apply_AtlasDevClearPortrait(const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const;
+		word apply_AtlasDevEntitySayMessage(const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const;
+		word apply_AtlasDevShowMessageFromVar(const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const;
+		word apply_AtlasDevHideTextbox(const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const;
+		word apply_AtlasDevSetPortrait(const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const;
+		word apply_AtlasDevOpenTextbox(const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const;
+		word apply_AtlasDevCloseDialogue(const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const;
 
 		// shared helpers for the script action library
 		word apply_helper_DecodeScriptFlag(const fe::Config& p_config, std::vector<byte>& p_rom,

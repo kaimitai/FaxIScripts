@@ -215,6 +215,16 @@ This minimizes ROM usage while allowing new opcode implementations to reuse comm
 | AtlasDevSetMusic | Byte | Stops the music with 0, or selects song 1-16; values above 16 are ignored | AtlasDevSetMusic 5 ; play song 5 |
 | AtlasDevPlaySFX | Byte | Plays public sound effect $00-$1c through the game's own effect entry point, exactly as in ordinary play; higher IDs are ignored | AtlasDevPlaySFX 4 ; play effect 4 |
 | AtlasDevIfMusic | Byte, Label | Jumps when the given song is the one currently selected | AtlasDevIfMusic 5 @already_playing |
+| AtlasDevSetPortrait | TextBox | Sets the dialogue portrait on an already-open interaction; GENERIC is the plain box, the named portraits carry one | AtlasDevSetPortrait GURU ; switches the open box to the Guru portrait |
+| AtlasDevClearPortrait | None | Runs the vanilla portrait teardown: id cleared, image cleared, area palette restored. The window and text survive, so the script keeps talking | AtlasDevClearPortrait ; drops the portrait, keeps the box |
+| AtlasDevHideTextbox | None | Repaints the background over the dialogue rectangle. The interaction is NOT closed: the context, the rectangle and the script all survive | AtlasDevHideTextbox ; the box disappears, the script runs on |
+| AtlasDevOpenTextbox | None | Opens the generic dialogue box the game itself uses for an NPC, at the engine's own adaptive position, and lays the text grid | AtlasDevOpenTextbox ; opens a box, making later text visible again |
+| AtlasDevCloseDialogue | None | Closes a portrait conversation: clears the textbox context and repaints the larger portrait-and-text rectangle | AtlasDevCloseDialogue ; tears the portrait conversation down |
+| AtlasDevEntitySayMessage | Byte, string | Gives the message to the entity in the given slot, so it is spoken with that entity's own portrait context | AtlasDevEntitySayMessage 2 "Who goes there?" |
+| AtlasDevShowSequentialMessages | string, string, string, string | Shows up to four messages in order, one A press between each. An unused slot is a plain 0. B skips the rest; the remaining operands are still consumed, so the stream never desyncs | AtlasDevShowSequentialMessages "One." "Two." "Three." 0 |
+| AtlasDevShowNumberInMessage | string, Byte | **Do not use yet.** Reveals the message without its A wait, renders a script register as three digits at the text cursor, then runs the engine's own A wait | AtlasDevShowNumberInMessage "You have" 0 |
+| AtlasDevShowChoiceToVar | Byte, Byte | **Do not use yet.** Runs the vanilla menu selection loop over Count rows and stores the chosen index in a script register, or $FF if the player cancels with B. Count is clamped to 1-8 | AtlasDevShowChoiceToVar 3 0 ; three rows, result into register 0 |
+| AtlasDevShowMessageFromVar | Byte | **Do not use yet.** Shows the message whose id is held in a script register. An out-of-range register, or an id outside 1-193, is a no-op | AtlasDevShowMessageFromVar 0 |
 
 **Note**: Runtime implementations are intended for use with custom opcodes. Vanilla opcodes (0-23) continue to use the game's original implementations unless explicitly remapped. This preserves compatibility with existing scripts while allowing projects to extend the scripting language with new functionality.
 
@@ -227,6 +237,47 @@ This minimizes ROM usage while allowing new opcode implementations to reuse comm
 ```AtlasDevFadeOut``` and ```AtlasDevFadeIn``` both drive the game's own fade routine (```$D0AD```). Its stage loop is hard bounded, exactly the width of the background/UI palette shadow it walks, so it only ever darkens the background palette; sprites, including dialogue portraits, stay lit throughout. This matches vanilla's own fades, which use the same routine at all five of its call sites, and it can be used deliberately for a spotlight look. ```Depth``` selects how many of the four vanilla stages to traverse, 1 to 4, and is clamped in the emitted code exactly as vanilla guards the same delta table; an ```AtlasDevFadeOut``` that is not followed by a matching ```AtlasDevFadeIn``` leaves the background dark persistently.
 
 Each of the three reads its own operand count back out of its declared signature in ```iscript_opcode_impls``` rather than assuming one: the signature shown above is what ships, and declaring ```Args=Byte``` for any of them instead builds the earlier plain frame-count handler (```AtlasDevShakeScreen Frames``` shakes at amplitude 2 every frame; ```AtlasDevFadeOut Frames``` and ```AtlasDevFadeIn Frames``` run the full depth-4 fade).
+
+#### AtlasDev dialogue opcodes
+
+```AtlasDevHideTextbox``` and ```AtlasDevCloseDialogue``` are not two names for
+the same thing. ```AtlasDevHideTextbox``` calls the vanilla restore, which only
+repaints the background over the dialogue rectangle; the textbox context, the
+rectangle and the running script all survive it, which is why it hides rather
+than closes. ```AtlasDevCloseDialogue``` is the real teardown for a portrait
+conversation: it clears the context and repaints the larger
+portrait-and-text rectangle, which the generic restore does not cover.
+
+Text tiles exist only while a box is open, so anything drawn after
+```AtlasDevHideTextbox``` is written but not rendered. This is recoverable, not
+terminal: ```AtlasDevOpenTextbox``` (or any action that opens a box, including
+```AtlasDevSetPortrait```) lays the grid again and the following text reads
+normally, with the entity's own dialogue unaffected afterwards. The rule for
+scripts is simply to open a box before drawing text.
+
+```AtlasDevOpenTextbox``` deliberately takes no coordinates. The box the game
+opens for an NPC is placed adaptively - the engine picks a high or low position
+depending on where the player is standing, so the box does not cover them -
+and passing explicit coordinates is exactly what would lose that. This opcode
+reproduces the vanilla placement rather than replacing it.
+
+```AtlasDevSetPortrait``` takes a textbox context, so ```GENERIC``` is the
+plain box and the named portraits each carry one. Every transition is handled:
+generic to generic changes only the context, generic to portrait restores the
+old rectangle before building the new frames, and portrait to portrait
+preserves the original pre-portrait palette so a later ```End``` still restores
+gameplay correctly.
+
+```AtlasDevShowNumberInMessage```, ```AtlasDevShowChoiceToVar``` and
+```AtlasDevShowMessageFromVar``` **should not be used yet**. Each reads or
+writes a script register, so a project must define
+```hack_script_var_ram_addr``` and ```hack_script_var_count``` before any of
+them can be installed; without those constants the build fails by name rather
+than the ROM reading unallocated RAM. They are published for review and have
+had no validation outside a purpose-built fixture that supplied that RAM. One
+known limitation in ```AtlasDevShowNumberInMessage```: the digits are drawn as
+plain tiles at the text cursor and nothing restores the text grid underneath
+them, so they remain visible over a following shorter message.
 
 #### AtlasDev visual effect presets
 
