@@ -20,7 +20,8 @@ namespace fh {
 		constexpr word WaitForInterrupt{ 0xca2e };
 		constexpr word Game_InitMMCAndBank{ 0xcbbf };
 		constexpr word PPUBuffer_WaitEmpty{ 0xcff4 };
-		constexpr word Screen_LoadBackgroundPalette{ 0xd00d };
+		constexpr word Screen_CopyBgPaletteToShadow{ 0xd03b };
+		constexpr word PPUBuffer_QueuePaletteUpload{ 0xd090 };
 		constexpr word Screen_SetFadePalette{ 0xd0ad };
 		constexpr word Sound_PlayEffect{ 0xd0e4 };
 		constexpr word Area_SetBlocks{ 0xd7c5 };
