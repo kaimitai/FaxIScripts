@@ -815,7 +815,18 @@ word fh::HackManager::apply_AtlasDevFadeIn(const fe::Config& p_config,
 		code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE));
 		code.cmp_imm(0x00); // LoadByte's final STY means its incoming Z is not A's Z
 		code.bne("@timed");
-		code.jsr(ROM::PPUBuffer_WaitEmpty); code.jsr(ROM::Screen_LoadBackgroundPalette);
+		// The full restore replicates what Screen_LoadBackgroundPalette ($D00D)
+		// does in the unmodified game: A = the area's palette id from $03D0,
+		// copy its bank-11 entry into the $0293 shadow, queue the upload.
+		// $D00D itself must not be called: the extended-flags boot hook
+		// repurposes $D005-$D012 as its init stub whenever flag opcodes are
+		// installed, so in those builds a call lands mid-hook on a JSR to
+		// Game_InitMMCAndBank and resets the game.  $D03B and $D090 are live
+		// vanilla routines with callers of their own, including a bank-12
+		// caller at $9F2C, so this path is safe from the switched window.
+		code.jsr(ROM::PPUBuffer_WaitEmpty); code.lda_mem(0x03d0);
+		code.jsr(ROM::Screen_CopyBgPaletteToShadow);
+		code.jsr(ROM::PPUBuffer_QueuePaletteUpload);
 		code.lda_imm(0xff); code.sta_mem(0x0430);
 		code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
 		code.label("@timed");
@@ -837,7 +848,9 @@ word fh::HackManager::apply_AtlasDevFadeIn(const fe::Config& p_config,
 		code.jsr(ROM::Screen_SetFadePalette);
 		code.lda_imm(1); code.bne("@wait");
 		code.label("@full");
-		code.jsr(ROM::PPUBuffer_WaitEmpty); code.jsr(ROM::Screen_LoadBackgroundPalette);
+		code.jsr(ROM::PPUBuffer_WaitEmpty); code.lda_mem(0x03d0); // as the zero path
+		code.jsr(ROM::Screen_CopyBgPaletteToShadow);
+		code.jsr(ROM::PPUBuffer_QueuePaletteUpload);
 		code.lda_imm(0xff); code.sta_mem(0x0430);
 		code.label("@wait");
 		code.jsr(ROM::WaitForInterrupt); code.tsx(); code.dec_abs_x(0x0104);
@@ -858,7 +871,9 @@ word fh::HackManager::apply_AtlasDevFadeIn(const fe::Config& p_config,
 	code.pha();
 	code.tsx(); code.lda_abs_x(0x0102);                    // TSX; A = frames
 	code.bne("@timed");
-	code.jsr(ROM::PPUBuffer_WaitEmpty); code.jsr(ROM::Screen_LoadBackgroundPalette);
+	code.jsr(ROM::PPUBuffer_WaitEmpty); code.lda_mem(0x03d0); // see the one-operand form
+	code.jsr(ROM::Screen_CopyBgPaletteToShadow);
+	code.jsr(ROM::PPUBuffer_QueuePaletteUpload);
 	code.lda_imm(0xff); code.sta_mem(0x0430);
 	code.pla(); code.pla();
 	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
@@ -883,7 +898,9 @@ word fh::HackManager::apply_AtlasDevFadeIn(const fe::Config& p_config,
 	code.jsr(ROM::Screen_SetFadePalette);
 	code.lda_imm(1); code.bne("@wait");
 	code.label("@full");
-	code.jsr(ROM::PPUBuffer_WaitEmpty); code.jsr(ROM::Screen_LoadBackgroundPalette);
+	code.jsr(ROM::PPUBuffer_WaitEmpty); code.lda_mem(0x03d0); // see the one-operand form
+	code.jsr(ROM::Screen_CopyBgPaletteToShadow);
+	code.jsr(ROM::PPUBuffer_QueuePaletteUpload);
 	code.lda_imm(0xff); code.sta_mem(0x0430);
 	code.label("@wait");
 	code.jsr(ROM::WaitForInterrupt); code.tsx(); code.dec_abs_x(0x0105);
