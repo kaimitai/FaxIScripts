@@ -212,6 +212,9 @@ This minimizes ROM usage while allowing new opcode implementations to reuse comm
 | AtlasDevShakeScreen | Byte, Byte, Byte | Shakes the screen for the given number of NMI frames, alternating the scroll register by the given amplitude every given number of frames, then restores the entry scroll position | AtlasDevShakeScreen 60 2 1 ; shakes for 60 frames at amplitude 2, flipping every frame |
 | AtlasDevFadeOut | Byte, Byte | Fades the background/UI palette toward black over the given number of NMI frames, stopping at the given stage depth (1-4) | AtlasDevFadeOut 60 4 ; fades fully to black over 60 frames |
 | AtlasDevFadeIn | Byte, Byte | Fades the background/UI palette back in over the given number of NMI frames, reversing the given stage depth (1-4) | AtlasDevFadeIn 60 4 ; fades back in over 60 frames |
+| AtlasDevSetMusic | Byte | Stops the music with 0, or selects song 1-16; values above 16 are ignored | AtlasDevSetMusic 5 ; play song 5 |
+| AtlasDevPlaySFX | Byte | Plays public sound effect $00-$1c through the game's own effect entry point, exactly as in ordinary play; higher IDs are ignored | AtlasDevPlaySFX 4 ; play effect 4 |
+| AtlasDevIfMusic | Byte, Label | Jumps when the given song is the one currently selected | AtlasDevIfMusic 5 @already_playing |
 
 **Note**: Runtime implementations are intended for use with custom opcodes. Vanilla opcodes (0-23) continue to use the game's original implementations unless explicitly remapped. This preserves compatibility with existing scripts while allowing projects to extend the scripting language with new functionality.
 
@@ -279,7 +282,17 @@ Heartbeat pulse, five cycles of alternating fade out and fade in at full depth:
 
 All three effects are safe to run inside an open dialogue box; the box does not close until the script ends, and an open box does not touch the palette. The box's *close*, however, re-enqueues a palette reload, so a fade that must survive past the end of a conversation has to be re-applied after the box closes.
 
-#### Flags, subroutines and position checks
+**Note**: Runtime implementations are intended for use with custom opcodes. Vanilla opcodes (0-23) continue to use the game's original implementations unless explicitly remapped. This preserves compatibility with existing scripts while allowing projects to extend the scripting language with new functionality.
+
+#### AtlasDev audio
+
+```AtlasDevSetMusic``` writes the requested state straight to ```Music_Current``` (```$fa```), which is the same contract the game's own five call sites use, and the sound engine picks the change up on its next pass. ```0``` stops the music and ```1```-```16``` select a song. Values above 16 are deliberately a no-op rather than an error, so a script driving the opcode from a variable cannot push the sound engine into an undefined song. **Note:** the choice lasts until the player leaves the area. Scrolling between screens keeps it, but area changes and building entries set the music themselves, so use this for a moment in the current area rather than to retheme one.
+
+```AtlasDevPlaySFX``` plays a public sound effect through the game's own ```Sound_PlayEffect```, the same entry point its 56 vanilla call sites use, so an effect from a script sounds exactly like one from ordinary play. Whether the music continues underneath depends on which effect you pick, not on the opcode: an effect occupies whatever channels its own sound data uses, so most leave the melodic channels alone and a few take them. (That is separate from the priority arbitration in ```$F36F```, whose per-effect table at ```$F388``` only decides which of two competing effects wins the slot.) Measured from an APU write log with a song playing, effects ```$01``` and ```$04``` are indistinguishable from music alone, while effect ```$16``` triples the melodic writes and zeroes the triangle, so the track audibly drops under it. Only IDs ```$00```-```$1c``` are passed on; the effect routine indexes its table without bounds checking of its own, so higher values are dropped rather than forwarded.
+
+```AtlasDevIfMusic``` answers "is this song currently selected". It needs care that is worth knowing about if you write your own audio opcodes: ```Music_Current``` holds the requested ID up until the NMI picks it up, and the same ID with bit 7 set afterwards. A comparison against only one of those two forms would answer differently depending on which side of a frame boundary the script happened to run, so the opcode accepts both. Each read of ```$fa``` is a single instruction and the NMI preserves the accumulator, so no interrupt window can be observed between the two comparisons. IDs above 16 take the false branch, matching ```AtlasDevSetMusic```'s domain.
+
+None of the three blocks script execution, and none of them claims any state of its own or switches banks.
 
 ```SelectFlag``` stores an extended flag number in a temporary runtime variable. ```SetSelectedFlag```, ```ClearSelectedFlag``` and ```IfSelectedFlag``` operate on that selected flag instead of taking a flag number directly. This is particularly useful when multiple scripts share common logic for determining which flag should be used before deciding what operation to perform on it.
 

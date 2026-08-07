@@ -910,6 +910,71 @@ word fh::HackManager::apply_AtlasDevFadeIn(const fe::Config& p_config,
 	return get_next_cpu_addr(cpu_addr, code.apply_hack_and_clear(p_rom, 12, cpu_addr));
 }
 
+// AtlasDevSetMusic State: 0 stops the music, 1..16 select a song.
+// Values above 16 are a deliberate no-op so a script driven by a variable
+// cannot reach an undefined song.
+word fh::HackManager::apply_AtlasDevSetMusic(const fe::Config& p_config,
+	std::vector<byte>& p_rom, word cpu_addr) const {
+	klib::Asm6502 code;
+
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); // A = requested state
+	code.cmp_imm(0x11);                                       // 0=stop, 1..16=song
+	code.bcs("@done");                                        // 17..255: safe no-op
+	code.sta_zp(RAM::ZP_MusicCurrent);
+
+	code.label("@done");
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+
+	return get_next_cpu_addr(cpu_addr,
+		code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+}
+
+// AtlasDevPlaySFX Id: a public sound effect, $00..$1c. Higher values are
+// ignored because the effect routine indexes its table unchecked. Whether
+// the music keeps playing under it depends on the effect, not this opcode.
+word fh::HackManager::apply_AtlasDevPlaySFX(const fe::Config& p_config,
+	std::vector<byte>& p_rom, word cpu_addr) const {
+	klib::Asm6502 code;
+
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); // A = public SFX ID
+	code.cmp_imm(0x1d);                                       // IDs $00..$1c only
+	code.bcs("@done");
+	code.jsr(ROM::Sound_PlayEffect);
+
+	code.label("@done");
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+
+	return get_next_cpu_addr(cpu_addr,
+		code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+}
+
+// AtlasDevIfMusic Song Label: jumps when Song is the track selected.
+// Music_Current holds the requested ID before the NMI picks it up and the
+// same ID with bit 7 set afterwards, so both forms are compared.
+word fh::HackManager::apply_AtlasDevIfMusic(const fe::Config& p_config,
+	std::vector<byte>& p_rom, word cpu_addr) const {
+	klib::Asm6502 code;
+
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); // A = requested song
+	code.cmp_imm(0x11);                                       // valid: 0..16
+	code.bcs("@not_equal");                                   // 17..255: false
+
+	code.cmp_zp(RAM::ZP_MusicCurrent);                        // pending form
+	code.beq("@equal");
+	code.ora_imm(0x80);
+	code.cmp_zp(RAM::ZP_MusicCurrent);                        // NMI-promoted form
+	code.beq("@equal");
+
+	code.label("@not_equal");
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_SKIPADDRANDINVOKE));
+
+	code.label("@equal");
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_JUMPTONEXTADDR));
+
+	return get_next_cpu_addr(cpu_addr,
+		code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+}
+
 // main orchestrator - injects the script routines specified by users through the configuration xml
 // and extends the scripting language itself
 std::size_t fh::HackManager::apply_script_library(const fe::Config& p_config, std::vector<byte>& p_rom,
@@ -1104,6 +1169,17 @@ std::size_t fh::HackManager::apply_script_library(const fe::Config& p_config, st
 			cpu_addr = apply_AtlasDevFadeIn(p_config, p_rom, cpu_addr);
 			break;
 		}
+		case HackLib::AtlasDevSetMusic:
+			cpu_addr = apply_AtlasDevSetMusic(p_config, p_rom, cpu_addr);
+			break;
+
+		case HackLib::AtlasDevPlaySFX:
+			cpu_addr = apply_AtlasDevPlaySFX(p_config, p_rom, cpu_addr);
+			break;
+
+		case HackLib::AtlasDevIfMusic:
+			cpu_addr = apply_AtlasDevIfMusic(p_config, p_rom, cpu_addr);
+			break;
 
 		default:
 			throw std::runtime_error("Unsupported script library routine.");

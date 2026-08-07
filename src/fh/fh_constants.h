@@ -52,6 +52,7 @@ namespace fh {
 		constexpr byte ZP_Temp_Int24_L{ 0xec };
 		constexpr byte ZP_Temp_Int24_M{ 0xed };
 		constexpr byte ZP_Temp_Int24_U{ 0xee };
+		constexpr byte ZP_MusicCurrent{ 0xfa };
 
 		constexpr word CurrentROMBank{ 0x0100 };
 		constexpr word Flags{ 0x0101 };

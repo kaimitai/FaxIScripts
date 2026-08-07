@@ -1798,6 +1798,9 @@
 			<entry key="AtlasDevShakeScreen" value="Args=Byte+Byte+Byte" />
 			<entry key="AtlasDevFadeOut" value="Args=Byte+Byte" />
 			<entry key="AtlasDevFadeIn" value="Args=Byte+Byte" />
+			<entry key="AtlasDevSetMusic" value="Args=Byte" />
+			<entry key="AtlasDevPlaySFX" value="Args=Byte" />
+			<entry key="AtlasDevIfMusic" value="Args=Byte,Flow=Jump" />
 		</string_to_string_map>
 	</string_to_string_maps>
 </eoe_config>
