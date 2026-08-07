@@ -18,7 +18,8 @@ namespace fh {
 		RunScreenHandler, GetXP, IfWorld, IfScreen, IfStage, Die,
 		JSR, Return, ForceDoor, IfYX, IfDoorYX,
 		IfAddrEquals, IfAddrBetween, SetAddr,
-		AtlasDevShakeScreen, AtlasDevFadeOut, AtlasDevFadeIn
+		AtlasDevShakeScreen, AtlasDevFadeOut, AtlasDevFadeIn,
+		AtlasDevSetMusic, AtlasDevPlaySFX, AtlasDevIfMusic
 	};
 
 	class HackManager {
@@ -67,6 +68,9 @@ namespace fh {
 		word apply_AtlasDevShakeScreen(const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const;
 		word apply_AtlasDevFadeOut(const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const;
 		word apply_AtlasDevFadeIn(const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const;
+		word apply_AtlasDevSetMusic(const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const;
+		word apply_AtlasDevPlaySFX(const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const;
+		word apply_AtlasDevIfMusic(const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const;
 
 		// shared helpers for the script action library
 		word apply_helper_DecodeScriptFlag(const fe::Config& p_config, std::vector<byte>& p_rom,
