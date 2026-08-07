@@ -145,6 +145,7 @@ namespace klib {
 		void tay(void);
 		void tya(void);
 		void txa(void);
+		void tsx(void);
 
 		//shifts
 		void lsr_a(std::size_t count = 1);
@@ -153,8 +154,12 @@ namespace klib {
 		// math
 		void inx(void);
 		void dec_zp(byte p_addr);
+		void dec_abs_x(word p_addr);
 		void adc_imm(byte p_value);
 		void adc_zp(byte p_addr);
+		void adc_abs_x(word p_addr);
+		void sbc_imm(byte p_value);
+		void sbc_abs_x(word p_addr);
 		void dex(void);
 		void iny(void);
 		void sec(void);

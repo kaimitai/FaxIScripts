@@ -209,8 +209,77 @@ This minimizes ROM usage while allowing new opcode implementations to reuse comm
 | RunScreenHandler | None | Executes the custom screen event handler (used by the tilemap change subsystem) | |
 | GetXP | Short (0-65,535) | Gives player xp; note that "next rank" can only increase by 1 each time XP is given | GetXP 100 ; player gets 100xp |
 | Die | None | Kills the player when the script ends | |
+| AtlasDevShakeScreen | Byte, Byte, Byte | Shakes the screen for the given number of NMI frames, alternating the scroll register by the given amplitude every given number of frames, then restores the entry scroll position | AtlasDevShakeScreen 60 2 1 ; shakes for 60 frames at amplitude 2, flipping every frame |
+| AtlasDevFadeOut | Byte, Byte | Fades the background/UI palette toward black over the given number of NMI frames, stopping at the given stage depth (1-4) | AtlasDevFadeOut 60 4 ; fades fully to black over 60 frames |
+| AtlasDevFadeIn | Byte, Byte | Fades the background/UI palette back in over the given number of NMI frames, reversing the given stage depth (1-4) | AtlasDevFadeIn 60 4 ; fades back in over 60 frames |
 
 **Note**: Runtime implementations are intended for use with custom opcodes. Vanilla opcodes (0-23) continue to use the game's original implementations unless explicitly remapped. This preserves compatibility with existing scripts while allowing projects to extend the scripting language with new functionality.
+
+#### AtlasDev visual effects
+
+```AtlasDevShakeScreen```, ```AtlasDevFadeOut``` and ```AtlasDevFadeIn``` each block script execution until their frame count elapses; NMI, OAM, controller polling and audio keep running, but the calling script does not advance until the effect finishes, so none of the three can be nested or interrupted by another script action. For ```AtlasDevFadeOut``` and ```AtlasDevFadeIn```, a frame count of ```0``` publishes the terminal state immediately instead of animating toward it. For ```AtlasDevShakeScreen```, a frame count of ```0``` is a plain no-op: the scroll register is left untouched.
+
+```AtlasDevShakeScreen``` alternates the live horizontal scroll byte ```$0c``` by the requested amplitude every ```Period``` frames and restores the entry value exactly when it finishes. On a screen with a real adjacent same-area screen, this reads as a shake: one alternation phase is a clean translation of the same picture. On a single-screen interior, where the scroll rests at zero, the offset instead reveals the neighbour nametable page, which usually still holds whichever screen was visited previously, so it reads as a strobe rather than a shake. Both behaviors are deterministic and restore cleanly; the interior behaviour is a legitimate effect modders can use deliberately, not a defect to design around.
+
+```AtlasDevFadeOut``` and ```AtlasDevFadeIn``` both drive the game's own fade routine (```$D0AD```). Its stage loop is hard bounded, exactly the width of the background/UI palette shadow it walks, so it only ever darkens the background palette; sprites, including dialogue portraits, stay lit throughout. This matches vanilla's own fades, which use the same routine at all five of its call sites, and it can be used deliberately for a spotlight look. ```Depth``` selects how many of the four vanilla stages to traverse, 1 to 4, and is clamped in the emitted code exactly as vanilla guards the same delta table; an ```AtlasDevFadeOut``` that is not followed by a matching ```AtlasDevFadeIn``` leaves the background dark persistently.
+
+Each of the three reads its own operand count back out of its declared signature in ```iscript_opcode_impls``` rather than assuming one: the signature shown above is what ships, and declaring ```Args=Byte``` for any of them instead builds the earlier plain frame-count handler (```AtlasDevShakeScreen Frames``` shakes at amplitude 2 every frame; ```AtlasDevFadeOut Frames``` and ```AtlasDevFadeIn Frames``` run the full depth-4 fade).
+
+#### AtlasDev visual effect presets
+
+These named constants reproduce values chosen from a rendered matrix and confirmed on hardware. Paste the block into a script's ```[defines]``` section so call sites read as intent rather than magic numbers:
+
+```text
+[defines]
+SHAKE_RUMBLE_FRAMES     60
+SHAKE_RUMBLE_AMP         1
+SHAKE_RUMBLE_PERIOD      1
+SHAKE_CLASSIC_FRAMES    60
+SHAKE_CLASSIC_AMP        2
+SHAKE_CLASSIC_PERIOD     1
+SHAKE_QUAKE_FRAMES      90
+SHAKE_QUAKE_AMP          8
+SHAKE_QUAKE_PERIOD       2
+SHAKE_SLOW_SWAY_FRAMES  60
+SHAKE_SLOW_SWAY_AMP      3
+SHAKE_SLOW_SWAY_PERIOD   6
+FADE_DEPTH_DIM           1
+FADE_DEPTH_DUSK          2
+FADE_DEPTH_GLOOM         3
+FADE_DEPTH_BLACK         4
+```
+
+| preset | call |
+|---|---|
+| SHAKE_RUMBLE | AtlasDevShakeScreen SHAKE_RUMBLE_FRAMES SHAKE_RUMBLE_AMP SHAKE_RUMBLE_PERIOD |
+| SHAKE_CLASSIC | AtlasDevShakeScreen SHAKE_CLASSIC_FRAMES SHAKE_CLASSIC_AMP SHAKE_CLASSIC_PERIOD |
+| SHAKE_QUAKE | AtlasDevShakeScreen SHAKE_QUAKE_FRAMES SHAKE_QUAKE_AMP SHAKE_QUAKE_PERIOD |
+| SHAKE_SLOW_SWAY | AtlasDevShakeScreen SHAKE_SLOW_SWAY_FRAMES SHAKE_SLOW_SWAY_AMP SHAKE_SLOW_SWAY_PERIOD |
+| FADE_DIM | AtlasDevFadeOut 45 FADE_DEPTH_DIM |
+| FADE_DUSK | AtlasDevFadeOut 45 FADE_DEPTH_DUSK |
+| FADE_GLOOM | AtlasDevFadeOut 45 FADE_DEPTH_GLOOM |
+| FADE_BLACK | AtlasDevFadeOut 60 FADE_DEPTH_BLACK |
+
+One recipe, watched and confirmed before being written down:
+
+Heartbeat pulse, five cycles of alternating fade out and fade in at full depth:
+
+```text
+    AtlasDevFadeOut 24 FADE_DEPTH_BLACK
+    AtlasDevFadeIn  24 FADE_DEPTH_BLACK
+    AtlasDevFadeOut 24 FADE_DEPTH_BLACK
+    AtlasDevFadeIn  24 FADE_DEPTH_BLACK
+    AtlasDevFadeOut 24 FADE_DEPTH_BLACK
+    AtlasDevFadeIn  24 FADE_DEPTH_BLACK
+    AtlasDevFadeOut 24 FADE_DEPTH_BLACK
+    AtlasDevFadeIn  24 FADE_DEPTH_BLACK
+    AtlasDevFadeOut 24 FADE_DEPTH_BLACK
+    AtlasDevFadeIn  24 FADE_DEPTH_BLACK
+```
+
+All three effects are safe to run inside an open dialogue box; the box does not close until the script ends, and an open box does not touch the palette. The box's *close*, however, re-enqueues a palette reload, so a fade that must survive past the end of a conversation has to be re-applied after the box closes.
+
+#### Flags, subroutines and position checks
 
 ```SelectFlag``` stores an extended flag number in a temporary runtime variable. ```SetSelectedFlag```, ```ClearSelectedFlag``` and ```IfSelectedFlag``` operate on that selected flag instead of taking a flag number directly. This is particularly useful when multiple scripts share common logic for determining which flag should be used before deciding what operation to perform on it.
 

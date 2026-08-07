@@ -19,6 +19,9 @@ namespace fh {
 		constexpr word Game_Init_JSR_Game_InitScreenAndMusic{ Game_Init_JSR_Game_InitMMCAndBank + 3 };
 		constexpr word WaitForInterrupt{ 0xca2e };
 		constexpr word Game_InitMMCAndBank{ 0xcbbf };
+		constexpr word PPUBuffer_WaitEmpty{ 0xcff4 };
+		constexpr word Screen_LoadBackgroundPalette{ 0xd00d };
+		constexpr word Screen_SetFadePalette{ 0xd0ad };
 		constexpr word Sound_PlayEffect{ 0xd0e4 };
 		constexpr word Area_SetBlocks{ 0xd7c5 };
 		constexpr word Area_ConvertPixelsToBlockPos{ 0xe86c };
