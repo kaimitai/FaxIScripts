@@ -56,6 +56,7 @@ void klib::Asm6502::clear(void) {
 	m_bytes.clear();
 	m_labels.clear();
 	m_branch_refs.clear();
+	m_jump_refs.clear();
 }
 
 void klib::Asm6502::emit(byte p_byte) {
