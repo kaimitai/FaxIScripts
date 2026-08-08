@@ -12,6 +12,16 @@ namespace fh {
 		// bank 12 addresses
 		constexpr word IScripts_JumpTable_Ref_U{ 0x8273 }; // us, jp
 		constexpr word IScripts_JumpTable_Ref_L{ 0x8277 }; // us, jp
+		constexpr word TextBox_OpenForNPC{ 0x81e2 };
+		constexpr word TextBox_Close{ 0x81fb };
+		constexpr word TextBox_OpenForPortrait{ 0x821f };
+		constexpr word TextBox_ClearForPortraitAndText{ 0x822b };
+		constexpr word IScripts_MessageFinish{ 0x82b4 };
+		constexpr word Menu_WaitInput{ 0x84ed };
+		constexpr word Portrait_Pump{ 0x87b0 };
+		constexpr word Text_ContinueGate{ 0x9956 };
+		constexpr word IScripts_RootPointerLo{ 0x9f6b };
+		constexpr word IScripts_RootPointerHi{ 0xa003 };
 		constexpr word GameLoop_RunScreenEventHandlers{ 0xef4b };
 
 		// bank 15 addresses
@@ -28,6 +38,11 @@ namespace fh {
 		constexpr word Area_ConvertPixelsToBlockPos{ 0xe86c };
 		constexpr word GameLoop_RunScreenEventHandlers_CMP_06{ 0xef55 };
 		constexpr word GameLoop_RunScreenEventHandlers_LDA_EventTable{ 0xef5a };
+		constexpr word Portrait_LoadTiles{ 0xf24d };
+		constexpr word Portrait_Clear{ 0xf281 };
+		constexpr word Messages_Load{ 0xf3f5 };
+		constexpr word Text_ShowNextChar{ 0xf466 };
+		constexpr word Number_DrawAtPos{ 0xfa03 };
 	}
 
 	namespace RAM {
@@ -55,6 +70,11 @@ namespace fh {
 		constexpr byte ZP_MusicCurrent{ 0xfa };
 
 		constexpr word CurrentROMBank{ 0x0100 };
+		constexpr word IScriptTextBoxContext{ 0x0201 };
+		constexpr word EntitySlotActive{ 0x02cc };
+		constexpr word EntityScriptRoot{ 0x036c };
+		constexpr word PortraitSavedPalette{ 0x03d3 };
+
 		constexpr word Flags{ 0x0101 };
 		constexpr word DoorKeyRequirement{ 0x042b };
 		constexpr word QuestFlags{ 0x042d };
@@ -86,6 +106,13 @@ namespace fh {
 		constexpr char ID_HACK_SCRIPT_JSR_RAM_ADDR_LO[]{ "hack_script_jsr_ram_addr_lo" };
 		constexpr char ID_HACK_SCRIPT_JSR_RAM_ADDR_HI[]{ "hack_script_jsr_ram_addr_hi" };
 		constexpr char ID_HACK_SCRIPT_SELECTED_FLAG_RAM_ADDR[]{ "hack_script_selected_flag_ram_addr" };
+
+		// Used only by AtlasDevShowMessageFromVar. No default is shipped: a
+		// project must define both before that opcode can be installed, and
+		// Config::constant throws by name if either is missing, so the build
+		// fails loudly rather than reading unallocated RAM.
+		constexpr char ID_HACK_SCRIPT_VAR_RAM_ADDR[]{ "hack_script_var_ram_addr" };
+		constexpr char ID_HACK_SCRIPT_VAR_COUNT[]{ "hack_script_var_count" };
 
 		constexpr char ID_FLAGS_WRAM_TO_SRAM[]{ "flags_wram_to_sram" };
 

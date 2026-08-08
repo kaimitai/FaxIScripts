@@ -929,6 +929,59 @@ word fh::HackManager::apply_AtlasDevSetMusic(const fe::Config& p_config,
 		code.apply_hack_and_clear(p_rom, 12, cpu_addr));
 }
 
+// --- AtlasDev dialogue opcodes ---------------------------------------
+// AtlasDevShowMessageFromVar requires the script-variable feature and will
+// fail the build with a named missing-constant error without it; see the
+// note in docs/advanced_doc.md before enabling that one.
+
+word fh::HackManager::apply_AtlasDevShowSequentialMessages(const fe::Config& p_config,
+	std::vector<byte>& p_rom, word cpu_addr) const {
+	klib::Asm6502 code;
+	// Four message-id operands; 0 marks an unused slot.  Ids are
+	// 1-based indexes into the bank-13 string table -- raw ids bypass
+	// the compiler's string relocation, so scripts should reference
+	// [reserved_strings] indexes or table positions they control.
+	// Messages_Load is fully reentrant (the textbox frame and grid are
+	// laid once at script open), so each id is loaded and pumped with
+	// the vanilla Msg pattern; the one-A-press gate between messages is
+	// the engine's own continue test.  B skips the remaining messages
+	// (operands still consumed -- the stream never desyncs) and the
+	// script continues; it does not end the script.
+	code.lda_imm(0x04);
+	code.db(0x48); // PHA -- remaining-slots counter on the stack
+	code.label("@next");
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); // id
+	code.beq("@advance"); // 0: unused slot
+	code.jsr(ROM::Messages_Load);
+	code.label("@pump");
+	code.jsr(ROM::Portrait_Pump);
+	code.jsr(ROM::Text_ShowNextChar);
+	code.jsr(ROM::Text_ContinueGate);
+	code.bcs("@dismiss"); // B pressed
+	code.bne("@pump");
+	code.label("@advance");
+	code.db(0x68); // PLA
+	code.db(0x38); // SEC
+	code.db(0xe9); code.db(0x01); // SBC #$01
+	code.beq("@done");
+	code.db(0x48); // PHA
+	code.bne("@next"); // A nonzero here: branch always
+	code.label("@dismiss");
+	code.db(0x68); // PLA
+	code.db(0x38); // SEC
+	code.db(0xe9); code.db(0x01); // SBC #$01
+	code.beq("@done");
+	code.tax();
+	code.label("@drain");
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); // consume
+	code.db(0xca); // DEX
+	code.bne("@drain");
+	code.label("@done");
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+	return get_next_cpu_addr(cpu_addr,
+		code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+}
+
 // AtlasDevPlaySFX Id: a public sound effect, $00..$1c. Higher values are
 // ignored because the effect routine indexes its table unchecked. Whether
 // the music keeps playing under it depends on the effect, not this opcode.
@@ -942,6 +995,303 @@ word fh::HackManager::apply_AtlasDevPlaySFX(const fe::Config& p_config,
 	code.jsr(ROM::Sound_PlayEffect);
 
 	code.label("@done");
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+
+	return get_next_cpu_addr(cpu_addr,
+		code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+}
+
+// DO NOT USE YET.  This opcode is published for review, not for shipping
+// scripts.  It needs the script-variable feature (hack_script_var_ram_addr /
+// hack_script_var_count), which is not upstream, so Config::constant throws
+// by name and the build fails rather than the ROM misbehaving.  It has had no
+// hardware validation beyond a purpose-built fixture that defined that RAM.
+word fh::HackManager::apply_AtlasDevShowNumberInMessage(const fe::Config& p_config,
+	std::vector<byte>& p_rom, word cpu_addr) const {
+	klib::Asm6502 code;
+	// Renders a script register, so this needs the script-variable feature
+	// exactly as AtlasDevShowChoiceToVar and AtlasDevShowMessageFromVar do.
+	// Config::constant throws by name if a project has not defined the base,
+	// which is what stops this reading unallocated RAM.
+	const word Vars{ cfg_word(p_config, c::ID_HACK_SCRIPT_VAR_RAM_ADDR) };
+	// True in-string substitution would need a new control byte in the
+	// fixed-bank text interpreter (a CMP chain with no free byte) --
+	// not pure, rejected.  Instead: reveal the whole message WITHOUT
+	// the A-wait, then render the register as three digits at the text
+	// cursor (box origin + 2 + column $0216 / line $0217) with the
+	// same converter the shipped DrawVarNumber uses, then run the
+	// engine's own A-wait.  Digit tiles $30-$39 are HUD-resident, so
+	// the number needs no grid tiles.  Message id 0 is a no-op (both
+	// operands still consumed).  B dismisses as vanilla Msg does.
+	// The converter's 24-bit input ($ec/$ed/$ee) CANNOT be filled before the
+	// message is revealed: the reveal clobbers all three.  Portrait_Pump
+	// writes $ed and compares $ec, and the tile helpers at $f860-$f866 write
+	// $ec, $ed and $ee outright.  Filling them first drew whatever the reveal
+	// happened to leave behind.  So keep both operands on the stack across
+	// the loop -- the same technique AtlasDevShowSequentialMessages uses for
+	// its counter -- and load the register only just before the draw.
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); // message id
+	code.db(0x48); // PHA                          stack: [id]
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); // register
+	code.and_imm(0x07);
+	code.db(0x48); // PHA                          stack: [id, reg]
+	code.db(0xba); // TSX -- read the id back without disturbing either entry
+	code.lda_abs_x(0x0102); // A = message id
+	code.beq("@drop");
+	code.jsr(ROM::Messages_Load);
+	code.label("@pump"); // reveal fully, no A-wait yet
+	code.jsr(ROM::Portrait_Pump);
+	code.jsr(ROM::Text_ShowNextChar);
+	code.db(0xad); code.db(0x13); code.db(0x02); // LDA $0213 stream active?
+	code.bne("@pump");
+	code.db(0xad); code.db(0x08); code.db(0x02); // LDA $0208 box x
+	code.db(0x18); // CLC
+	code.db(0x69); code.db(0x02); // ADC #$02
+	code.db(0x6d); code.db(0x16); code.db(0x02); // ADC $0216 cursor column
+	code.sta_zp(0xea);
+	code.db(0xad); code.db(0x09); code.db(0x02); // LDA $0209 box y
+	code.db(0x18); // CLC
+	code.db(0x69); code.db(0x02); // ADC #$02
+	code.db(0x6d); code.db(0x17); code.db(0x02); // ADC $0217 cursor line
+	code.sta_zp(0xeb);
+	// Only now is it safe to fill the converter's input.
+	code.db(0x68); // PLA -- register index      stack: [id]
+	code.tax();
+	code.lda_abs_x(Vars);
+	code.sta_zp(0xec); // 24-bit value for the converter, low byte
+	code.lda_imm(0x00);
+	code.sta_zp(0xed);
+	code.sta_zp(0xee);
+	code.db(0xa0); code.db(0x03); // LDY #$03 -- three digits (0-255)
+	code.jsr(ROM::Number_DrawAtPos);
+	code.db(0x68); // PLA -- discard the message id   stack: []
+	code.label("@wait"); // now the engine's own continue gate
+	code.jsr(ROM::Portrait_Pump);
+	code.jsr(ROM::Text_ContinueGate);
+	code.bcs("@done");
+	code.bne("@wait");
+	code.jmp("@done"); // stack is already balanced on this path
+
+	code.label("@drop"); // message id 0: both operands consumed, nothing drawn
+	code.db(0x68); // PLA -- register
+	code.db(0x68); // PLA -- message id
+
+	code.label("@done");
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+	return get_next_cpu_addr(cpu_addr,
+		code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+}
+
+// DO NOT USE YET.  This opcode is published for review, not for shipping
+// scripts.  It needs the script-variable feature (hack_script_var_ram_addr /
+// hack_script_var_count), which is not upstream, so Config::constant throws
+// by name and the build fails rather than the ROM misbehaving.  It has had no
+// hardware validation beyond a purpose-built fixture that defined that RAM.
+word fh::HackManager::apply_AtlasDevShowChoiceToVar(const fe::Config& p_config,
+	std::vector<byte>& p_rom, word cpu_addr) const {
+	klib::Asm6502 code;
+	// Runs the vanilla menu selection loop ($84ED: portrait tick,
+	// Menu_UpdateAndDraw, joypad) over Count rows, then stores the
+	// chosen index in a script register -- $FF when the player
+	// cancels with B.  The shop's purchase path is never entered:
+	// only the cursor state ($021E current, $021F count) is used, and
+	// the script draws its own choice text.  Count is clamped to 1..8.
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); // count
+	code.cmp_imm(0x01);
+	code.db(0xb0); code.db(0x02); // BCS @count_min
+	code.lda_imm(0x01);
+	code.cmp_imm(0x09);
+	code.bcc("@count_ok");
+	code.lda_imm(0x08);
+	code.label("@count_ok");
+	code.sta_abs(0x021f);
+	code.lda_imm(0x00);
+	code.sta_abs(0x021e); // cursor starts on the first row
+	// The chosen index is stored in a script register, so this opcode needs
+	// the script-variable feature just as AtlasDevShowMessageFromVar does.
+	// Reading the base through the config rather than hardcoding $03B5 means
+	// Config::constant throws by name when a project has not defined it,
+	// instead of silently writing to unallocated RAM.
+	const word Vars{ cfg_word(p_config, c::ID_HACK_SCRIPT_VAR_RAM_ADDR) };
+	const byte VarCount{ cfg_byte(p_config, c::ID_HACK_SCRIPT_VAR_COUNT) };
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); // register
+	code.cmp_imm(VarCount); code.bcc("@reg_ok");
+	code.lda_imm(0x00);                       // out of range selects register 0
+	code.label("@reg_ok");
+	code.sta_zp(0xee);
+	code.jsr(ROM::Menu_WaitInput);
+	code.bcc("@confirmed"); // carry clear = A pressed
+	code.lda_imm(0xff);     // carry set = B pressed, report cancel
+	code.bne("@store");
+	code.label("@confirmed");
+	code.lda_abs(0x021e);
+	code.label("@store");
+	code.db(0xa6); code.db(0xee); // LDX $EE
+	code.sta_abs_x(Vars);
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+	return get_next_cpu_addr(cpu_addr,
+		code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+}
+
+word fh::HackManager::apply_AtlasDevClearPortrait(const fe::Config& p_config,
+	std::vector<byte>& p_rom, word cpu_addr) const {
+	klib::Asm6502 code;
+	// The vanilla portrait teardown ($F281): id := $FF, image cleared,
+	// area palette restored.  Dialogue/window state untouched, so a
+	// script can drop the portrait and keep talking.
+	code.jsr(ROM::Portrait_Clear);
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+	return get_next_cpu_addr(cpu_addr,
+		code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+}
+
+word fh::HackManager::apply_AtlasDevEntitySayMessage(
+	const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const {
+	klib::Asm6502 code;
+
+	// Consume only Slot.  The Message index is left as the very next script
+	// byte; vanilla ShowMessage's own LoadByte call consumes it below, so
+	// $DB/$DC/$DD only ever advance through IScripts_LoadByte itself and are
+	// never separately touched by this handler.
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); // A = Slot
+	code.cmp_imm(0x08);
+	code.bcs("@skip");                                        // slot >= 8: invalid
+	code.tax();
+	code.lda_abs_x(RAM::EntitySlotActive);                    // $02CC+slot
+	code.bmi("@skip");                                        // inactive slot
+	code.lda_abs_x(RAM::EntityScriptRoot);                    // $036C+slot
+	code.cmp_imm(0xff);
+	code.beq("@skip");                                        // no script assigned
+	code.tax();                                                // X = root index 0..151
+	code.lda_abs_x(ROM::IScripts_RootPointerLo);
+	code.sta_zp(0xea);
+	code.lda_abs_x(ROM::IScripts_RootPointerHi);
+	code.sta_zp(0xeb);
+	code.ldy_imm(0x00);
+	code.lda_ind_y(0xea);              // A = that entity's raw context byte
+
+	// From here down this is FaxIScripts' own already-proven, owner-passed
+	// SetPortrait state machine (tools/faxiscripts_setportrait.py), operating
+	// on a derived byte instead of a fresh LoadByte operand, with every exit
+	// retargeted from InvokeNextAction to vanilla ShowMessage so the Message
+	// index that follows Slot in the script is consumed and rendered next.
+	code.cmp_imm(0x00);
+	code.beq("@valid");
+	code.cmp_imm(0x80);
+	code.bcc("@skip");
+	code.cmp_imm(0x8b);
+	code.bcs("@skip");
+
+	code.label("@valid");
+	code.cmp_abs(RAM::IScriptTextBoxContext);
+	code.beq("@skip");
+	code.pha();
+	code.lda_abs(RAM::IScriptTextBoxContext);
+	code.bmi("@from_portrait");
+
+	code.pla();
+	code.beq("@store_generic");
+	code.pha();
+	code.jsr(ROM::TextBox_Close);
+	code.pla();
+	code.sta_abs(RAM::IScriptTextBoxContext);
+	code.and_imm(0x7f);
+	code.jsr(ROM::Portrait_LoadTiles);
+	code.jsr(ROM::TextBox_OpenForPortrait);
+	code.jsr(ROM::TextBox_OpenForNPC);
+	code.jmp("@show");
+
+	code.label("@store_generic");
+	code.sta_abs(RAM::IScriptTextBoxContext);
+	code.jmp("@show");
+
+	code.label("@from_portrait");
+	code.pla();
+	code.sta_abs(RAM::IScriptTextBoxContext);
+	code.beq("@to_generic");
+	code.lda_abs(RAM::PortraitSavedPalette);
+	code.pha();
+	code.lda_abs(RAM::IScriptTextBoxContext);
+	code.and_imm(0x7f);
+	code.jsr(ROM::Portrait_LoadTiles);
+	code.pla();
+	code.sta_abs(RAM::PortraitSavedPalette);
+	code.jmp("@show");
+
+	code.label("@to_generic");
+	code.jsr(ROM::Portrait_Clear);
+	code.jsr(ROM::TextBox_ClearForPortraitAndText);
+	code.jsr(ROM::TextBox_OpenForNPC);
+
+	code.label("@skip");
+	code.jmp("@show");
+
+	// Inlined copy of the vanilla message loop that used to live at $82D9.
+	// That entry stub has no callers anywhere in the ROM, which makes it the
+	// kind of region a modding framework legitimately reclaims; FaxIScripts
+	// already does exactly that with $D005-$D012 for its extended-flags boot
+	// stub.  Everything the stub actually ran is live and still called here:
+	// $F3F5, $87B0, $F466, $9956, and the shared close tail at $82B4.
+	code.label("@show");
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE));
+	code.jsr(ROM::Messages_Load);
+	code.label("@show_char");
+	code.jsr(ROM::Portrait_Pump);
+	code.jsr(ROM::Text_ShowNextChar);
+	code.jsr(ROM::Text_ContinueGate);
+	code.bcs("@show_close");
+	code.bne("@show_char");
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+	code.label("@show_close");
+	code.jmp(ROM::IScripts_MessageFinish);
+
+	return get_next_cpu_addr(cpu_addr,
+		code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+}
+
+// DO NOT USE YET.  This opcode is published for review, not for shipping
+// scripts.  It needs the script-variable feature (hack_script_var_ram_addr /
+// hack_script_var_count), which is not upstream, so Config::constant throws
+// by name and the build fails rather than the ROM misbehaving.  It has had no
+// hardware validation beyond a purpose-built fixture that defined that RAM.
+word fh::HackManager::apply_AtlasDevShowMessageFromVar(const fe::Config& p_config,
+	std::vector<byte>& p_rom, word cpu_addr) const {
+	klib::Asm6502 code;
+	const word Vars{ cfg_word(p_config, c::ID_HACK_SCRIPT_VAR_RAM_ADDR) };
+	const byte Count{ cfg_byte(p_config, c::ID_HACK_SCRIPT_VAR_COUNT) };
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); // A = register
+	code.cmp_imm(Count); code.bcs("@invalid");
+	code.tay(); code.lda_abs_y(Vars); // A = message ID
+	code.cmp_imm(1); code.bcc("@invalid");
+	code.cmp_imm(194); code.bcs("@invalid");
+	// Inline the vanilla message loop rather than tail-entering $82DC, three
+	// bytes into the entry stub at $82D9.  That stub has no callers anywhere
+	// in the ROM, so it is reclaimable space, and entering it mid-routine
+	// would land mid-instruction if it ever moved.  The routines below are
+	// all live code the game calls itself.  A is already the message ID, so
+	// the stub's own LoadByte is exactly what gets skipped.
+	code.jsr(ROM::Messages_Load);
+	code.label("@show_char");
+	code.jsr(ROM::Portrait_Pump);
+	code.jsr(ROM::Text_ShowNextChar);
+	code.jsr(ROM::Text_ContinueGate);
+	code.bcs("@show_close");
+	code.bne("@show_char");
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+	code.label("@show_close");
+	code.jmp(ROM::IScripts_MessageFinish);
+	code.label("@invalid");
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+	return get_next_cpu_addr(cpu_addr, code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+}
+
+word fh::HackManager::apply_AtlasDevHideTextbox(
+	const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const {
+	klib::Asm6502 code;
+
+	// $81FB is the generic vanilla End-action close path:
+	// JSR $81C0 (select the dialogue rectangle), JMP $9002 (restore it).
+	code.jsr(ROM::TextBox_Close);
 	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
 
 	return get_next_cpu_addr(cpu_addr,
@@ -970,6 +1320,111 @@ word fh::HackManager::apply_AtlasDevIfMusic(const fe::Config& p_config,
 
 	code.label("@equal");
 	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_JUMPTONEXTADDR));
+
+	return get_next_cpu_addr(cpu_addr,
+		code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+}
+
+word fh::HackManager::apply_AtlasDevOpenTextbox(
+	const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const {
+	klib::Asm6502 code;
+
+	// The counterpart to AtlasDevHideTextbox.  $81E2 is the vanilla open the
+	// game itself uses for an NPC conversation, called from three places: it
+	// selects the dialogue rectangle, lays the frame, and points the text
+	// cursor ($ea/$eb) at the rectangle origin plus two.  Text tiles only
+	// exist while a box is open, so this is what makes text drawn after a
+	// close visible again without forcing a portrait.
+	code.jsr(ROM::TextBox_OpenForNPC);
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+
+	return get_next_cpu_addr(cpu_addr,
+		code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+}
+
+word fh::HackManager::apply_AtlasDevCloseDialogue(
+	const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const {
+	klib::Asm6502 code;
+
+	// The portrait counterpart to AtlasDevHideTextbox, which restores only
+	// whichever rectangle $81C0 has selected.  A portrait conversation
+	// occupies the larger portrait-and-text rectangle, so closing it needs
+	// $822B, which sets that rectangle explicitly before restoring it.
+	//
+	// Drop the context first so the portrait tick cannot repopulate portrait
+	// OAM from an NMI landing in the middle of the teardown, and so any later
+	// message in the same script is handled as a plain one.
+	code.lda_imm(0x00);
+	code.sta_abs(RAM::IScriptTextBoxContext);
+	code.jsr(ROM::Portrait_Clear);
+	code.jsr(ROM::TextBox_ClearForPortraitAndText);
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+
+	return get_next_cpu_addr(cpu_addr,
+		code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+}
+
+word fh::HackManager::apply_AtlasDevSetPortrait(
+	const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const {
+	klib::Asm6502 code;
+
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); // A = raw textbox context
+	code.cmp_imm(0x00);                                       // GENERIC is exactly $00
+	code.beq("@valid");
+	code.cmp_imm(0x80);
+	code.bcc("@continue");                                  // $01..$7f: invalid, no-op
+	code.cmp_imm(0x8b);
+	code.bcs("@continue");                                  // $8b..$ff: invalid, no-op
+
+	code.label("@valid");
+	code.cmp_abs(RAM::IScriptTextBoxContext);
+	code.beq("@continue");                                  // exact same context: no-op
+	code.pha();                                                // preserve validated new context
+	code.lda_abs(RAM::IScriptTextBoxContext);
+	code.bmi("@from_portrait");
+
+	// Generic -> generic only changes the raw context.  Generic -> portrait
+	// restores the old rectangle before building the portrait and text frames.
+	code.pla();
+	code.beq("@store_generic");
+	code.pha();
+	code.jsr(ROM::TextBox_Close);
+	code.pla();
+	code.sta_abs(RAM::IScriptTextBoxContext);
+	code.and_imm(0x7f);
+	code.jsr(ROM::Portrait_LoadTiles);
+	code.jsr(ROM::TextBox_OpenForPortrait);
+	code.jsr(ROM::TextBox_OpenForNPC);
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+
+	code.label("@store_generic");
+	code.sta_abs(RAM::IScriptTextBoxContext);
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+
+	code.label("@from_portrait");
+	code.pla();
+	code.sta_abs(RAM::IScriptTextBoxContext);                  // NMI sees new context first
+	code.beq("@to_generic");
+
+	// Portrait -> portrait: $F24D normally saves the *current* portrait
+	// palette (2) over $03D3.  Preserve the original pre-portrait value so a
+	// later End or portrait -> generic transition restores gameplay correctly.
+	code.lda_abs(RAM::PortraitSavedPalette);
+	code.pha();
+	code.lda_abs(RAM::IScriptTextBoxContext);
+	code.and_imm(0x7f);
+	code.jsr(ROM::Portrait_LoadTiles);
+	code.pla();
+	code.sta_abs(RAM::PortraitSavedPalette);
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+
+	code.label("@to_generic");
+	code.jsr(ROM::Portrait_Clear);
+	code.jsr(ROM::TextBox_ClearForPortraitAndText);
+	code.jsr(ROM::TextBox_OpenForNPC);
+
+	code.label("@continue");
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
 
 	return get_next_cpu_addr(cpu_addr,
 		code.apply_hack_and_clear(p_rom, 12, cpu_addr));
@@ -1179,6 +1634,46 @@ std::size_t fh::HackManager::apply_script_library(const fe::Config& p_config, st
 
 		case HackLib::AtlasDevIfMusic:
 			cpu_addr = apply_AtlasDevIfMusic(p_config, p_rom, cpu_addr);
+			break;
+
+		case HackLib::AtlasDevShowSequentialMessages:
+			cpu_addr = apply_AtlasDevShowSequentialMessages(p_config, p_rom, cpu_addr);
+			break;
+
+		case HackLib::AtlasDevShowNumberInMessage:
+			cpu_addr = apply_AtlasDevShowNumberInMessage(p_config, p_rom, cpu_addr);
+			break;
+
+		case HackLib::AtlasDevShowChoiceToVar:
+			cpu_addr = apply_AtlasDevShowChoiceToVar(p_config, p_rom, cpu_addr);
+			break;
+
+		case HackLib::AtlasDevClearPortrait:
+			cpu_addr = apply_AtlasDevClearPortrait(p_config, p_rom, cpu_addr);
+			break;
+
+		case HackLib::AtlasDevEntitySayMessage:
+			cpu_addr = apply_AtlasDevEntitySayMessage(p_config, p_rom, cpu_addr);
+			break;
+
+		case HackLib::AtlasDevShowMessageFromVar:
+			cpu_addr = apply_AtlasDevShowMessageFromVar(p_config, p_rom, cpu_addr);
+			break;
+
+		case HackLib::AtlasDevHideTextbox:
+			cpu_addr = apply_AtlasDevHideTextbox(p_config, p_rom, cpu_addr);
+			break;
+
+		case HackLib::AtlasDevSetPortrait:
+			cpu_addr = apply_AtlasDevSetPortrait(p_config, p_rom, cpu_addr);
+			break;
+
+		case HackLib::AtlasDevOpenTextbox:
+			cpu_addr = apply_AtlasDevOpenTextbox(p_config, p_rom, cpu_addr);
+			break;
+
+		case HackLib::AtlasDevCloseDialogue:
+			cpu_addr = apply_AtlasDevCloseDialogue(p_config, p_rom, cpu_addr);
 			break;
 
 		default:
