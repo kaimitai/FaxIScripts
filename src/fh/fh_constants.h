@@ -42,6 +42,8 @@ namespace fh {
 		constexpr word Portrait_Clear{ 0xf281 };
 		constexpr word Messages_Load{ 0xf3f5 };
 		constexpr word Text_ShowNextChar{ 0xf466 };
+		// One vanilla caller; inputs $ea/$eb tile position, $ec/$ed/$ee value,
+		// Y digit count 1..7.  Emits through the buffered PPU queue.
 		constexpr word Number_DrawAtPos{ 0xfa03 };
 	}
 
@@ -71,8 +73,26 @@ namespace fh {
 
 		constexpr word CurrentROMBank{ 0x0100 };
 		constexpr word IScriptTextBoxContext{ 0x0201 };
-		constexpr word EntitySlotActive{ 0x02cc };
+		// The eight-slot entity arrays.  Every one of these is the game's own
+		// RAM rather than space a hack must reserve: counting absolute
+		// references in the vanilla PRG gives 72 for $02cc, 141 for $02dc and
+		// 162 for $02e4, against zero for any address a hack invented.
+		constexpr word EntitySlotActive{ 0x02cc };   // identity; bit 7 set = free
+		constexpr word EntityOpsMode{ 0x02d4 };      // behaviour id, or $ff for BScript
+		constexpr word EntityFlags{ 0x02dc };        // bit 0 facing, bit 4 hidden
+		constexpr word EntityPhase{ 0x02e4 };
+		constexpr word EntitySpeedFraction{ 0x02ec };
+		constexpr word EntitySpeedWhole{ 0x02f4 };
+		constexpr word EntityHealth{ 0x0344 };
+		constexpr word EntityHitStun{ 0x034c };      // vanilla's own i-frame counter
+		constexpr word EntityProgramLo{ 0x0354 };
+		constexpr word EntityProgramHi{ 0x035c };
 		constexpr word EntityScriptRoot{ 0x036c };
+		constexpr word EntityUpdateFreeze{ 0x0426 }; // nonzero pauses every slot
+		constexpr byte ZP_EntityX{ 0xba };
+		constexpr byte ZP_EntityY{ 0xc2 };
+		constexpr byte ZP_PlayerX{ 0x9e };
+		constexpr byte ZP_PlayerY{ 0xa1 };
 		constexpr word PortraitSavedPalette{ 0x03d3 };
 
 		constexpr word Flags{ 0x0101 };

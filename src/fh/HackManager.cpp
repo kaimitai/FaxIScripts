@@ -1033,7 +1033,14 @@ word fh::HackManager::apply_AtlasDevShowNumberInMessage(const fe::Config& p_conf
 	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); // message id
 	code.db(0x48); // PHA                          stack: [id]
 	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); // register
-	code.and_imm(0x07);
+	// Bound the index by the configured count, not by a hardcoded eight.
+	// Reading the base from hack_script_var_ram_addr while masking the index
+	// with AND #$07 means a project that declares four registers still lets
+	// register 7 read past the end of its own file.
+	code.cmp_imm(cfg_byte(p_config, c::ID_HACK_SCRIPT_VAR_COUNT));
+	code.bcc("@reg_ok");
+	code.lda_imm(0x00);
+	code.label("@reg_ok");
 	code.db(0x48); // PHA                          stack: [id, reg]
 	code.db(0xba); // TSX -- read the id back without disturbing either entry
 	code.lda_abs_x(0x0102); // A = message id
@@ -1364,6 +1371,648 @@ word fh::HackManager::apply_AtlasDevCloseDialogue(
 		code.apply_hack_and_clear(p_rom, 12, cpu_addr));
 }
 
+// AtlasDevIfEntityCountAtLeast Count Label
+//
+// Branches when at least Count of the eight entity slots are live.  This is
+// the shape wave gating actually wants -- "once two of the three guards are
+// down, open the door" -- and it answers it without a script variable, so it
+// needs no RAM the project has not already allocated.
+//
+// $02CC..$02D3 is the game's own eight-slot table; bit 7 set means the slot is
+// free.  The engine frees a slot itself once an entity's position byte reaches
+// $F0, so an entity that walks off stops counting exactly as a killed one does.
+//
+// Count 0 always branches.  Count above 8 never does, because eight slots
+// cannot hold nine entities.  Both fall out of the countdown below rather than
+// needing a range check.
+word fh::HackManager::apply_AtlasDevIfEntityCountAtLeast(
+	const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const {
+	klib::Asm6502 code;
+
+	// Count down from the operand rather than up from zero, so the threshold
+	// lives in Y and the accumulator stays free for the table read.  A running
+	// total would need somewhere to keep the operand across the loop, and the
+	// obvious zero-page scratch ($ec..$ee) is the number converter's input --
+	// borrowing it is what broke ShowNumberInMessage.
+	//
+	// The TAY has to come before the zero test.  LoadByte returns the operand
+	// in A but leaves N and Z describing its own script-pointer increment
+	// (its last flag-setting instruction is the INY), so branching straight
+	// off the JSR tests the pointer, not the operand.  TAY re-derives the
+	// flags from A.
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); // A = Count
+	code.tay();                                               // Y = slots still needed
+	code.beq("@taken");                                       // at least zero: always
+
+	code.ldx_imm(0x07);
+	code.label("@slot");
+	code.lda_abs_x(RAM::EntitySlotActive);
+	code.bmi("@skip");                                        // bit 7 set = free slot
+	code.db(0x88);                                            // DEY -- one more live one
+	code.beq("@taken");                                       // seen enough; stop early
+	code.label("@skip");
+	code.dex();
+	code.bpl("@slot");                                        // X walks 7..0 and no lower
+
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_SKIPADDRANDINVOKE));
+
+	code.label("@taken");
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_JUMPTONEXTADDR));
+
+	return get_next_cpu_addr(cpu_addr,
+		code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+}
+
+// The entity opcodes below share one operand convention, and it is worth
+// stating once.  A slot operand outside 0..7 is REJECTED, never folded: the
+// handler leaves the game untouched and continues.  Masking the operand with
+// AND #$07 would be shorter, but it makes "slot 8" act on slot 0, which is
+// worse than doing nothing because it silently moves the wrong actor.
+//
+// AtlasDevFreezeEntities
+//
+// $0426 is a plain flag, not a timer: the per-slot update loop skips every
+// entity while it is nonzero, and vanilla brackets one of its own calls with
+// 1 then 0.  Nothing else clears it during play, so a script that freezes
+// MUST resume; ending the script while frozen leaves the game frozen.
+word fh::HackManager::apply_AtlasDevFreezeEntities(
+	const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const {
+	klib::Asm6502 code;
+
+	code.lda_imm(0x01);
+	code.sta_abs(RAM::EntityUpdateFreeze);
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+
+	return get_next_cpu_addr(cpu_addr,
+		code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+}
+
+// AtlasDevResumeEntities -- the other half of AtlasDevFreezeEntities.
+word fh::HackManager::apply_AtlasDevResumeEntities(
+	const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const {
+	klib::Asm6502 code;
+
+	code.lda_imm(0x00);
+	code.sta_abs(RAM::EntityUpdateFreeze);
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+
+	return get_next_cpu_addr(cpu_addr,
+		code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+}
+
+// AtlasDevIfBossPresent Label
+//
+// Branches when any slot holds a boss.  The boss set is category 7 of the
+// bank-14 sprite category table -- exactly {$11,$12} and [$2D..$33] -- which
+// cannot be read from here, because bank 14 is unmapped while bank-12 code
+// runs and the table has no fixed-bank copy.  The constants are therefore
+// inlined.  A free slot holds $ff and an inactive one has bit 7 set, so
+// neither can match any of these identities.
+word fh::HackManager::apply_AtlasDevIfBossPresent(
+	const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const {
+	klib::Asm6502 code;
+
+	code.ldy_imm(0x07);
+	code.label("@slot");
+	code.lda_abs_y(RAM::EntitySlotActive);
+	code.cmp_imm(0x11);
+	code.beq("@present");
+	code.cmp_imm(0x12);
+	code.beq("@present");
+	code.cmp_imm(0x2d);
+	code.bcc("@next");
+	code.cmp_imm(0x34);
+	code.bcc("@present");
+	code.label("@next");
+	code.db(0x88);              // DEY
+	code.bpl("@slot");
+
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_SKIPADDRANDINVOKE));
+	code.label("@present");
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_JUMPTONEXTADDR));
+
+	return get_next_cpu_addr(cpu_addr,
+		code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+}
+
+// AtlasDevIfEntityTypePresent Type Label
+//
+// Branches when any slot holds the given entity identity.  Identities run to
+// $64, and the guard matters: an unclamped $ff would match every EMPTY slot
+// and report the room as full of whatever was asked for.
+word fh::HackManager::apply_AtlasDevIfEntityTypePresent(
+	const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const {
+	klib::Asm6502 code;
+
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); // A = Type
+	code.cmp_imm(0x65);
+	code.bcs("@absent");
+	code.ldy_imm(0x07);
+	code.label("@slot");
+	code.cmp_abs_y(RAM::EntitySlotActive);
+	code.beq("@present");
+	code.db(0x88);              // DEY
+	code.bpl("@slot");
+
+	code.label("@absent");
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_SKIPADDRANDINVOKE));
+	code.label("@present");
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_JUMPTONEXTADDR));
+
+	return get_next_cpu_addr(cpu_addr,
+		code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+}
+
+// AtlasDevIfEntitySlotActive Slot Label
+//
+// Branches when the slot holds a live entity.  There is deliberately no
+// negated form: invert the branch target instead.
+word fh::HackManager::apply_AtlasDevIfEntitySlotActive(
+	const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const {
+	klib::Asm6502 code;
+
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); // A = Slot
+	code.cmp_imm(0x08);
+	code.bcs("@inactive");      // never read past $02d3
+	code.tax();
+	code.lda_abs_x(RAM::EntitySlotActive);
+	code.bmi("@inactive");      // bit 7 set = free
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_JUMPTONEXTADDR));
+
+	code.label("@inactive");
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_SKIPADDRANDINVOKE));
+
+	return get_next_cpu_addr(cpu_addr,
+		code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+}
+
+// AtlasDevIfEntityHidden Slot Label
+//
+// Reads the same flag bit AtlasDevSetEntityHidden writes and the engine's own
+// sword-hit test consults.  An invalid slot is not hidden, matching
+// AtlasDevIfEntitySlotActive's treatment of one.
+word fh::HackManager::apply_AtlasDevIfEntityHidden(
+	const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const {
+	klib::Asm6502 code;
+
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); // A = Slot
+	code.cmp_imm(0x08);
+	code.bcs("@visible");
+	code.tax();
+	code.lda_abs_x(RAM::EntityFlags);
+	code.and_imm(0x10);
+	code.beq("@visible");
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_JUMPTONEXTADDR));
+
+	code.label("@visible");
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_SKIPADDRANDINVOKE));
+
+	return get_next_cpu_addr(cpu_addr,
+		code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+}
+
+// AtlasDevSetEntityHidden Slot Hidden
+//
+// Bit 4 of the per-slot flag byte is the engine's own hidden test.  Zero
+// shows, nonzero hides; the entity's behaviour keeps running either way, so
+// this hides an actor without removing it.
+word fh::HackManager::apply_AtlasDevSetEntityHidden(
+	const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const {
+	klib::Asm6502 code;
+
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); // A = Slot
+	code.cmp_imm(0x08);
+	code.bcs("@drop");
+	code.tax();
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); // A = Hidden
+	code.cmp_imm(0x00);         // LoadByte's own flags describe its pointer
+	code.beq("@show");
+	code.lda_abs_x(RAM::EntityFlags);
+	code.ora_imm(0x10);
+	code.sta_abs_x(RAM::EntityFlags);
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+
+	code.label("@show");
+	code.lda_abs_x(RAM::EntityFlags);
+	code.and_imm(0xef);
+	code.sta_abs_x(RAM::EntityFlags);
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+
+	// An invalid slot still has to consume its second operand, or the
+	// interpreter would read the Hidden byte as the next opcode.
+	code.label("@drop");
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE));
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+
+	return get_next_cpu_addr(cpu_addr,
+		code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+}
+
+// AtlasDevSetEntityHealth Slot Health
+//
+// $0344,X is the live HP the damage code decrements.  Death fires on
+// subtract-borrow rather than on zero, so Health 0 means "dies to the next
+// hit", not "dead".
+word fh::HackManager::apply_AtlasDevSetEntityHealth(
+	const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const {
+	klib::Asm6502 code;
+
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); // A = Slot
+	code.cmp_imm(0x08);
+	code.bcs("@drop");
+	code.tax();
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); // A = Health
+	code.sta_abs_x(RAM::EntityHealth);
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+
+	code.label("@drop");
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE));
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+
+	return get_next_cpu_addr(cpu_addr,
+		code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+}
+
+// AtlasDevSetEntityInvincible Slot Frames
+//
+// $034C,X is the byte vanilla's own weapon-hit handler sets to 8 on every
+// successful hit and the death path clears.  The per-slot dispatch loop skips
+// the entire collision-response block while it is nonzero, then decrements it,
+// so this reuses the existing i-frame window rather than adding a hook.
+// Frames 0 clears it immediately, matching the death path.
+word fh::HackManager::apply_AtlasDevSetEntityInvincible(
+	const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const {
+	klib::Asm6502 code;
+
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); // A = Slot
+	code.cmp_imm(0x08);
+	code.bcs("@drop");
+	code.tax();
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); // A = Frames
+	code.sta_abs_x(RAM::EntityHitStun);
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+
+	code.label("@drop");
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE));
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+
+	return get_next_cpu_addr(cpu_addr,
+		code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+}
+
+// AtlasDevSetEntityBehavior Slot Behaviour
+//
+// Selects one of the engine's own behaviours and clears the behaviour-ready
+// flag so its initializer runs on the next tick.  Bit 7 is masked off because
+// it means "run BScript ops" rather than "dispatch a behaviour".  Behaviour 6
+// is refused: the dispatcher special-cases it into an unrelated jump.
+word fh::HackManager::apply_AtlasDevSetEntityBehavior(
+	const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const {
+	klib::Asm6502 code;
+
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); // A = Slot
+	code.cmp_imm(0x08);
+	code.bcs("@drop");
+	code.tax();
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); // A = Behaviour
+	code.and_imm(0x7f);
+	code.cmp_imm(0x06);
+	code.beq("@done");
+	code.sta_abs_x(RAM::EntityOpsMode);
+	code.lda_abs_x(RAM::EntityFlags);
+	code.and_imm(0xbf);         // clear ready, so the initializer runs
+	code.sta_abs_x(RAM::EntityFlags);
+	code.label("@done");
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+
+	code.label("@drop");
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE));
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+
+	return get_next_cpu_addr(cpu_addr,
+		code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+}
+
+// AtlasDevSetEntitySpeed Slot Fraction Whole
+//
+// Walker behaviours cache their speed per slot and copy it into the per-tick
+// delta every frame, so writing the cache changes how fast the entity walks.
+// This reaches the walker pair only (behaviours 0 and 4); flyers keep their
+// velocity elsewhere and are unaffected.  A behaviour restart re-reads the ROM
+// operand and overwrites this.
+word fh::HackManager::apply_AtlasDevSetEntitySpeed(
+	const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const {
+	klib::Asm6502 code;
+
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); // A = Slot
+	code.cmp_imm(0x08);
+	code.bcs("@drop");
+	code.tax();
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); // A = Fraction
+	code.sta_abs_x(RAM::EntitySpeedFraction);
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); // A = Whole
+	code.sta_abs_x(RAM::EntitySpeedWhole);
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+
+	code.label("@drop");
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE));
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE));
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+
+	return get_next_cpu_addr(cpu_addr,
+		code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+}
+
+// AtlasDevSetEntityFacing Slot Direction
+//
+// Bit 0 of the per-slot flag byte is the engine's own facing bit.  Direction 0
+// faces left, anything else faces right.  An inactive slot is left alone.
+word fh::HackManager::apply_AtlasDevSetEntityFacing(
+	const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const {
+	klib::Asm6502 code;
+
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); // A = Slot
+	code.cmp_imm(0x08);
+	code.bcs("@drop");
+	code.tax();
+	code.lda_abs_x(RAM::EntitySlotActive);
+	code.bmi("@drop");          // free slot: consume the operand and do nothing
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); // A = Direction
+	code.cmp_imm(0x00);         // LoadByte's own flags describe its pointer
+	code.beq("@left");
+	code.lda_abs_x(RAM::EntityFlags);
+	code.ora_imm(0x01);
+	code.sta_abs_x(RAM::EntityFlags);
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+
+	code.label("@left");
+	code.lda_abs_x(RAM::EntityFlags);
+	code.and_imm(0xfe);
+	code.sta_abs_x(RAM::EntityFlags);
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+
+	code.label("@drop");
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE));
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+
+	return get_next_cpu_addr(cpu_addr,
+		code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+}
+
+// DO NOT USE YET.  This opcode is published for review, not for shipping
+// scripts.  It needs the script-variable feature (hack_script_var_ram_addr /
+// hack_script_var_count), which is not upstream, so Config::constant throws
+// by name and the build fails rather than the ROM misbehaving.  It has had no
+// hardware validation beyond a purpose-built fixture that defined that RAM.
+//
+// AtlasDevEntityFieldToVar Slot Field Register
+//
+// Reads one per-slot byte into a script register.  Both entity array groups
+// have stride 8, so the address is base + field*8 + slot with no table:
+// fields 0-5 from $02CC (identity, ops mode, flags, phase, speed fraction,
+// speed whole) and fields 6-11 from $0344 (HP, hit-stun, program lo, program
+// hi, $0364, dialogue entrypoint).  A field of 12 or above folds to 0, which
+// reads the identity; that is harmless because this opcode only ever reads.
+// An out-of-range slot is rejected, and still consumes both remaining
+// operands so the interpreter cannot mistake one for the next opcode.
+word fh::HackManager::apply_AtlasDevEntityFieldToVar(
+	const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const {
+	klib::Asm6502 code;
+
+	const word Vars{ cfg_word(p_config, c::ID_HACK_SCRIPT_VAR_RAM_ADDR) };
+	const byte VarCount{ cfg_byte(p_config, c::ID_HACK_SCRIPT_VAR_COUNT) };
+
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); // A = Slot
+	code.cmp_imm(0x08);
+	code.bcs("@drop_two");
+	code.pha();                 // stack: [slot] -- no zero page is borrowed
+
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); // A = Field
+	code.cmp_imm(0x0c);
+	code.bcc("@field_ok");
+	code.lda_imm(0x00);
+	code.label("@field_ok");
+	code.cmp_imm(0x06);
+	code.bcc("@low_group");
+
+	code.sbc_imm(0x06);         // carry is set by the CMP
+	code.asl_a(); code.asl_a(); code.asl_a();
+	code.tsx();
+	code.clc();
+	code.adc_abs_x(0x0101);     // + slot, read from its stack cell
+	code.tax();
+	code.lda_abs_x(RAM::EntityHealth);   // $0344 group
+	code.jmp("@store");
+
+	code.label("@low_group");
+	code.asl_a(); code.asl_a(); code.asl_a();
+	code.tsx();
+	code.clc();
+	code.adc_abs_x(0x0101);
+	code.tax();
+	code.lda_abs_x(RAM::EntitySlotActive); // $02CC group
+
+	code.label("@store");
+	code.pha();                 // stack: [slot, value] -- LoadByte destroys Y
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); // A = Register
+	code.cmp_imm(VarCount);
+	code.bcc("@reg_ok");
+	code.lda_imm(0x00);
+	code.label("@reg_ok");
+	code.tax();
+	code.pla();                 // A = value
+	code.sta_abs_x(Vars);
+	code.pla();                 // discard the slot; stack balanced
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+
+	code.label("@drop_two");
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE));
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE));
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+
+	return get_next_cpu_addr(cpu_addr,
+		code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+}
+
+// DO NOT USE YET.  This opcode is published for review, not for shipping
+// scripts.  It needs the script-variable feature (hack_script_var_ram_addr /
+// hack_script_var_count), which is not upstream, so Config::constant throws
+// by name and the build fails rather than the ROM misbehaving.  It has had no
+// hardware validation beyond a purpose-built fixture that defined that RAM.
+//
+// AtlasDevDrawVarNumber Register X Y Digits
+//
+// Draws a script register as a zero-padded decimal at a raw tile position,
+// through $FA03, the routine the HUD itself uses.  Digit tiles are resident
+// in gameplay CHR, so nothing needs uploading, and the write goes through the
+// buffered PPU queue.  This is the readable alternative to
+// AtlasDevShowNumberInMessage: the digits land wherever the script says,
+// never over the dialogue text, and a later draw at the same position simply
+// replaces the earlier number.  The tiles persist like any background tiles
+// until the screen is redrawn.
+//
+// Digits clamps to 1..7, $FA03's own legal range.  X and Y are raw tile
+// coordinates; numbers are not boxes, so there is no evenness constraint.
+word fh::HackManager::apply_AtlasDevDrawVarNumber(
+	const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const {
+	klib::Asm6502 code;
+
+	const word Vars{ cfg_word(p_config, c::ID_HACK_SCRIPT_VAR_RAM_ADDR) };
+	const byte VarCount{ cfg_byte(p_config, c::ID_HACK_SCRIPT_VAR_COUNT) };
+
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); // A = Register
+	code.cmp_imm(VarCount);
+	code.bcc("@reg_ok");
+	code.lda_imm(0x00);
+	code.label("@reg_ok");
+	code.tax();
+	code.lda_abs_x(Vars);
+	// $ec/$ed/$ee are the converter's own 24-bit input, $ea/$eb its position
+	// input; filling them here is the intended calling convention, not a
+	// borrow, and nothing runs between the fill and the JSR.
+	code.sta_zp(0xec);
+	code.lda_imm(0x00);
+	code.sta_zp(0xed);
+	code.sta_zp(0xee);
+
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); // A = X tile
+	code.sta_zp(0xea);
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); // A = Y tile
+	code.sta_zp(0xeb);
+
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); // A = Digits
+	code.cmp_imm(0x01);
+	code.bcs("@lo_ok");
+	code.lda_imm(0x01);
+	code.label("@lo_ok");
+	code.cmp_imm(0x08);
+	code.bcc("@hi_ok");
+	code.lda_imm(0x07);
+	code.label("@hi_ok");
+	code.tay();
+	code.jsr(ROM::Number_DrawAtPos);
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+
+	return get_next_cpu_addr(cpu_addr,
+		code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+}
+
+// DO NOT USE YET.  This opcode is published for review, not for shipping
+// scripts.  It needs the script-variable feature (hack_script_var_ram_addr /
+// hack_script_var_count), which is not upstream, so Config::constant throws
+// by name and the build fails rather than the ROM misbehaving.  It has had no
+// hardware validation beyond a purpose-built fixture that defined that RAM.
+//
+// AtlasDevCountActiveEntities Register
+//
+// Stores how many of the eight entity slots are live, 0..8, into a script
+// register.  AtlasDevIfEntityCountAtLeast answers the common form of this
+// question as a branch and needs no register at all; reach for this one only
+// when the number itself is wanted, to print or to do arithmetic on.
+word fh::HackManager::apply_AtlasDevCountActiveEntities(
+	const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const {
+	klib::Asm6502 code;
+
+	// Read the register file through the configuration rather than hardcoding
+	// an address, exactly as the packet 6 register opcodes do.  A project that
+	// has not defined the feature fails the build by name here, instead of
+	// shipping a ROM that writes RAM nobody allocated.
+	const word Vars{ cfg_word(p_config, c::ID_HACK_SCRIPT_VAR_RAM_ADDR) };
+	const byte VarCount{ cfg_byte(p_config, c::ID_HACK_SCRIPT_VAR_COUNT) };
+
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); // A = Register
+	code.cmp_imm(VarCount);
+	code.bcc("@reg_ok");
+	code.lda_imm(0x00);         // out of range selects register 0, as elsewhere
+	code.label("@reg_ok");
+	code.pha();                 // stack: [register]
+
+	// Three values are live at once -- the running count, the slot index and
+	// the byte just read -- and there are only three registers, so the slot
+	// byte is read into Y with LDY abs,X rather than into A.  That keeps the
+	// count in A across the whole loop and borrows no zero page.
+	code.lda_imm(0x00);         // A = running count
+	code.ldx_imm(0x07);
+	code.label("@slot");
+	code.db(0xbc); code.dw(RAM::EntitySlotActive); // LDY $02CC,X, N from the slot
+	code.bmi("@skip");                             // bit 7 set = free slot
+	code.clc();
+	code.adc_imm(0x01);
+	code.label("@skip");
+	code.dex();
+	code.bpl("@slot");          // X walks 7..0 and no lower
+
+	code.tay();                 // park the count; Y is free again here
+	code.pla();                 // A = register, stack balanced
+	code.tax();
+	code.tya();                 // A = count
+	code.sta_abs_x(Vars);
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+
+	return get_next_cpu_addr(cpu_addr,
+		code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+}
+
+// DO NOT USE YET.  This opcode is published for review, not for shipping
+// scripts.  It needs the script-variable feature (hack_script_var_ram_addr /
+// hack_script_var_count), which is not upstream, so Config::constant throws
+// by name and the build fails rather than the ROM misbehaving.  It has had no
+// hardware validation beyond a purpose-built fixture that defined that RAM.
+//
+// AtlasDevFindEntity Identity Register
+//
+// Stores the lowest slot holding the requested entity identity, or $FF when
+// no slot does.  The result is a slot index, so it pairs with the opcodes
+// that take one.
+word fh::HackManager::apply_AtlasDevFindEntity(
+	const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const {
+	klib::Asm6502 code;
+
+	const word Vars{ cfg_word(p_config, c::ID_HACK_SCRIPT_VAR_RAM_ADDR) };
+	const byte VarCount{ cfg_byte(p_config, c::ID_HACK_SCRIPT_VAR_COUNT) };
+
+	// The identity has to survive the second operand fetch, and LoadByte
+	// clobbers Y as well as A, so the stack is the only place for it.
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); // A = Identity
+	code.pha();                                               // stack: [identity]
+
+	code.jsr(cfg_word(p_config, c::ID_ROM_ISCRIPTS_LOADBYTE)); // A = Register
+	code.cmp_imm(VarCount);
+	code.bcc("@reg_ok");
+	code.lda_imm(0x00);
+	code.label("@reg_ok");
+	code.tay();                 // Y = register, held across the search
+
+	code.pla();                 // A = identity, stack balanced from here on
+	// Bit 7 set in a slot is the engine's free marker, so no live entity ever
+	// carries an identity of $80 or above.  Searching for one could only ever
+	// match an empty slot, which would report a free slot as a find; answer
+	// "absent" instead, without reading the table.
+	code.bmi("@absent");
+
+	code.ldx_imm(0x00);
+	code.label("@loop");
+	code.cmp_abs_x(RAM::EntitySlotActive);
+	code.beq("@found");
+	code.inx();
+	code.cpx_imm(0x08);
+	code.bcc("@loop");          // slots 0..7 and no further
+
+	code.label("@absent");
+	code.lda_imm(0xff);
+	code.bne("@store");         // $ff is nonzero, so this always branches
+
+	code.label("@found");
+	code.txa();                 // the slot index is the answer
+
+	code.label("@store");
+	code.db(0x99); code.dw(Vars); // STA Vars,Y
+	code.jmp(cfg_word(p_config, c::ID_ROM_ISCRIPTS_INVOKENEXTACTION));
+
+	return get_next_cpu_addr(cpu_addr,
+		code.apply_hack_and_clear(p_rom, 12, cpu_addr));
+}
+
 word fh::HackManager::apply_AtlasDevSetPortrait(
 	const fe::Config& p_config, std::vector<byte>& p_rom, word cpu_addr) const {
 	klib::Asm6502 code;
@@ -1674,6 +2323,74 @@ std::size_t fh::HackManager::apply_script_library(const fe::Config& p_config, st
 
 		case HackLib::AtlasDevCloseDialogue:
 			cpu_addr = apply_AtlasDevCloseDialogue(p_config, p_rom, cpu_addr);
+			break;
+
+		case HackLib::AtlasDevIfEntityCountAtLeast:
+			cpu_addr = apply_AtlasDevIfEntityCountAtLeast(p_config, p_rom, cpu_addr);
+			break;
+
+		case HackLib::AtlasDevCountActiveEntities:
+			cpu_addr = apply_AtlasDevCountActiveEntities(p_config, p_rom, cpu_addr);
+			break;
+
+		case HackLib::AtlasDevFindEntity:
+			cpu_addr = apply_AtlasDevFindEntity(p_config, p_rom, cpu_addr);
+			break;
+
+		case HackLib::AtlasDevFreezeEntities:
+			cpu_addr = apply_AtlasDevFreezeEntities(p_config, p_rom, cpu_addr);
+			break;
+
+		case HackLib::AtlasDevResumeEntities:
+			cpu_addr = apply_AtlasDevResumeEntities(p_config, p_rom, cpu_addr);
+			break;
+
+		case HackLib::AtlasDevIfBossPresent:
+			cpu_addr = apply_AtlasDevIfBossPresent(p_config, p_rom, cpu_addr);
+			break;
+
+		case HackLib::AtlasDevIfEntityTypePresent:
+			cpu_addr = apply_AtlasDevIfEntityTypePresent(p_config, p_rom, cpu_addr);
+			break;
+
+		case HackLib::AtlasDevIfEntitySlotActive:
+			cpu_addr = apply_AtlasDevIfEntitySlotActive(p_config, p_rom, cpu_addr);
+			break;
+
+		case HackLib::AtlasDevIfEntityHidden:
+			cpu_addr = apply_AtlasDevIfEntityHidden(p_config, p_rom, cpu_addr);
+			break;
+
+		case HackLib::AtlasDevSetEntityHidden:
+			cpu_addr = apply_AtlasDevSetEntityHidden(p_config, p_rom, cpu_addr);
+			break;
+
+		case HackLib::AtlasDevSetEntityHealth:
+			cpu_addr = apply_AtlasDevSetEntityHealth(p_config, p_rom, cpu_addr);
+			break;
+
+		case HackLib::AtlasDevSetEntityInvincible:
+			cpu_addr = apply_AtlasDevSetEntityInvincible(p_config, p_rom, cpu_addr);
+			break;
+
+		case HackLib::AtlasDevSetEntityBehavior:
+			cpu_addr = apply_AtlasDevSetEntityBehavior(p_config, p_rom, cpu_addr);
+			break;
+
+		case HackLib::AtlasDevSetEntitySpeed:
+			cpu_addr = apply_AtlasDevSetEntitySpeed(p_config, p_rom, cpu_addr);
+			break;
+
+		case HackLib::AtlasDevSetEntityFacing:
+			cpu_addr = apply_AtlasDevSetEntityFacing(p_config, p_rom, cpu_addr);
+			break;
+
+		case HackLib::AtlasDevEntityFieldToVar:
+			cpu_addr = apply_AtlasDevEntityFieldToVar(p_config, p_rom, cpu_addr);
+			break;
+
+		case HackLib::AtlasDevDrawVarNumber:
+			cpu_addr = apply_AtlasDevDrawVarNumber(p_config, p_rom, cpu_addr);
 			break;
 
 		default:

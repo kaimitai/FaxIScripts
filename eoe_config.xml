@@ -1811,6 +1811,23 @@
 			<entry key="AtlasDevSetPortrait" value="Args=Byte:TextBox" />
 			<entry key="AtlasDevOpenTextbox" />
 			<entry key="AtlasDevCloseDialogue" />
+			<entry key="AtlasDevIfEntityCountAtLeast" value="Args=Byte,Flow=Jump" />
+			<entry key="AtlasDevCountActiveEntities" value="Args=Byte" />
+			<entry key="AtlasDevFindEntity" value="Args=Byte+Byte" />
+			<entry key="AtlasDevFreezeEntities" />
+			<entry key="AtlasDevResumeEntities" />
+			<entry key="AtlasDevIfBossPresent" value="Flow=Jump" />
+			<entry key="AtlasDevIfEntityTypePresent" value="Args=Byte,Flow=Jump" />
+			<entry key="AtlasDevIfEntitySlotActive" value="Args=Byte,Flow=Jump" />
+			<entry key="AtlasDevIfEntityHidden" value="Args=Byte,Flow=Jump" />
+			<entry key="AtlasDevSetEntityHidden" value="Args=Byte+Byte" />
+			<entry key="AtlasDevSetEntityHealth" value="Args=Byte+Byte" />
+			<entry key="AtlasDevSetEntityInvincible" value="Args=Byte+Byte" />
+			<entry key="AtlasDevSetEntityBehavior" value="Args=Byte+Byte" />
+			<entry key="AtlasDevSetEntitySpeed" value="Args=Byte+Byte+Byte" />
+			<entry key="AtlasDevSetEntityFacing" value="Args=Byte+Byte" />
+			<entry key="AtlasDevEntityFieldToVar" value="Args=Byte+Byte+Byte" />
+			<entry key="AtlasDevDrawVarNumber" value="Args=Byte+Byte+Byte+Byte" />
 		</string_to_string_map>
 	</string_to_string_maps>
 </eoe_config>
